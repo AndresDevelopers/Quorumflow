@@ -70,9 +70,10 @@ export function useMembersSync(options: UseMembersSyncOptions = {}): UseMembersS
   const syncStatusRef = useRef(syncStatus);
   syncStatusRef.current = syncStatus;
 
-  const cacheKey = 'members_cache';
-  const cacheTimestampKey = 'members_cache_timestamp';
-  const cacheVersionKey = 'members_cache_version';
+  // Cache keys must include barrioOrg so different wards/orgs don't share localStorage
+  const cacheKey = barrioOrg ? `members_cache_${barrioOrg}` : 'members_cache';
+  const cacheTimestampKey = barrioOrg ? `members_cache_timestamp_${barrioOrg}` : 'members_cache_timestamp';
+  const cacheVersionKey = barrioOrg ? `members_cache_version_${barrioOrg}` : 'members_cache_version';
 
   const clearCache = useCallback(() => {
     if (process.env.NODE_ENV === 'production') {
@@ -80,7 +81,7 @@ export function useMembersSync(options: UseMembersSyncOptions = {}): UseMembersS
       localStorage.removeItem(cacheTimestampKey);
       localStorage.removeItem(cacheVersionKey);
     }
-  }, []);
+  }, [cacheKey, cacheTimestampKey, cacheVersionKey]);
 
   const fetchMembers = useCallback(async (forceRefresh = false) => {
     if (authLoading || !user) return;

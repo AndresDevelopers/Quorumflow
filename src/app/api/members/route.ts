@@ -93,14 +93,25 @@ async function fetchMembers(status?: MemberStatus, barrioOrg?: string): Promise<
   return members;
 }
 
-const getMembersCached = unstable_cache(
-  fetchMembers,
-  ['members'],
-  {
-    revalidate: 3600, // 1 hour
-    tags: ['members']
-  }
-);
+// Cache key must include barrioOrg so different wards/orgs don't share cached data
+function getMembersCached(status?: MemberStatus, barrioOrg?: string) {
+  const cacheKey = barrioOrg
+    ? `members-${barrioOrg}-${status || 'all'}`
+    : `members-${status || 'all'}`;
+  // Include base 'members' tag for revalidateTag compatibility, plus scoped tag for granular invalidation
+  const tags = barrioOrg
+    ? ['members', `members-${barrioOrg}`]
+    : ['members'];
+
+  return unstable_cache(
+    () => fetchMembers(status, barrioOrg),
+    [cacheKey],
+    {
+      revalidate: 3600, // 1 hour
+      tags
+    }
+  )();
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -119,7 +130,7 @@ export async function GET(request: Request) {
     }
 
     // Use cached version only in production
-    const members = await getMembersCached(status || undefined);
+    const members = await getMembersCached(status || undefined, barrioOrg);
     return NextResponse.json(members);
   } catch (error) {
     console.error('❌ Detailed error in /api/members:', {

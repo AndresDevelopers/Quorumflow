@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { usersCollection } from "@/lib/collections";
 import {
+  deleteDoc,
   doc,
   getDocs,
   updateDoc,
@@ -52,10 +53,21 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Eye,
   Loader2,
   Search,
   ShieldCheck,
+  Trash2,
   UserCog,
   Users,
 } from "lucide-react";
@@ -111,6 +123,8 @@ export default function AdminUsersPage() {
   const [bulkRole, setBulkRole] = useState<UserRole | "">("");
   const [bulkPermission, setBulkPermission] = useState<UserPermission | "">("");
   const [isBulkSaving, setIsBulkSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserData | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const defaultVisiblePages = useMemo(
     () => navigationItems.map((item) => item.href),
@@ -399,6 +413,45 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const uid = deleteTarget.uid;
+      await deleteDoc(doc(usersCollection, uid));
+      setUsers((prev) => prev.filter((u) => u.uid !== uid));
+      setSelectedUids((prev) => {
+        const next = new Set(prev);
+        next.delete(uid);
+        return next;
+      });
+      if (firebaseUser) {
+        await logAdminAction({
+          action: "user.deleted",
+          actorUid: firebaseUser.uid,
+          actorName: firebaseUser.displayName || undefined,
+          targetId: uid,
+          targetName: deleteTarget.name,
+          barrioOrg,
+        });
+      }
+      toast({
+        title: "Usuario eliminado",
+        description: `Se eliminó a ${deleteTarget.name}.`,
+      });
+    } catch (err) {
+      logger.error({ error: err, message: "Error deleting user", uid: deleteTarget.uid });
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el usuario.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
+
   const allSelected =
     filtered.length > 0 && selectedUids.size === filtered.length;
 
@@ -684,16 +737,28 @@ export default function AdminUsersPage() {
                           </details>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            asChild
-                            size="icon"
-                            variant="ghost"
-                            aria-label={`Ver perfil de ${user.name}`}
-                          >
-                            <Link href={`/profile?uid=${user.uid}`}>
-                              <Eye className="h-4 w-4" />
-                            </Link>
-                          </Button>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              asChild
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Ver perfil de ${user.name}`}
+                            >
+                              <Link href={`/profile?uid=${user.uid}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Eliminar a ${user.name}`}
+                              onClick={() => setDeleteTarget(user)}
+                              disabled={isSaving === user.uid || isDeleting}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -726,17 +791,29 @@ export default function AdminUsersPage() {
                             {user.email}
                           </p>
                         </div>
-                        <Button
-                          asChild
-                          size="icon"
-                          variant="ghost"
-                          className="shrink-0"
-                          aria-label={`Ver perfil de ${user.name}`}
-                        >
-                          <Link href={`/profile?uid=${user.uid}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            asChild
+                            size="icon"
+                            variant="ghost"
+                            className="shrink-0"
+                            aria-label={`Ver perfil de ${user.name}`}
+                          >
+                            <Link href={`/profile?uid=${user.uid}`}>
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Eliminar a ${user.name}`}
+                            onClick={() => setDeleteTarget(user)}
+                            disabled={isSaving === user.uid || isDeleting}
+                            className="shrink-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="mt-3 ml-8 space-y-3">
@@ -862,6 +939,38 @@ export default function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar usuario</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar a{" "}
+              <span className="font-semibold text-foreground">{deleteTarget?.name}</span>{" "}
+              ({deleteTarget?.email})?
+              <br />
+              Esta acción no se puede deshacer. El usuario perderá acceso al sistema y sus datos serán eliminados permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

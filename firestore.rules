@@ -19,7 +19,7 @@ service cloud.firestore {
     }
 
     function isSecretary() {
-      return signedIn() && (currentUserRole() == 'secretary' || currentUserRole() == 'admin');
+      return signedIn() && (currentUserRole() == 'secretary' || currentUserRole() == 'president' || currentUserRole() == 'admin');
     }
 
     function isAnnotationOwner() {
@@ -160,6 +160,7 @@ service cloud.firestore {
             && !request.resource.data.diff(resource.data).changedKeys().hasAny(['role', 'permission'])
           )
         );
+      allow delete: if isSecretary();
     }
 
     match /c_ministracion_distritos/{document} {

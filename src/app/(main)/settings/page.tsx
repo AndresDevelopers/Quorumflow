@@ -35,7 +35,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { doc, getDoc, updateDoc, Timestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, Timestamp, setDoc } from 'firebase/firestore';
 import { usersCollection, storage, membersCollection } from '@/lib/collections';
 import {
   Form,
@@ -609,6 +609,9 @@ export default function SettingsPage() {
     setIsDeleting(true);
 
     try {
+      // 1. Eliminar el documento del usuario en Firestore (c_users/{uid})
+      await deleteDoc(doc(usersCollection, firebaseUser.uid));
+      // 2. Eliminar la cuenta de Firebase Auth
       await deleteUser(firebaseUser);
       toast({
         title: t('settings.toast.accountDeletedTitle'),

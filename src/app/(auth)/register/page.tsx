@@ -127,6 +127,7 @@ export default function RegisterPage() {
         organizacion: values.organizacion,
         barrioOrg: `${values.barrio}|${values.organizacion}`,
         role: 'user',
+        permission: 'read',
         createdAt: serverTimestamp(),
       });
 

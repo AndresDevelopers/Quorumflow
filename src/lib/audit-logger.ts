@@ -9,7 +9,8 @@ export type AuditAction =
   | "user.bulk_permission_changed"
   | "member.status_changed"
   | "member.deleted"
-  | "user.bulk_role_changed";
+  | "user.bulk_role_changed"
+  | "user.deleted";
 
 export interface AuditEntry {
   action: AuditAction;

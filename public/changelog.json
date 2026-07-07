@@ -6,12 +6,16 @@
       "date": "2026-07-06",
       "changes": {
         "es": [
+          "Actualización: Add install prompt and optimize PWA asset routes.",
+          "Actualización: Auto-update changelog [skip ci].",
           "Actualización: Bump to v1.1.24 with PWA and tooling updates.",
           "Actualización: Add user deletion and update related configs.",
           "Actualización: Implement permission-based access control system.",
           "Actualización: Add PWA icons, fix notification scoping."
         ],
         "en": [
+          "Update: Add install prompt and optimize PWA asset routes.",
+          "Update: Auto-update changelog [skip ci].",
           "Update: Bump to v1.1.24 with PWA and tooling updates.",
           "Update: Add user deletion and update related configs.",
           "Update: Implement permission-based access control system.",

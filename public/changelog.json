@@ -6,11 +6,13 @@
       "date": "2026-07-06",
       "changes": {
         "es": [
+          "Actualización: Bump to v1.1.24 with PWA and tooling updates.",
           "Actualización: Add user deletion and update related configs.",
           "Actualización: Implement permission-based access control system.",
           "Actualización: Add PWA icons, fix notification scoping."
         ],
         "en": [
+          "Update: Bump to v1.1.24 with PWA and tooling updates.",
           "Update: Add user deletion and update related configs.",
           "Update: Implement permission-based access control system.",
           "Update: Add PWA icons, fix notification scoping."

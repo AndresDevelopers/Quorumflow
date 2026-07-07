@@ -1,23 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAppIcon } from "@/lib/app-config";
 
-export const runtime = "nodejs";
-export const dynamic = "force-static";
 export const revalidate = 86400;
 
-let cachedBuffer: Buffer | null = null;
-let cachedContentType = "image/png";
-
 export async function GET(request: Request) {
-  if (cachedBuffer) {
-    return new NextResponse(cachedBuffer, {
-      headers: {
-        "Content-Type": cachedContentType,
-        "Cache-Control": "public, max-age=86400, immutable",
-      },
-    });
-  }
-
   const iconUrl = getAppIcon();
 
   if (!iconUrl || iconUrl === "/logo.svg") {
@@ -26,16 +12,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    const res = await fetch(iconUrl);
+    const res = await fetch(iconUrl, { next: { revalidate: 86400 } });
     if (!res.ok) throw new Error(`Failed to fetch icon: ${res.status}`);
 
-    cachedBuffer = Buffer.from(await res.arrayBuffer());
-    cachedContentType = res.headers.get("content-type") || "image/png";
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const contentType = res.headers.get("content-type") || "image/png";
 
-    return new NextResponse(cachedBuffer, {
+    return new NextResponse(buffer, {
       headers: {
-        "Content-Type": cachedContentType,
-        "Cache-Control": "public, max-age=86400, immutable",
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200",
       },
     });
   } catch {

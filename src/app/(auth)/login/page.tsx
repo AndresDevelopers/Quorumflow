@@ -96,6 +96,7 @@ export default function LoginPage() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="text-2xl">{t('login.title')}</CardTitle>
@@ -153,5 +154,8 @@ export default function LoginPage() {
         </div>
       </CardContent>
     </Card>
+    <ServiceWorkerRegistration />
+    <InstallPrompt />
+    </>
   );
 }

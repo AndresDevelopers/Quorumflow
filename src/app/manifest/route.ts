@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { getAppName, hasAppLogo } from "@/lib/app-config";
+import { getAppName } from "@/lib/app-config";
 
 const appName = getAppName();
 const shortName = appName.length > 12 ? appName.slice(0, 12) : appName;
-const hasLogo = hasAppLogo();
 
 const LOCAL_ICON = "/api/icon";
 
-export async function GET() {
+export const revalidate = 86400;
 
+export async function GET() {
   const icons = [
     {
       src: LOCAL_ICON,
@@ -21,12 +21,6 @@ export async function GET() {
       sizes: "512x512",
       type: "image/png",
       purpose: "any",
-    },
-    {
-      src: LOCAL_ICON,
-      sizes: "512x512",
-      type: "image/png",
-      purpose: "maskable",
     },
   ];
 
@@ -43,16 +37,6 @@ export async function GET() {
     lang: "es",
     scope: "/",
     icons,
-    screenshots: hasLogo
-      ? [
-          {
-            src: LOCAL_ICON,
-            sizes: "540x720",
-            type: "image/png",
-            form_factor: "narrow",
-          },
-        ]
-      : [],
     shortcuts: [
       {
         name: "Dashboard",
@@ -77,16 +61,12 @@ export async function GET() {
       },
     ],
     prefer_related_applications: false,
-    related_applications: [],
-    edge_side_panel: {
-      preferred_width: 400,
-    },
   };
 
   return NextResponse.json(manifest, {
     headers: {
       "Content-Type": "application/manifest+json",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "public, max-age=3600, s-maxage=86400",
     },
   });
 }

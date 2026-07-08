@@ -6,9 +6,13 @@
       "date": "2026-07-08",
       "changes": {
         "es": [
+          "Actualización: Add disclaimer observation and admin visibility controls.",
+          "Actualización: Auto-update changelog [skip ci].",
           "Actualización: Add disclaimer, update branding, clean up scripts."
         ],
         "en": [
+          "Update: Add disclaimer observation and admin visibility controls.",
+          "Update: Auto-update changelog [skip ci].",
           "Update: Add disclaimer, update branding, clean up scripts."
         ]
       }

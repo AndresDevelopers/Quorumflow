@@ -10,9 +10,9 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, User, X, Upload, Loader2, UserCheck, Edit3 } from 'lucide-react';
-import { addDoc, doc, Timestamp, updateDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { convertsCollection, storage, membersCollection } from '@/lib/collections';
+import { convertsCollection, storage } from '@/lib/collections';
 import logger from '@/lib/logger';
 
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ import { cn } from '@/lib/utils';
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Convert, Member } from '@/lib/types';
-import { normalizeMemberStatus } from '@/lib/members-data';
+import { getMembersForSelector } from '@/lib/members-data';
 import { useAuth } from '@/contexts/auth-context';
 
 const convertSchema = z.object({
@@ -99,17 +99,7 @@ export function ConvertForm({ convert }: ConvertFormProps) {
   const loadMembers = useCallback(async () => {
     setLoadingMembers(true);
     try {
-      const snapshot = await getDocs(query(membersCollection, orderBy('firstName', 'asc')));
-      const membersList = snapshot.docs
-        .map(doc => {
-          const memberData = doc.data();
-          return {
-            id: doc.id,
-            ...memberData,
-            status: normalizeMemberStatus(memberData.status),
-          } as Member;
-        })
-        .filter(member => member.status !== 'deceased');
+      const membersList = await getMembersForSelector(true, barrioOrg);
       setMembers(membersList);
     } catch (error) {
       console.error("Error loading members:", error);

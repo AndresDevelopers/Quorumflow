@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { getDocs, query, orderBy, Timestamp, collection, where, documentId } from 'firebase/firestore';
 import { membersCollection, futureMembersCollection, ministeringCollection, convertsCollection, newConvertFriendsCollection } from '@/lib/collections';
 import type { Convert, Member, NewConvertFriendship, Companionship } from '@/lib/types';
-import { normalizeMemberStatus } from '@/lib/members-data';
+import { normalizeMemberStatus, getMembersForSelector } from '@/lib/members-data';
 import {
   Card,
   CardContent,
@@ -235,12 +235,12 @@ export default function ConvertsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [data, membersSnapshot] = await Promise.all([
+      const [data, membersList] = await Promise.all([
         getConvertsWithInfo(barrioOrg),
-        getDocs(query(membersCollection, orderBy('firstName', 'asc')))
+        getMembersForSelector(true, barrioOrg)
       ]);
       setConverts(data);
-      setAvailableMembers(membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Member)));
+      setAvailableMembers(membersList);
     } catch (error) {
       console.error("Failed to fetch converts:", error);
     }
@@ -263,6 +263,7 @@ export default function ConvertsPage() {
         notes,
         recommendationActive,
         selfRelianceCourse,
+        barrioOrg,
         updatedAt: Timestamp.now()
       }, { merge: true });
 

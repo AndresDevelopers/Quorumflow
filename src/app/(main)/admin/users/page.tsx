@@ -542,14 +542,13 @@ export default function AdminUsersPage() {
       {selectedUids.size > 0 && (
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium">
+            <div className="flex items-center gap-2 text-sm font-medium shrink-0">
               <ShieldCheck className="h-4 w-4 text-primary" />
-              {selectedUids.size} usuario{selectedUids.size > 1 ? "s" : ""} seleccionado
-              {selectedUids.size > 1 ? "s" : ""}
+              {selectedUids.size} usuario{selectedUids.size > 1 ? "s" : ""} seleccionado{selectedUids.size > 1 ? "s" : ""}
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-wrap items-center gap-2">
               <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as UserRole)}>
-                <SelectTrigger className="w-full sm:w-48">
+                <SelectTrigger className="w-full sm:w-40">
                   <SelectValue placeholder="Asignar rol..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -575,7 +574,7 @@ export default function AdminUsersPage() {
                 )}
               </Button>
               <Select value={bulkPermission} onValueChange={(v) => setBulkPermission(v as UserPermission)}>
-                <SelectTrigger className="w-full sm:w-48 mt-2 sm:mt-0">
+                <SelectTrigger className="w-full sm:w-44">
                   <SelectValue placeholder="Asignar permiso..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -737,7 +736,7 @@ export default function AdminUsersPage() {
                                 .map((item) => (
                                 <label
                                   key={item.href}
-                                  className={`flex items-center gap-2 rounded border px-2 py-1 ${
+                                  className={`flex items-center gap-2 rounded border px-2 py-1 min-w-0 ${
                                     user.role === "user" ? "opacity-50" : ""
                                   }`}
                                 >
@@ -751,8 +750,9 @@ export default function AdminUsersPage() {
                                       )
                                     }
                                     disabled={user.role === "user"}
+                                    className="shrink-0"
                                   />
-                                  <span>{item.label}</span>
+                                  <span className="truncate">{item.label}</span>
                                 </label>
                               ))}
                               <div className="flex gap-1 pt-1">
@@ -941,7 +941,7 @@ export default function AdminUsersPage() {
                                 .map((item) => (
                                 <label
                                   key={item.href}
-                                  className={`flex items-center gap-2 rounded border px-2 py-1 ${
+                                  className={`flex items-center gap-2 rounded border px-2 py-1 min-w-0 ${
                                     user.role === "user" ? "opacity-50" : ""
                                   }`}
                                 >
@@ -955,8 +955,9 @@ export default function AdminUsersPage() {
                                       )
                                     }
                                     disabled={user.role === "user"}
+                                    className="shrink-0"
                                   />
-                                  <span>{item.label}</span>
+                                  <span className="truncate">{item.label}</span>
                                 </label>
                               ))}
                               <div className="flex gap-1 pt-1">

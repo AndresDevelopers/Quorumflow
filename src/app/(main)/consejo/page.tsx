@@ -39,11 +39,12 @@ async function getConvertInfo(firestore: Firestore, convertId: string): Promise<
 }
 
 // Helper function to save convert info to subcollection
-async function saveConvertNotes(firestore: Firestore, convertId: string, notes: string): Promise<void> {
+async function saveConvertNotes(firestore: Firestore, convertId: string, notes: string, barrioOrg: string): Promise<void> {
   try {
     const infoRef = doc(firestore, 'c_conversos_info', convertId);
     await setDoc(infoRef, {
       notes,
+      barrioOrg,
       updatedAt: Timestamp.now()
     }, { merge: true });
   } catch (error) {
@@ -281,7 +282,7 @@ const ConsejoPage: React.FC = () => {
     setSavingNotes(true);
     try {
       const firestore = convertsCollection.firestore;
-      await saveConvertNotes(firestore, convertId, editingNotesValue);
+      await saveConvertNotes(firestore, convertId, editingNotesValue, barrioOrg);
 
       // Update local state
       setNewConverts(prev => prev.map(c =>

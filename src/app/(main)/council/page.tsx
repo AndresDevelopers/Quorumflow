@@ -423,7 +423,7 @@ export default function CouncilPage() {
     setSheetSaving(true);
     try {
       const infoRef = convertInfoCollection(convertId);
-      await setDoc(infoRef, { calling, notes, recommendationActive, selfRelianceCourse, updatedAt: Timestamp.now() }, { merge: true });
+      await setDoc(infoRef, { calling, notes, recommendationActive, selfRelianceCourse, barrioOrg, updatedAt: Timestamp.now() }, { merge: true });
       toast({ title: '✅ Información guardada', description: 'Los datos del converso se actualizaron correctamente.' });
     } catch (error) {
       logger.error({ error, convertId, message: 'Error saving convert info from council' });
@@ -755,24 +755,24 @@ export default function CouncilPage() {
               {urgentMembers.map((member, index) => (
                 <AccordionItem value={`urgent-${index}`} key={member.id}>
                   <AccordionTrigger>
-                    <div className="flex items-center justify-between w-full pr-4">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-between w-full pr-4 gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
                         {member.photoURL ? (
                           <Image
                             src={member.photoURL}
                             alt={`${member.firstName} ${member.lastName}`}
                             width={36}
                             height={36}
-                            className="w-9 h-9 rounded-full object-cover"
+                            className="w-9 h-9 rounded-full object-cover shrink-0"
                           />
                         ) : (
-                          <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center">
+                          <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
                             <AlertTriangle className="w-5 h-5 text-orange-500" />
                           </div>
                         )}
-                        <span className="font-semibold">{member.firstName} {member.lastName}</span>
+                        <span className="font-semibold truncate">{member.firstName} {member.lastName}</span>
                       </div>
-                      <Badge variant="destructive">Urgente</Badge>
+                      <Badge variant="destructive" className="shrink-0">Urgente</Badge>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -1031,29 +1031,29 @@ export default function CouncilPage() {
             <div className="space-y-4">
               {upcomingActivities.map((activity) => (
                 <div key={activity.id} className="p-4 border rounded-lg space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-lg">{activity.title}</h4>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                        <CalendarClock className="h-4 w-4" />
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-lg break-words">{activity.title}</h4>
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-1">
+                        <CalendarClock className="h-4 w-4 shrink-0" />
                         <span>{format(activity.date.toDate(), 'd LLLL yyyy', { locale: es })}</span>
                         {activity.time && <span>• {activity.time}</span>}
                       </div>
                       {activity.location && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-muted-foreground mt-1 break-words">
                           📍 {activity.location}
                         </p>
                       )}
                     </div>
-                    <Badge variant="outline" className="text-blue-600 border-blue-600">
+                    <Badge variant="outline" className="text-blue-600 border-blue-600 shrink-0">
                       Próxima
                     </Badge>
                   </div>
                   {activity.description && (
-                    <p className="text-sm text-gray-700 mt-2">{activity.description}</p>
+                    <p className="text-sm text-gray-700 mt-2 break-words">{activity.description}</p>
                   )}
                   {activity.context && (
-                    <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                    <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded break-words">
                       <strong>Contexto:</strong> {activity.context}
                     </div>
                   )}
@@ -1086,12 +1086,12 @@ export default function CouncilPage() {
               {urgentNeeds.map((item, index) => (
                 <AccordionItem value={`item-${index}`} key={`${item.companionshipId}-${item.name}`}>
                   <AccordionTrigger>
-                    <div className='flex items-center justify-between w-full pr-4'>
-                      <div>
-                        <span className='font-semibold'>{item.name}</span>
-                        <p className='text-sm text-muted-foreground font-normal'>Asignados a: {item.companions.join(' y ')}</p>
+                    <div className='flex flex-wrap items-center justify-between w-full pr-4 gap-2'>
+                      <div className="min-w-0">
+                        <span className='font-semibold break-words'>{item.name}</span>
+                        <p className='text-sm text-muted-foreground font-normal break-words'>Asignados a: {item.companions.join(' y ')}</p>
                       </div>
-                      <Badge variant="destructive">Urgente</Badge>
+                      <Badge variant="destructive" className="shrink-0">Urgente</Badge>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -1334,24 +1334,24 @@ export default function CouncilPage() {
                 return (
                   <AccordionItem value={`deceased-${index}`} key={member.id}>
                     <AccordionTrigger>
-                      <div className="flex items-center justify-between w-full pr-4">
-                        <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center justify-between w-full pr-4 gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
                           {member.photoURL ? (
                             <Image
                               src={member.photoURL}
                               alt={`${member.firstName} ${member.lastName}`}
                               width={36}
                               height={36}
-                              className="w-9 h-9 rounded-full object-cover"
+                              className="w-9 h-9 rounded-full object-cover shrink-0"
                             />
                           ) : (
-                            <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center">
+                            <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
                               <Users className="w-5 h-5 text-gray-500" />
                             </div>
                           )}
-                          <span className="font-semibold">{member.firstName} {member.lastName}</span>
+                          <span className="font-semibold truncate">{member.firstName} {member.lastName}</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           {allComplete ? (
                             <Badge variant="default" className="bg-green-500">
                               Completado

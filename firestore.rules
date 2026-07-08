@@ -14,12 +14,20 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/c_users/$(request.auth.uid)).data.permission;
     }
 
+    function currentUserBarrioOrg() {
+      return get(/databases/$(database)/documents/c_users/$(request.auth.uid)).data.barrioOrg;
+    }
+
     function canWrite() {
       return signedIn() && currentUserPermission() == 'all';
     }
 
     function isSecretary() {
       return signedIn() && (currentUserRole() == 'secretary' || currentUserRole() == 'president' || currentUserRole() == 'admin');
+    }
+
+    function isSameBarrio(docBarrioOrg) {
+      return signedIn() && docBarrioOrg == currentUserBarrioOrg();
     }
 
     function isAnnotationOwner() {
@@ -34,59 +42,148 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
     }
 
-    // Full access for signed-in users to all data collections.
-    // Scoping is enforced at the application layer (queries filter by barrioOrg).
-    // This allows legacy data (without barrioOrg) to continue working 
-    // while migration is in progress.
+    // ── Data collections — scoped by barrioOrg ──
+
     match /c_miembros/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
     }
-    
+
     match /c_anotaciones/{document} {
-      allow read: if signedIn();
-      allow create: if isCreatingOwnAnnotation() && canWrite();
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow create: if isCreatingOwnAnnotation()
+        && canWrite()
+        && isSameBarrio(request.resource.data.barrioOrg);
       allow update: if (isSecretary() || isAnnotationOwner())
         && canWrite()
-        && request.resource.data.userId == resource.data.userId;
+        && request.resource.data.userId == resource.data.userId
+        && isSameBarrio(resource.data.barrioOrg);
       allow delete: if (isSecretary() || isAnnotationOwner())
-        && canWrite();
+        && canWrite()
+        && isSameBarrio(resource.data.barrioOrg);
     }
-    
+
     match /c_conversos/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
     }
-    
+
     match /c_conversos_info/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
     }
-    
+
     match /c_futuros_miembros/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
     }
-    
+
     match /c_ministracion/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
     }
-    
+
     match /c_actividades/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
     }
-    
+
     match /c_servicios/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
     }
-    
+
     match /c_cumpleanos/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
     }
+
+    match /c_bautismos/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_fs_capacitaciones/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_fs_pendientes/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_fs_anotaciones/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow create: if isCreatingOwnAnnotation()
+        && canWrite()
+        && isSameBarrio(request.resource.data.barrioOrg);
+      allow update: if (isSecretary() || isAnnotationOwner())
+        && canWrite()
+        && request.resource.data.userId == resource.data.userId
+        && isSameBarrio(resource.data.barrioOrg);
+      allow delete: if (isSecretary() || isAnnotationOwner())
+        && canWrite()
+        && isSameBarrio(resource.data.barrioOrg);
+    }
+
+    match /c_obra_misional_asignaciones/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_obra_misional_investigadores/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_obra_misional_amigos_conversos/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_obra_misional_imagenes/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_reporte_anual/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_ministracion_distritos/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_ministracion_historial/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_observaciones_salud/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    match /c_notifications/{document} {
+      allow read: if isSameBarrio(resource.data.barrioOrg);
+      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    // ── User-scoped collections ──
+
+    match /c_push_subscriptions/{document} {
+      allow read: if signedIn()
+        && resource.data.userId != null
+        && resource.data.userId == request.auth.uid;
+      allow write: if canWrite()
+        && request.resource.data.userId != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ── Audit — already properly restricted ──
 
     match /c_admin_audit/{document} {
       allow read: if isSecretary();
@@ -94,61 +191,8 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    match /c_bautismos/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-    
-    match /c_fs_capacitaciones/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-    
-    match /c_fs_pendientes/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-    
-    match /c_fs_anotaciones/{document} {
-      allow read: if signedIn();
-      allow create: if isCreatingOwnAnnotation() && canWrite();
-      allow update: if (isSecretary() || isAnnotationOwner())
-        && canWrite()
-        && request.resource.data.userId == resource.data.userId;
-      allow delete: if (isSecretary() || isAnnotationOwner())
-        && canWrite();
-    }
-    
-    match /c_obra_misional_asignaciones/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-    
-    match /c_obra_misional_investigadores/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-    
-    match /c_obra_misional_amigos_conversos/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-    
-    match /c_obra_misional_imagenes/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-    
-    match /c_reporte_anual/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-    
-    match /c_push_subscriptions/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-    
+    // ── Users — existing logic preserved ──
+
     match /c_users/{document} {
       allow read: if signedIn();
       allow create: if signedIn() && document == request.auth.uid;
@@ -163,27 +207,8 @@ service cloud.firestore {
       allow delete: if isSecretary();
     }
 
-    match /c_ministracion_distritos/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
+    // ── Reference data — public read ──
 
-    match /c_ministracion_historial/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-
-    match /c_observaciones_salud/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-
-    match /c_notifications/{document} {
-      allow read: if signedIn();
-      allow write: if canWrite();
-    }
-
-    // Reference data — public read
     match /c_barrios/{document} {
       allow read: if true;
       allow write: if request.auth != null;
@@ -193,8 +218,9 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null;
     }
-    
-    // Default: signed-in users can read anything
+
+    // ── Default ──
+
     match /{document=**} {
       allow read: if signedIn();
     }

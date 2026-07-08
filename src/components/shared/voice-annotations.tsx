@@ -206,18 +206,18 @@ export function VoiceAnnotations({
     <>
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-start">
-            <div className="flex items-start gap-3">
-              <NotebookPen className="h-8 w-8 text-primary" />
-              <div>
-                <CardTitle>{title}</CardTitle>
-                <CardDescription>{description}</CardDescription>
+          <div className="flex flex-wrap justify-between items-start gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <NotebookPen className="h-8 w-8 text-primary shrink-0" />
+              <div className="min-w-0">
+                <CardTitle className="break-words">{title}</CardTitle>
+                <CardDescription className="break-words">{description}</CardDescription>
               </div>
             </div>
             {canWrite && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="shrink-0">
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Anotacion
                 </Button>
@@ -265,20 +265,21 @@ export function VoiceAnnotations({
               {annotations.map((item) => (
                 <li
                   key={item.id}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="flex flex-wrap items-center justify-between rounded-md border p-3 gap-2"
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
                     {!showCouncilView && (
                       <Checkbox
                         id={`council-${item.id}`}
                         checked={item.isCouncilAction}
                         onCheckedChange={() => handleToggleCouncilAction(item.id, item.isCouncilAction)}
                         aria-label="Marcar para consejo"
+                        className="shrink-0"
                       />
                     )}
-                    <div>
-                      <p className="text-sm font-medium">{item.text}</p>
-                      <p className="text-xs text-muted-foreground">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium break-words">{item.text}</p>
+                      <p className="text-xs text-muted-foreground break-words">
                         {format(item.createdAt.toDate(), 'd LLL yyyy, h:mm a', { locale: es })}
                         {item.userId && ` - Por: ${userNames[item.userId] ?? 'Usuario'}`}
                         {showCouncilView && ` - Creado en: ${item.source === 'dashboard'
@@ -291,7 +292,7 @@ export function VoiceAnnotations({
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     {showCouncilView && onResolveAnnotation && (
                       <Button
                         variant="outline"

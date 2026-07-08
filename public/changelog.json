@@ -6,11 +6,15 @@
       "date": "2026-07-08",
       "changes": {
         "es": [
+          "Actualización: Add push sync, remove Genkit, update deps.",
+          "Actualización: Auto-update changelog [skip ci].",
           "Actualización: Add disclaimer observation and admin visibility controls.",
           "Actualización: Auto-update changelog [skip ci].",
           "Actualización: Add disclaimer, update branding, clean up scripts."
         ],
         "en": [
+          "Update: Add push sync, remove Genkit, update deps.",
+          "Update: Auto-update changelog [skip ci].",
           "Update: Add disclaimer observation and admin visibility controls.",
           "Update: Auto-update changelog [skip ci].",
           "Update: Add disclaimer, update branding, clean up scripts."

@@ -171,7 +171,7 @@ export async function createConvertRecords(
     baptismData.photoURL = photoURL;
   }
 
-  const convertDocRef = await addDoc(collection(firestore, 'converts'), convertData);
+  const convertDocRef = await addDoc(collection(firestore, 'c_conversos'), convertData);
   await addDoc(collection(firestore, 'c_bautismos'), baptismData);
 
   return convertDocRef.id;

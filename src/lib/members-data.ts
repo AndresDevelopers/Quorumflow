@@ -8,6 +8,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   orderBy,
@@ -240,7 +241,7 @@ export async function updateMember(
     Object.entries(optionalFields).forEach(([field, value]) => {
       if (value !== undefined) {
         if (value === null || value === '') {
-          cleanData[field] = null;
+          cleanData[field] = deleteField();
         } else if (typeof value === 'string') {
           cleanData[field] = value.trim();
         } else if (value && typeof value === 'object' && 'toDate' in value) {

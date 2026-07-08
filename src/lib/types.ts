@@ -215,6 +215,8 @@ export type Ordinance =
     | 'elder_ordination'
     | 'endowment'
     | 'sealed_spouse'
+    | 'sealed_to_father'
+    | 'sealed_to_mother'
     | 'high_priest_ordination'
     | 'aronico_ordination';
 
@@ -224,6 +226,8 @@ export const OrdinanceLabels: Record<Ordinance, string> = {
     elder_ordination: 'Ordenado élder',
     endowment: 'Investidura',
     sealed_spouse: 'Sellado(a) al cónyuge',
+    sealed_to_father: 'Sellamiento al padre',
+    sealed_to_mother: 'Sellamiento a la madre',
     high_priest_ordination: 'Ordenado sumo sacerdote',
     aronico_ordination: 'Ordenado Aarónico'
 };

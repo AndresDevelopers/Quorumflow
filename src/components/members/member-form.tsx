@@ -73,7 +73,7 @@ const memberFormSchema = z.object({
   status: z.enum(['active', 'less_active', 'inactive', 'deceased'] as const),
   photoURL: z.string().nullable().optional(),
   baptismPhotos: z.array(z.string()).optional(),
-  ordinances: z.array(z.enum(['baptism', 'confirmation', 'elder_ordination', 'endowment', 'sealed_spouse', 'high_priest_ordination', 'aronico_ordination'] as const)).optional(),
+  ordinances: z.array(z.enum(['baptism', 'confirmation', 'elder_ordination', 'endowment', 'sealed_spouse', 'sealed_to_father', 'sealed_to_mother', 'high_priest_ordination', 'aronico_ordination'] as const)).optional(),
   templeOrdinances: z.array(z.enum(['baptism', 'confirmation', 'initiatory', 'endowment', 'sealed_to_father', 'sealed_to_mother', 'sealed_to_spouse'] as const)).optional(),
   ministeringTeachers: z.array(z.string()).optional(),
   isUrgent: z.boolean().optional(),
@@ -201,6 +201,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       const birthDateValue = safeGetDate((currentMember as any).birthDate) ?? undefined;
       const baptismDateValue = safeGetDate((currentMember as any).baptismDate) ?? undefined;
       const deathDateValue = safeGetDate((currentMember as any).deathDate) ?? undefined;
+      const memberStatus = normalizeMemberStatus(currentMember.status);
 
       const valuesToSet = {
         firstName: currentMember.firstName || '',
@@ -211,10 +212,12 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         birthDate: birthDateValue,
         baptismDate: baptismDateValue,
         deathDate: deathDateValue,
-        status: normalizeMemberStatus(currentMember.status),
+        status: memberStatus,
         photoURL: (currentMember.photoURL && currentMember.photoURL.trim()) ?? undefined,
         baptismPhotos: currentMember.baptismPhotos || [],
-        ordinances: currentMember.ordinances || [],
+        ordinances: memberStatus === 'deceased'
+          ? ((currentMember as any).templeOrdinances || [])
+          : (currentMember.ordinances || []),
         templeOrdinances: (currentMember as any).templeOrdinances || [],
         ministeringTeachers: currentMember.ministeringTeachers || [],
         isUrgent: currentMember.isUrgent || false,
@@ -742,7 +745,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           : null,
         photoURL: photoURL as any,
         baptismPhotos: baptismPhotoURLs,
-        ordinances: values.ordinances || [],
+        ordinances: values.status === 'deceased' ? [] : (values.ordinances || []),
+        templeOrdinances: values.status === 'deceased' ? (values.ordinances || []) : [],
         ministeringTeachers: values.ministeringTeachers || [],
       };
 
@@ -813,7 +817,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         }
 
         // Crear nuevo registro si hay fecha de bautismo en los últimos 2 años
-        convertDocRef = await addDoc(collection(firestore, 'converts'), convertData);
+        convertDocRef = await addDoc(collection(firestore, 'c_conversos'), convertData);
         await addDoc(collection(firestore, 'c_bautismos'), baptismData);
       }
 
@@ -830,8 +834,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           address: values.address?.trim() ? values.address.trim() : '',
           birthDate: values.birthDate
             ? Timestamp.fromDate(normalizeDateForEcuadorStorage(values.birthDate))
-            : undefined,
-          baptismDate: values.baptismDate ? Timestamp.fromDate(values.baptismDate) : undefined,
+            : null as any,
+          baptismDate: values.baptismDate ? Timestamp.fromDate(values.baptismDate) : (null as any),
           deathDate: values.status === 'deceased'
             ? values.deathDate
               ? Timestamp.fromDate(values.deathDate)
@@ -839,8 +843,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             : null,
           photoURL: photoURL as any,
           baptismPhotos: baptismPhotoURLs,
-          ordinances: values.ordinances || [],
-          templeOrdinances: (values as any).templeOrdinances || [],
+          ordinances: values.status === 'deceased' ? [] : (values.ordinances || []),
+          templeOrdinances: values.status === 'deceased' ? (values.ordinances || []) : [],
           ministeringTeachers: values.ministeringTeachers || [],
           isUrgent: values.isUrgent || false,
           isInCouncil: values.isInCouncil || false,
@@ -912,7 +916,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             ? Timestamp.fromDate(values.deathDate)
             : undefined,
           baptismPhotos: baptismPhotoURLs,
-          ordinances: values.ordinances || [],
+          ordinances: values.status === 'deceased' ? [] : (values.ordinances || []),
+          templeOrdinances: values.status === 'deceased' ? (values.ordinances || []) : [],
           ministeringTeachers: values.ministeringTeachers || [],
           isUrgent: values.isUrgent || false,
           isInCouncil: values.isInCouncil || false,
@@ -1267,40 +1272,53 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Nacimiento</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          'w-full pl-3 text-left font-normal',
-                          !field.value && 'text-muted-foreground'
-                        )}
-                      >
-                        {field.value ? (
-                          <span className="capitalize">
-                            {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: es })}
-                          </span>
-                        ) : (
-                          <span>Selecciona una fecha</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      defaultMonth={field.value}
-                      disabled={(date) =>
-                        date > new Date() || date < new Date('1900-01-01')
-                      }
-                      locale={es}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            'flex-1 pl-3 text-left font-normal',
+                            !field.value && 'text-muted-foreground'
+                          )}
+                        >
+                          {field.value ? (
+                            <span className="capitalize">
+                              {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                            </span>
+                          ) : (
+                            <span>Selecciona una fecha</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        defaultMonth={field.value}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date('1900-01-01')
+                        }
+                        locale={es}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {field.value && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => field.onChange(undefined)}
+                      title="Borrar fecha"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
                 <FormMessage />
               </FormItem>
             )}
@@ -1313,38 +1331,51 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Bautismo</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          'w-full pl-3 text-left font-normal',
-                          !field.value && 'text-muted-foreground'
-                        )}
-                      >
-                        {field.value ? (
-                          <span className="capitalize">
-                            {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: es })}
-                          </span>
-                        ) : (
-                          <span>Selecciona una fecha</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      defaultMonth={field.value}
-                      disabled={(date) => date < new Date('1900-01-01')}
-                      locale={es}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            'flex-1 pl-3 text-left font-normal',
+                            !field.value && 'text-muted-foreground'
+                          )}
+                        >
+                          {field.value ? (
+                            <span className="capitalize">
+                              {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                            </span>
+                          ) : (
+                            <span>Selecciona una fecha</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        defaultMonth={field.value}
+                        disabled={(date) => date < new Date('1900-01-01')}
+                        locale={es}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {field.value && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => field.onChange(undefined)}
+                      title="Borrar fecha"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
                 <FormMessage />
               </FormItem>
             )}

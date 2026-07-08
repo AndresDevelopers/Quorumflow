@@ -128,11 +128,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
   // Estado local para el input de fecha de fallecimiento (mantiene texto DD/MM/YYYY)
   const [deathDateInput, setDeathDateInput] = useState('');
 
-  // Estado local para el input de fecha de inactividad (mantiene texto DD/MM/YYYY)
-  const [inactiveSinceInput, setInactiveSinceInput] = useState('');
 
-  // Estado local para el input de fecha de menos activo (mantiene texto DD/MM/YYYY)
-  const [lessActiveSinceInput, setLessActiveSinceInput] = useState('');
 
   const form = useForm<MemberFormValues>({
     resolver: zodResolver(memberFormSchema),
@@ -244,12 +240,6 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       // Actualizar el estado local del input de fecha de fallecimiento
       setDeathDateInput(formatDateForDisplay(deathDateValue));
 
-      // Actualizar el estado local del input de fecha de inactividad
-      setInactiveSinceInput(formatDateForDisplay(safeGetDate((currentMember as any).inactiveSince) ?? undefined));
-
-      // Actualizar el estado local del input de fecha de menos activo
-      setLessActiveSinceInput(formatDateForDisplay(safeGetDate((currentMember as any).lessActiveSince) ?? undefined));
-
     } else {
       // Reset to empty form for new member
       form.reset({
@@ -281,12 +271,6 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
 
       // Limpiar el input de fecha de fallecimiento
       setDeathDateInput('');
-
-      // Limpiar el input de fecha de inactividad
-      setInactiveSinceInput('');
-
-      // Limpiar el input de fecha de menos activo
-      setLessActiveSinceInput('');
 
       // Reset duplicate states for new member
       setDuplicateMembers([]);
@@ -417,7 +401,6 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
     if (watchedStatus !== 'inactive') {
       form.setValue('inactiveSince', undefined);
       form.setValue('inactiveObservation', '');
-      setInactiveSinceInput('');
     }
   }, [form, watchedStatus]);
 
@@ -425,7 +408,6 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
     if (watchedStatus !== 'less_active') {
       form.setValue('lessActiveSince', undefined);
       form.setValue('lessActiveObservation', '');
-      setLessActiveSinceInput('');
     }
   }, [form, watchedStatus]);
 
@@ -851,7 +833,9 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           inactiveSince: values.status === 'inactive'
             ? values.inactiveSince
               ? Timestamp.fromDate(values.inactiveSince)
-              : Timestamp.now()
+              : member.inactiveSince
+                ? null // El usuario borró la fecha, enviar null para limpiarla
+                : Timestamp.now() // Primera vez que se marca inactivo, usar fecha actual
             : null,
           inactiveObservation: values.status === 'inactive'
             ? values.inactiveObservation?.trim() || ''
@@ -859,7 +843,9 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           lessActiveSince: values.status === 'less_active'
             ? values.lessActiveSince
               ? Timestamp.fromDate(values.lessActiveSince)
-              : Timestamp.now()
+              : member.lessActiveSince
+                ? null // El usuario borró la fecha, enviar null para limpiarla
+                : Timestamp.now() // Primera vez que se marca menos activo, usar fecha actual
             : null,
           lessActiveObservation: values.status === 'less_active'
             ? values.lessActiveObservation?.trim() || ''
@@ -1677,40 +1663,56 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 control={form.control}
                 name="inactiveSince"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Fecha de Inactividad</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="DD/MM/YYYY"
-                        value={inactiveSinceInput}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          setInactiveSinceInput(inputValue);
-
-                          const parsedDate = parseDate(inputValue, new Date().getFullYear());
-                          if (parsedDate || !inputValue.trim()) {
-                            field.onChange(parsedDate);
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const inputValue = e.target.value;
-                          const parsedDate = parseDate(inputValue, new Date().getFullYear());
-
-                          if (parsedDate) {
-                            const formattedDate = formatDateForDisplay(parsedDate);
-                            setInactiveSinceInput(formattedDate);
-                            field.onChange(parsedDate);
-                          } else if (!inputValue.trim()) {
-                            setInactiveSinceInput('');
-                            field.onChange(undefined);
-                          } else {
-                            field.onChange(undefined);
-                          }
-
-                          field.onBlur();
-                        }}
-                      />
-                    </FormControl>
+                    <div className="flex gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={cn(
+                                'flex-1 pl-3 text-left font-normal',
+                                !form.watch('inactiveSince') && 'text-muted-foreground'
+                              )}
+                            >
+                              {form.watch('inactiveSince') ? (
+                                <span className="capitalize">
+                                  {format(form.watch('inactiveSince')!, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                                </span>
+                              ) : (
+                                <span>Selecciona una fecha</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={form.watch('inactiveSince')}
+                            onSelect={(date) => form.setValue('inactiveSince', date, { shouldDirty: true, shouldValidate: true })}
+                            defaultMonth={form.watch('inactiveSince')}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date('1900-01-01')
+                            }
+                            locale={es}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      {form.watch('inactiveSince') && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => form.setValue('inactiveSince', undefined, { shouldDirty: true, shouldValidate: true })}
+                          title="Borrar fecha"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                     <FormDescription>
                       Opcional. Fecha desde la cual el miembro está inactivo. Si no se especifica, se usará la fecha actual.
                     </FormDescription>
@@ -1752,40 +1754,56 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 control={form.control}
                 name="lessActiveSince"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Fecha desde Menos Activo</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="DD/MM/YYYY"
-                        value={lessActiveSinceInput}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          setLessActiveSinceInput(inputValue);
-
-                          const parsedDate = parseDate(inputValue, new Date().getFullYear());
-                          if (parsedDate || !inputValue.trim()) {
-                            field.onChange(parsedDate);
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const inputValue = e.target.value;
-                          const parsedDate = parseDate(inputValue, new Date().getFullYear());
-
-                          if (parsedDate) {
-                            const formattedDate = formatDateForDisplay(parsedDate);
-                            setLessActiveSinceInput(formattedDate);
-                            field.onChange(parsedDate);
-                          } else if (!inputValue.trim()) {
-                            setLessActiveSinceInput('');
-                            field.onChange(undefined);
-                          } else {
-                            field.onChange(undefined);
-                          }
-
-                          field.onBlur();
-                        }}
-                      />
-                    </FormControl>
+                    <div className="flex gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={cn(
+                                'flex-1 pl-3 text-left font-normal',
+                                !form.watch('lessActiveSince') && 'text-muted-foreground'
+                              )}
+                            >
+                              {form.watch('lessActiveSince') ? (
+                                <span className="capitalize">
+                                  {format(form.watch('lessActiveSince')!, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                                </span>
+                              ) : (
+                                <span>Selecciona una fecha</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={form.watch('lessActiveSince')}
+                            onSelect={(date) => form.setValue('lessActiveSince', date, { shouldDirty: true, shouldValidate: true })}
+                            defaultMonth={form.watch('lessActiveSince')}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date('1900-01-01')
+                            }
+                            locale={es}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      {form.watch('lessActiveSince') && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => form.setValue('lessActiveSince', undefined, { shouldDirty: true, shouldValidate: true })}
+                          title="Borrar fecha"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                     <FormDescription>
                       Opcional. Fecha desde la cual el miembro es menos activo. Si no se especifica, se usará la fecha actual.
                     </FormDescription>

@@ -1151,7 +1151,7 @@ export default function CouncilPage() {
                             ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLLL yyyy', { locale: es })
                             : member.inactiveSince
                               ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLLL yyyy', { locale: es })
-                              : 'N/A'}
+                              : '—'}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate" title={member.lessActiveObservation || (member as any).inactiveObservation || ''}>
                           {member.lessActiveObservation || (member as any).inactiveObservation || '—'}
@@ -1180,13 +1180,15 @@ export default function CouncilPage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-bold">{member.firstName} {member.lastName}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Menos activo desde: {member.lessActiveSince
-                              ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLL yyyy', { locale: es })
-                              : member.inactiveSince
-                                ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: es })
-                                : 'N/A'}
-                          </p>
+                          {(member.lessActiveSince || member.inactiveSince) && (
+                            <p className="text-sm text-muted-foreground">
+                              Menos activo desde: {member.lessActiveSince
+                                ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLL yyyy', { locale: es })
+                                : member.inactiveSince
+                                  ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: es })
+                                  : null}
+                            </p>
+                          )}
                           {(member.lessActiveObservation || (member as any).inactiveObservation) && (
                             <p className="text-sm text-muted-foreground mt-1">
                               Obs: {member.lessActiveObservation || (member as any).inactiveObservation}

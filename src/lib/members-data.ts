@@ -227,14 +227,30 @@ export async function updateMember(
       urgentReason: memberData.urgentReason,
       urgentNotifiedAt: memberData.urgentNotifiedAt,
       isInCouncil: memberData.isInCouncil,
+      inactiveObservation: memberData.inactiveObservation,
+      lessActiveSince: memberData.lessActiveSince,
+      lessActiveObservation: memberData.lessActiveObservation,
     };
 
-    // Manejar lastActiveDate e inactiveSince según el estado
-    if (memberData.status === 'active') {
-      optionalFields.lastActiveDate = Timestamp.now();
+    // Manejar inactiveSince según el estado
+    if (memberData.inactiveSince !== undefined) {
+      optionalFields.inactiveSince = memberData.inactiveSince;
+    } else if (memberData.status === 'active') {
       optionalFields.inactiveSince = null;
     } else if (memberData.status === 'inactive' && !currentData.inactiveSince) {
       optionalFields.inactiveSince = Timestamp.now();
+    }
+
+    // Manejar lessActiveSince según el estado enviado
+    if (memberData.lessActiveSince !== undefined) {
+      // Ya se incluyó arriba en optionalFields, no hacer nada
+    } else if (memberData.status === 'less_active' && !currentData.lessActiveSince) {
+      optionalFields.lessActiveSince = Timestamp.now();
+    }
+
+    // Manejar lastActiveDate según el estado
+    if (memberData.status === 'active') {
+      optionalFields.lastActiveDate = Timestamp.now();
     }
 
     // Procesar cada campo opcional

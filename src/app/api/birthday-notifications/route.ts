@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { birthdaysCollection, membersCollection } from '@/lib/collections-server';
 import { getEcuadorDateParts } from '@/lib/date-utils';
-import { sendServerSidePushNotification } from '@/lib/push-notifications-server';
+import { sendBirthdayBatchNotifications } from '@/lib/push-notifications-server';
 
 export async function GET(request: NextRequest) {
   // Verificación de autenticación para Vercel Cron
@@ -68,27 +68,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. Send notifications for each birthday
-    let totalNotificationsSent = 0;
-    for (const birthday of birthdaysToday) {
-      const result = await sendServerSidePushNotification({
-        title: "🎂 ¡Feliz Cumpleaños!",
-        body: `Hoy es el cumpleaños de ${birthday.name}. ¡No olvides felicitarlo!`,
-        url: '/birthdays',
-        tag: 'birthday-notification',
-        barrioOrg: birthday.barrioOrg
-      });
-      
-      if (result.success) {
-        totalNotificationsSent += (result.sentCount || 0);
-      }
-    }
+    // 3. Send notifications — usando función agrupada que cachea c_users entre llamadas
+    const { totalPushSent, errors } = await sendBirthdayBatchNotifications(birthdaysToday);
 
     return NextResponse.json({
       success: true,
       message: `Procesados ${birthdaysToday.length} cumpleaños.`,
       birthdays: birthdaysToday.map(b => b.name),
-      totalPushSent: totalNotificationsSent
+      totalPushSent,
+      errors: errors.length > 0 ? errors : undefined,
     });
 
   } catch (error) {

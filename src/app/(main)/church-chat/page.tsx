@@ -84,6 +84,41 @@ const getSpeechRecognitionConstructor = (): BrowserSpeechRecognitionConstructor 
 
 const canUseSpeechSynthesis = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
 
+const getOrgArticle = (org: string): { article: string; deArticle: string } => {
+  const lower = org.toLowerCase();
+  if (lower.includes('elder') || lower.includes('élder')) return { article: 'el', deArticle: 'del' };
+  if (lower.includes('mujeres')) return { article: 'las', deArticle: 'de las' };
+  return { article: 'la', deArticle: 'de la' };
+};
+
+type QuickOption = {
+  label: string;
+  generateMessage: (org: string) => string;
+};
+
+const QUICK_OPTIONS: QuickOption[] = [
+  {
+    label: 'Presidente',
+    generateMessage: (org) => `¿Qué hace el presidente ${getOrgArticle(org).deArticle} ${org}?`,
+  },
+  {
+    label: 'Consejero',
+    generateMessage: (org) => `¿Qué hace el consejero ${getOrgArticle(org).deArticle} ${org}?`,
+  },
+  {
+    label: 'Secretario',
+    generateMessage: (org) => `¿Qué hace el secretario ${getOrgArticle(org).deArticle} ${org}?`,
+  },
+  {
+    label: 'Otros cargos',
+    generateMessage: (org) => `¿Qué llamamientos están disponibles en ${getOrgArticle(org).article} ${org}?`,
+  },
+  {
+    label: 'Novedades',
+    generateMessage: (org) =>
+      `¿Cuáles son las novedades oficiales recientes de la Iglesia y qué recursos o tareas puede realizar el secretario ${getOrgArticle(org).deArticle} ${org} usando el sitio web oficial de la Iglesia?`,
+  },
+];
 
 const makeInitialAssistantMessage = (): ChatMessage => ({
   id: crypto.randomUUID(),
@@ -187,13 +222,14 @@ function FormattedMessage({ content }: { content: string }) {
 
 export default function ChurchChatPage() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, organizacion } = useAuth();
   const [sessions, setSessions] = useState<ChatSession[]>(() => [makeSession()]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [showQuickOptions, setShowQuickOptions] = useState(true);
   const messagesViewportRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -410,6 +446,7 @@ export default function ChurchChatPage() {
     updateSessions((current) => [next, ...current]);
     setActiveSessionId(next.id);
     setInput('');
+    setShowQuickOptions(true);
   };
 
   const handleDeleteSession = (sessionId: string) => {
@@ -428,11 +465,10 @@ export default function ChurchChatPage() {
     });
   };
 
-  const handleSend = async () => {
-    const value = input.trim();
-    if (value.length === 0 || loading || !activeSession) return;
+  const sendMessage = async (messageText: string) => {
+    if (messageText.length === 0 || loading || !activeSession) return false;
 
-    const messageContent = value;
+    const messageContent = messageText;
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -442,6 +478,7 @@ export default function ChurchChatPage() {
     };
 
     setInput('');
+    setShowQuickOptions(false);
     setLoading(true);
 
     let draftMessages: ChatMessage[] = [];
@@ -467,7 +504,7 @@ export default function ChurchChatPage() {
       const response = await fetch('/api/church-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: value, history }),
+        body: JSON.stringify({ message: messageText, history }),
       });
 
       const payload = (await response.json()) as { answer?: string; error?: string };
@@ -492,15 +529,26 @@ export default function ChurchChatPage() {
           };
         })
       );
+
+      return true;
     } catch (error) {
       toast({
         title: 'No se pudo enviar el mensaje',
         description: error instanceof Error ? error.message : 'Error inesperado.',
         variant: 'destructive',
       });
+      return false;
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSend = () => {
+    void sendMessage(input.trim());
+  };
+
+  const handleQuickOption = (option: QuickOption) => {
+    void sendMessage(option.generateMessage(organizacion));
   };
 
 
@@ -529,7 +577,10 @@ export default function ChurchChatPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => setActiveSessionId(session.id)}
+                    onClick={() => {
+                      setActiveSessionId(session.id);
+                      setShowQuickOptions(session.messages.length <= 1);
+                    }}
                     className="min-h-11 flex-1 text-left"
                   >
                     <p className="line-clamp-1 font-medium text-sm">{session.title}</p>
@@ -566,6 +617,22 @@ export default function ChurchChatPage() {
         <CardContent className="space-y-4">
           <div ref={messagesViewportRef} onScroll={handleMessagesScroll} className="h-[460px] overflow-y-auto rounded-md border p-3">
             <div className="space-y-3">
+              {showQuickOptions && (
+                <div className="flex flex-wrap gap-2 pb-2">
+                  {QUICK_OPTIONS.map((option) => (
+                    <Button
+                      key={option.label}
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={loading}
+                      onClick={() => handleQuickOption(option)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
               {activeSession?.messages.map((message) => (
                 <article
                   key={message.id}
@@ -624,12 +691,12 @@ export default function ChurchChatPage() {
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault();
-                  void handleSend();
+                  handleSend();
                 }
               }}
               disabled={loading}
             />
-            <Button onClick={() => void handleSend()} disabled={loading || input.trim().length === 0}>
+            <Button onClick={handleSend} disabled={loading || input.trim().length === 0}>
               Enviar
             </Button>
             <Button

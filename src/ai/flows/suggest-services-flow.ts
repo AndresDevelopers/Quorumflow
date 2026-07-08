@@ -26,7 +26,7 @@ export async function suggestServices(input: SuggestServicesInput): Promise<Sugg
       {
         role: 'system',
         content:
-          'Eres un coordinador experto de servicio del Quórum de Élderes. Responde siempre en JSON válido sin texto adicional.',
+          'Eres un coordinador experto en planificación de servicio comunitario y pastoral. Responde siempre en JSON válido sin texto adicional.',
       },
       {
         role: 'user',

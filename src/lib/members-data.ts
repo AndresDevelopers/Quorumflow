@@ -330,6 +330,52 @@ export async function getLessActiveMembers(barrioOrg: string): Promise<Member[]>
   }
 }
 
+// Get inactive members for council page
+export async function getInactiveMembers(barrioOrg: string): Promise<Member[]> {
+  try {
+    const db = getFirestoreInstance();
+    const membersCollection = collection(db, 'c_miembros');
+
+    const q = query(
+      membersCollection,
+      where('barrioOrg', '==', barrioOrg),
+      where('status', '==', 'inactive'),
+      orderBy('lastName', 'asc')
+    );
+
+    const querySnapshot = await getDocs(q);
+    const members: Member[] = [];
+
+    querySnapshot.forEach((doc) => {
+      const memberData = doc.data();
+      const processedMemberData = {
+        ...memberData,
+        status: normalizeMemberStatus(memberData.status)
+      };
+
+      members.push({
+        id: doc.id,
+        ...processedMemberData
+      } as Member);
+    });
+
+    return members;
+  } catch (error) {
+    console.error('Error getting inactive members:', error);
+
+    if (error instanceof Error) {
+      if (error.message.includes('permission-denied')) {
+        throw new Error('No tienes permisos para acceder a los miembros.');
+      } else if (error.message.includes('network')) {
+        throw new Error('Error de conexión. Verifica tu conexión a internet.');
+      }
+      throw new Error(`Error al obtener miembros inactivos: ${error.message}`);
+    }
+
+    throw new Error('Error desconocido al obtener miembros inactivos');
+  }
+}
+
 // Get urgent members for council page
 export async function getUrgentMembers(barrioOrg: string): Promise<Member[]> {
   try {

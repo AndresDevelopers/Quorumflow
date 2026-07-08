@@ -66,6 +66,7 @@ import { getMembersForSelector } from '@/lib/members-data';
 import type { Member } from '@/lib/types';
 import {
   canViewSettings,
+  canManageSettings as checkCanManageSettings,
   normalizeRole,
   type UserRole,
 } from '@/lib/roles';
@@ -423,6 +424,7 @@ export default function SettingsPage() {
 
         const canView = canViewSettings(normalizedRole);
         setHasSettingsAccess(canView);
+        setCanManageSettings(checkCanManageSettings(normalizedRole));
 
         if (!canView) {
           return;

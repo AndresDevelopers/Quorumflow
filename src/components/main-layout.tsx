@@ -42,6 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 import { NotificationBell } from "./notification-bell";
 import { ChangelogDialog } from "./changelog-dialog";
 import { InstallPrompt } from "@/components/install-prompt";
+import { PushOnboardingGuide } from "@/components/push-onboarding-guide";
 import { navigationItems } from "@/lib/navigation";
 import { usersCollection } from "@/lib/collections";
 import { doc, getDoc } from "firebase/firestore";
@@ -317,6 +318,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
         </ErrorBoundary>
         <PushForegroundListener />
         <ServiceWorkerRegistration />
+        <PushOnboardingGuide />
       </SidebarInset>
     </>
   );

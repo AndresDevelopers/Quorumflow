@@ -4,12 +4,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { usersCollection } from '@/lib/collections';
-import { doc, getDoc, getDocs, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, updateDoc, Timestamp, deleteField } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
 import {
   assignableRoles,
   canManageSettings,
+  leadershipRoles,
   normalizeRole,
   type UserRole,
 } from '@/lib/roles';
@@ -235,10 +236,25 @@ export default function RoleManagement() {
     try {
       const normalizedRole = normalizeRole(newRole);
       const userDocRef = doc(usersCollection, userId);
-      await updateDoc(userDocRef, {
+
+      // Obtener el rol actual para detectar ascenso desde 'user'
+      const currentUser = users.find((u) => u.uid === userId);
+      const previousRole = currentUser?.role ?? 'user';
+      const wasRegularUser = previousRole === 'user';
+      const isNowLeadership = leadershipRoles.includes(normalizedRole as typeof leadershipRoles[number]);
+
+      const updateData: Record<string, unknown> = {
         role: normalizedRole,
         updatedAt: Timestamp.now(),
-      });
+      };
+
+      // Si pasa de 'user' a rol de liderazgo, resetear pushOnboardingDismissedAt
+      // para que la guía de notificaciones push aparezca
+      if (wasRegularUser && isNowLeadership) {
+        updateData.pushOnboardingDismissedAt = deleteField();
+      }
+
+      await updateDoc(userDocRef, updateData);
 
       // Actualizar la lista local
       setUsers((prevUsers) =>

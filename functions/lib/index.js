@@ -1226,15 +1226,27 @@ function getBirthdayDateInEcuador(birthDate, year) {
     const parts = getDatePartsInTimeZone(date, ECUADOR_TZ);
     return new Date(year, parts.month - 1, parts.day);
 }
+// ── Cache en memoria para getAllUsersNotificationData ──────────────────────
+// Evita leer c_users completo en cada trigger/función programada.
+// TTL corto (5 min) ya que los datos de usuarios cambian poco.
+let _usersCache = null;
+const USERS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 /**
  * Fetch all users with their notification preferences and visible pages.
  * Defaults: inApp = true, push = false, all categories = true.
  * visiblePages = null means "never configured" → all pages are visible
  * (matches the frontend default in settings/page.tsx).
+ *
+ * Uses an in-memory cache with 5-minute TTL to avoid redundant reads
+ * when multiple notification functions run in the same invocation.
  */
 async function getAllUsersNotificationData() {
+    const now = Date.now();
+    if (_usersCache && (now - _usersCache.ts) < USERS_CACHE_TTL_MS) {
+        return _usersCache.data;
+    }
     const snapshot = await firestore.collection("c_users").get();
-    return snapshot.docs.map((doc) => {
+    const data = snapshot.docs.map((doc) => {
         const d = doc.data();
         const barrio = d.barrio || "Libertad";
         const organizacion = d.organizacion || "Quórum de Élderes";
@@ -1250,6 +1262,8 @@ async function getAllUsersNotificationData() {
             barrioOrg: `${barrio}|${organizacion}`,
         };
     });
+    _usersCache = { data, ts: now };
+    return data;
 }
 const CATEGORY_PAGE = {
     observations: "/observations",
@@ -1467,7 +1481,10 @@ exports.dailyNotifications = functions.pubsub
     // ── Servicios – 14 días antes y el mismo día ─────────────────────────
     const serviceTrace = buildNotificationTrace("dailyNotifications", "service");
     {
-        const servicesSnap = await firestore.collection("c_servicios").get();
+        const servicesSnap = await firestore.collection("c_servicios")
+            .where("date", ">=", admin.firestore.Timestamp.fromDate(today))
+            .where("date", "<=", admin.firestore.Timestamp.fromDate(in14Days))
+            .get();
         for (const doc of servicesSnap.docs) {
             const svc = doc.data();
             const svcDate = svc.date.toDate();
@@ -1505,7 +1522,10 @@ exports.dailyNotifications = functions.pubsub
     // ── Actividades – 14 días antes y el mismo día ───────────────────────
     const activitiesTrace = buildNotificationTrace("dailyNotifications", "activities");
     {
-        const actSnap = await firestore.collection("c_actividades").get();
+        const actSnap = await firestore.collection("c_actividades")
+            .where("date", ">=", admin.firestore.Timestamp.fromDate(today))
+            .where("date", "<=", admin.firestore.Timestamp.fromDate(in14Days))
+            .get();
         for (const doc of actSnap.docs) {
             const act = doc.data();
             const actDate = act.date.toDate();

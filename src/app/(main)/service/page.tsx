@@ -254,7 +254,7 @@ export default function ServicePage() {
           ) : serviceSuggestions ? (
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold mb-2">Apoyo al Quórum</h3>
+                <h3 className="font-semibold mb-2">Apoyo a los Hermanos</h3>
                 <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
                   {serviceSuggestions.quorumCare.map((service, index) => (
                     <li key={`qc-${index}`}>{service}</li>
@@ -262,7 +262,7 @@ export default function ServicePage() {
                 </ul>
               </div>
               <div>
-                <h3 className="font-semibold mb-2">Impacto Comunitario</h3>
+                <h3 className="font-semibold mb-2">Servicio Comunitario</h3>
                 <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
                   {serviceSuggestions.communityImpact.map((service, index) => (
                     <li key={`ci-${index}`}>{service}</li>

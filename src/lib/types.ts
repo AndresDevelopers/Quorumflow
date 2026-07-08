@@ -271,10 +271,12 @@ export type Member = {
     // Activity tracking
     lastActiveDate?: Timestamp;
     inactiveSince?: Timestamp | null;
+    inactiveObservation?: string;
     // Council tracking
     councilCompleted?: boolean;
     councilCompletedAt?: Timestamp;
     // For less active members tracking
+    lessActiveSince?: Timestamp | null;
     lessActiveObservation?: string;
     lessActiveCompletedAt?: Timestamp;
     // Urgent and council flags

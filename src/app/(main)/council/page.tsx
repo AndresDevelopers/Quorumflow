@@ -8,7 +8,7 @@ import { getDocs, query, orderBy, where, Timestamp, doc, updateDoc, getDoc, dele
 
 import type { Member, FutureMember, Companionship, Family, Annotation, Service, Activity, NewConvertFriendship, Ordinance, TempleOrdinance } from '@/lib/types';
 import { OrdinanceLabels, TempleOrdinanceLabels } from '@/lib/types';
-import { getLessActiveMembers, getUrgentMembers, normalizeMemberStatus, updateMember, getDeceasedMembers } from '@/lib/members-data';
+import { getLessActiveMembers, getUrgentMembers, normalizeMemberStatus, updateMember, getDeceasedMembers, getInactiveMembers } from '@/lib/members-data';
 import { createNotificationsForAll } from '@/lib/notification-helpers';
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
@@ -319,6 +319,7 @@ export default function CouncilPage() {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [lessActiveMembers, setLessActiveMembers] = useState<Member[]>([]);
+  const [inactiveMembers, setInactiveMembers] = useState<Member[]>([]);
   const [urgentMembers, setUrgentMembers] = useState<Member[]>([]);
   const [upcomingActivities, setUpcomingActivities] = useState<Activity[]>([]);
   const [deceasedMembers, setDeceasedMembers] = useState<Member[]>([]);
@@ -335,13 +336,14 @@ export default function CouncilPage() {
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [converts, baptisms, needs, notes, upcomingServices, lessActive, urgent, activities, membersSnap, deceased] = await Promise.all([
+      const [converts, baptisms, needs, notes, upcomingServices, lessActive, inactive, urgent, activities, membersSnap, deceased] = await Promise.all([
         getCouncilMembers(barrioOrg),
         getUpcomingBaptisms(barrioOrg),
         getUrgentNeeds(barrioOrg),
         getCouncilAnnotations(barrioOrg),
         getUpcomingServices(barrioOrg),
         getLessActiveMembers(barrioOrg),
+        getInactiveMembers(barrioOrg),
         getUrgentMembers(barrioOrg),
         getUpcomingActivities(barrioOrg),
         getDocs(query(membersCollection, where('barrioOrg', '==', barrioOrg))),
@@ -353,6 +355,7 @@ export default function CouncilPage() {
       setAnnotations(notes);
       setServices(upcomingServices);
       setLessActiveMembers(lessActive);
+      setInactiveMembers(inactive);
       setUrgentMembers(urgent);
       setUpcomingActivities(activities);
       setAvailableMembers(membersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Member)));
@@ -1129,7 +1132,8 @@ export default function CouncilPage() {
                     <TableRow>
                       <TableHead>Nombre</TableHead>
                       <TableHead>Estado</TableHead>
-                      <TableHead>Inactivo Desde</TableHead>
+                      <TableHead>Menos Activo Desde</TableHead>
+                      <TableHead>Observación</TableHead>
                       <TableHead className="text-right">Acción</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1143,7 +1147,14 @@ export default function CouncilPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {member.inactiveSince ? format(member.inactiveSince.toDate(), 'd LLLL yyyy', { locale: es }) : 'N/A'}
+                          {member.lessActiveSince
+                            ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLLL yyyy', { locale: es })
+                            : member.inactiveSince
+                              ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLLL yyyy', { locale: es })
+                              : 'N/A'}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate" title={member.lessActiveObservation || (member as any).inactiveObservation || ''}>
+                          {member.lessActiveObservation || (member as any).inactiveObservation || '—'}
                         </TableCell>
                         <TableCell className="text-right">
                           {member.councilCompleted ? (
@@ -1170,8 +1181,17 @@ export default function CouncilPage() {
                         <div>
                           <p className="font-bold">{member.firstName} {member.lastName}</p>
                           <p className="text-sm text-muted-foreground">
-                            Inactivo desde: {member.inactiveSince ? format(member.inactiveSince.toDate(), 'd LLL yyyy', { locale: es }) : 'N/A'}
+                            Menos activo desde: {member.lessActiveSince
+                              ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLL yyyy', { locale: es })
+                              : member.inactiveSince
+                                ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: es })
+                                : 'N/A'}
                           </p>
+                          {(member.lessActiveObservation || (member as any).inactiveObservation) && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Obs: {member.lessActiveObservation || (member as any).inactiveObservation}
+                            </p>
+                          )}
                           <Badge variant="outline" className="text-orange-600 border-orange-600 mt-2">
                             Menos Activo
                           </Badge>
@@ -1184,6 +1204,90 @@ export default function CouncilPage() {
                             Completar
                           </Button>
                         )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Inactive Members Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <UserMinus className="h-8 w-8 text-red-500" />
+            <div>
+              <CardTitle>Miembros Inactivos</CardTitle>
+              <CardDescription>
+                Miembros que no están asistiendo y requieren atención del consejo de barrio.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? <Skeleton className="h-24 w-full" /> : inactiveMembers.length === 0 ? (
+            <p className="text-sm text-center text-muted-foreground h-24 flex items-center justify-center">
+              No hay miembros inactivos registrados.
+            </p>
+          ) : (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Inactivo Desde</TableHead>
+                      <TableHead>Observación</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inactiveMembers.map((member) => (
+                      <TableRow key={member.id}>
+                        <TableCell className="font-medium">{member.firstName} {member.lastName}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-red-600 border-red-600">
+                            Inactivo
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {member.inactiveSince
+                            ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLLL yyyy', { locale: es })
+                            : 'N/A'}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate" title={member.inactiveObservation || ''}>
+                          {member.inactiveObservation || '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-4">
+                {inactiveMembers.map((member) => (
+                  <Card key={member.id}>
+                    <CardContent className="pt-4 space-y-4">
+                      <div>
+                        <p className="font-bold">{member.firstName} {member.lastName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Inactivo desde: {member.inactiveSince
+                            ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: es })
+                            : 'N/A'}
+                        </p>
+                        {member.inactiveObservation && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Obs: {member.inactiveObservation}
+                          </p>
+                        )}
+                        <Badge variant="outline" className="text-red-600 border-red-600 mt-2">
+                          Inactivo
+                        </Badge>
                       </div>
                     </CardContent>
                   </Card>

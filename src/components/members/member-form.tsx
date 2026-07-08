@@ -78,6 +78,10 @@ const memberFormSchema = z.object({
   ministeringTeachers: z.array(z.string()).optional(),
   isUrgent: z.boolean().optional(),
   isInCouncil: z.boolean().optional(),
+  inactiveSince: z.date().optional(),
+  inactiveObservation: z.string().optional(),
+  lessActiveSince: z.date().optional(),
+  lessActiveObservation: z.string().optional(),
 });
 
 const normalizeMemberStatus = (status?: string | null): MemberStatus => {
@@ -124,6 +128,12 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
   // Estado local para el input de fecha de fallecimiento (mantiene texto DD/MM/YYYY)
   const [deathDateInput, setDeathDateInput] = useState('');
 
+  // Estado local para el input de fecha de inactividad (mantiene texto DD/MM/YYYY)
+  const [inactiveSinceInput, setInactiveSinceInput] = useState('');
+
+  // Estado local para el input de fecha de menos activo (mantiene texto DD/MM/YYYY)
+  const [lessActiveSinceInput, setLessActiveSinceInput] = useState('');
+
   const form = useForm<MemberFormValues>({
     resolver: zodResolver(memberFormSchema),
     defaultValues: {
@@ -138,6 +148,10 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       ordinances: [],
       templeOrdinances: [],
       ministeringTeachers: [],
+      inactiveSince: undefined,
+      inactiveObservation: '',
+      lessActiveSince: undefined,
+      lessActiveObservation: '',
     },
   });
 
@@ -205,6 +219,10 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         ministeringTeachers: currentMember.ministeringTeachers || [],
         isUrgent: currentMember.isUrgent || false,
         isInCouncil: currentMember.isInCouncil || false,
+        inactiveSince: safeGetDate((currentMember as any).inactiveSince) ?? undefined,
+        inactiveObservation: (currentMember as any).inactiveObservation || '',
+        lessActiveSince: safeGetDate((currentMember as any).lessActiveSince) ?? undefined,
+        lessActiveObservation: (currentMember as any).lessActiveObservation || '',
       };
 
       // Reset form with new values and trigger validation
@@ -222,6 +240,12 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
 
       // Actualizar el estado local del input de fecha de fallecimiento
       setDeathDateInput(formatDateForDisplay(deathDateValue));
+
+      // Actualizar el estado local del input de fecha de inactividad
+      setInactiveSinceInput(formatDateForDisplay(safeGetDate((currentMember as any).inactiveSince) ?? undefined));
+
+      // Actualizar el estado local del input de fecha de menos activo
+      setLessActiveSinceInput(formatDateForDisplay(safeGetDate((currentMember as any).lessActiveSince) ?? undefined));
 
     } else {
       // Reset to empty form for new member
@@ -241,6 +265,10 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         ministeringTeachers: [],
         isUrgent: false,
         isInCouncil: false,
+        inactiveSince: undefined,
+        inactiveObservation: '',
+        lessActiveSince: undefined,
+        lessActiveObservation: '',
       });
       form.setValue('status', 'active', { shouldValidate: true });
       setPhotoPreview(null);
@@ -250,6 +278,12 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
 
       // Limpiar el input de fecha de fallecimiento
       setDeathDateInput('');
+
+      // Limpiar el input de fecha de inactividad
+      setInactiveSinceInput('');
+
+      // Limpiar el input de fecha de menos activo
+      setLessActiveSinceInput('');
 
       // Reset duplicate states for new member
       setDuplicateMembers([]);
@@ -373,6 +407,22 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
     if (watchedStatus !== 'deceased') {
       form.setValue('deathDate', undefined);
       setDeathDateInput('');
+    }
+  }, [form, watchedStatus]);
+
+  useEffect(() => {
+    if (watchedStatus !== 'inactive') {
+      form.setValue('inactiveSince', undefined);
+      form.setValue('inactiveObservation', '');
+      setInactiveSinceInput('');
+    }
+  }, [form, watchedStatus]);
+
+  useEffect(() => {
+    if (watchedStatus !== 'less_active') {
+      form.setValue('lessActiveSince', undefined);
+      form.setValue('lessActiveObservation', '');
+      setLessActiveSinceInput('');
     }
   }, [form, watchedStatus]);
 
@@ -794,9 +844,23 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           ministeringTeachers: values.ministeringTeachers || [],
           isUrgent: values.isUrgent || false,
           isInCouncil: values.isInCouncil || false,
+          inactiveSince: values.status === 'inactive'
+            ? values.inactiveSince
+              ? Timestamp.fromDate(values.inactiveSince)
+              : Timestamp.now()
+            : null,
+          inactiveObservation: values.status === 'inactive'
+            ? values.inactiveObservation?.trim() || ''
+            : undefined,
+          lessActiveSince: values.status === 'less_active'
+            ? values.lessActiveSince
+              ? Timestamp.fromDate(values.lessActiveSince)
+              : Timestamp.now()
+            : null,
+          lessActiveObservation: values.status === 'less_active'
+            ? values.lessActiveObservation?.trim() || ''
+            : undefined,
         });
-
-        // Sync ministering assignments if teachers changed
         const currentTeachers = values.ministeringTeachers || [];
         if (JSON.stringify(previousTeachers.sort()) !== JSON.stringify(currentTeachers.sort())) {
           try {
@@ -852,6 +916,22 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           ministeringTeachers: values.ministeringTeachers || [],
           isUrgent: values.isUrgent || false,
           isInCouncil: values.isInCouncil || false,
+          inactiveSince: values.status === 'inactive'
+            ? values.inactiveSince
+              ? Timestamp.fromDate(values.inactiveSince)
+              : Timestamp.now()
+            : undefined,
+          inactiveObservation: values.status === 'inactive'
+            ? values.inactiveObservation?.trim() || ''
+            : undefined,
+          lessActiveSince: values.status === 'less_active'
+            ? values.lessActiveSince
+              ? Timestamp.fromDate(values.lessActiveSince)
+              : Timestamp.now()
+            : undefined,
+          lessActiveObservation: values.status === 'less_active'
+            ? values.lessActiveObservation?.trim() || ''
+            : undefined,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
           createdBy: user.uid,
@@ -1558,6 +1638,156 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 </FormItem>
               )}
             />
+          )}
+
+          {watchedStatus === 'inactive' && (
+            <>
+              <FormField
+                control={form.control}
+                name="inactiveSince"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha de Inactividad</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="DD/MM/YYYY"
+                        value={inactiveSinceInput}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+                          setInactiveSinceInput(inputValue);
+
+                          const parsedDate = parseDate(inputValue, new Date().getFullYear());
+                          if (parsedDate || !inputValue.trim()) {
+                            field.onChange(parsedDate);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const inputValue = e.target.value;
+                          const parsedDate = parseDate(inputValue, new Date().getFullYear());
+
+                          if (parsedDate) {
+                            const formattedDate = formatDateForDisplay(parsedDate);
+                            setInactiveSinceInput(formattedDate);
+                            field.onChange(parsedDate);
+                          } else if (!inputValue.trim()) {
+                            setInactiveSinceInput('');
+                            field.onChange(undefined);
+                          } else {
+                            field.onChange(undefined);
+                          }
+
+                          field.onBlur();
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Opcional. Fecha desde la cual el miembro está inactivo. Si no se especifica, se usará la fecha actual.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="inactiveObservation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observación de Inactividad</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Motivo de la inactividad..."
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={field.disabled}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Opcional. Describe el motivo o circunstancia de la inactividad.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
+          )}
+
+          {watchedStatus === 'less_active' && (
+            <>
+              <FormField
+                control={form.control}
+                name="lessActiveSince"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha desde Menos Activo</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="DD/MM/YYYY"
+                        value={lessActiveSinceInput}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+                          setLessActiveSinceInput(inputValue);
+
+                          const parsedDate = parseDate(inputValue, new Date().getFullYear());
+                          if (parsedDate || !inputValue.trim()) {
+                            field.onChange(parsedDate);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const inputValue = e.target.value;
+                          const parsedDate = parseDate(inputValue, new Date().getFullYear());
+
+                          if (parsedDate) {
+                            const formattedDate = formatDateForDisplay(parsedDate);
+                            setLessActiveSinceInput(formattedDate);
+                            field.onChange(parsedDate);
+                          } else if (!inputValue.trim()) {
+                            setLessActiveSinceInput('');
+                            field.onChange(undefined);
+                          } else {
+                            field.onChange(undefined);
+                          }
+
+                          field.onBlur();
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Opcional. Fecha desde la cual el miembro es menos activo. Si no se especifica, se usará la fecha actual.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lessActiveObservation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observación de Menos Activo</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Motivo de menos actividad..."
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={field.disabled}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Opcional. Describe el motivo o circunstancia de la menor actividad.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
           )}
 
           {/* Form Actions */}

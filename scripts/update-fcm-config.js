@@ -3,7 +3,7 @@ const path = require('path');
 
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "LuzViva";
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "sionflow";
 const APP_NOTIFICATION_TAG = (APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")) + "-notification";
 
 const swPath = path.join(__dirname, '../public/firebase-messaging-sw.js');
@@ -73,8 +73,8 @@ function extractNotificationPayload(payload) {
     body: notification.body || data.body || webpushNotification.body || 'Tienes una nueva notificacion.',
     url: data.url || payload?.fcmOptions?.link || payload?.webpush?.fcmOptions?.link || '/',
     tag: data.tag || webpushNotification.tag || ${appTag},
-    icon: notification.icon || webpushNotification.icon || '/logo.svg',
-    badge: notification.badge || webpushNotification.badge || '/logo.svg',
+    icon: notification.icon || webpushNotification.icon || '/icono-app.png',
+    badge: notification.badge || webpushNotification.badge || '/icono-app.png',
   };
 }
 

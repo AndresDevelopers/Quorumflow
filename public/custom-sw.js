@@ -20,16 +20,16 @@ self.addEventListener('push', function(event) {
     data = {
       title: 'Nueva Notificación',
       body: event.data.text(),
-      icon: '/logo.svg',
-      badge: '/logo.svg',
+      icon: '/icono-app.png',
+      badge: '/icono-app.png',
     };
   }
 
   const title = data.title || APP_NAME;
   const options = {
     body: data.body || 'Tienes una nueva notificación',
-    icon: data.icon || '/logo.svg',
-    badge: data.badge || '/logo.svg',
+    icon: data.icon || '/icono-app.png',
+    badge: data.badge || '/icono-app.png',
     data: {
       url: data.url || '/',
       timestamp: data.timestamp || Date.now(),

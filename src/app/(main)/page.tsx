@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCallback, useEffect, useState } from "react";
 import { VoiceAnnotations } from "@/components/shared/voice-annotations";
 import { BirthdaysDashboardCard } from "@/components/dashboard/birthdays-dashboard-card";
+import { DisclaimerPopup } from "@/components/shared/disclaimer-popup";
 import type { Annotation, Member, TempleOrdinance } from "@/lib/types";
 import { TempleOrdinanceLabels } from "@/lib/types";
 import {
@@ -553,6 +554,7 @@ function DashboardPage() {
               currentUserId={user?.uid}
            />
       </div>
+      <DisclaimerPopup persistent={true} />
     </div>
   );
 }

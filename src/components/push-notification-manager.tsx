@@ -117,8 +117,8 @@ export function PushNotificationManager() {
       if (Notification.permission === 'granted') {
         new Notification('Notificaciones activadas', {
           body: 'Ahora recibiras recordatorios importantes de la aplicacion.',
-          icon: '/logo.svg',
-          badge: '/logo.svg'
+          icon: '/icono-app.png',
+          badge: '/icono-app.png'
         });
       }
     } catch (error) {

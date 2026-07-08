@@ -477,5 +477,8 @@
   "settings.security.errorUnexpected": "Ocurrió un error inesperado. Intenta de nuevo.",
   "settings.security.saving": "Guardando...",
   "settings.security.updatePasswordButton": "Actualizar contraseña",
-  "settings.security.updateEmailButton": "Actualizar correo"
+  "settings.security.updateEmailButton": "Actualizar correo",
+  "disclaimer.title": "Aplicación No Oficial",
+  "disclaimer.description": "Esta aplicación NO es oficial de La Iglesia de Jesucristo de los Santos de los Últimos Días. Está diseñada exclusivamente para uso de líderes del Quórum de Élderes y la Sociedad de Socorro como herramienta de apoyo en sus llamamientos.",
+  "disclaimer.dismiss": "Entendido"
 }

@@ -111,8 +111,8 @@ export async function sendServerSidePushNotification(params: PushNotificationPar
         notification: {
           title,
           body,
-          icon: '/logo.svg',
-          badge: '/logo.svg',
+          icon: '/icono-app.png',
+          badge: '/icono-app.png',
           tag: tag,
         },
         fcmOptions: { link: url ?? '/' },

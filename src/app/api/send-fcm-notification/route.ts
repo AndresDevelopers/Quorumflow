@@ -124,8 +124,8 @@ export async function POST(request: NextRequest) {
           notification: {
             title,
             body,
-            icon: '/logo.svg',
-            badge: '/logo.svg',
+            icon: '/icono-app.png',
+            badge: '/icono-app.png',
             tag: getAppNotificationTag(),
           },
           fcmOptions: {

@@ -6,9 +6,9 @@ export const revalidate = 86400;
 export async function GET(request: Request) {
   const iconUrl = getAppIcon();
 
-  if (!iconUrl || iconUrl === "/logo.svg") {
+  if (!iconUrl || iconUrl === "/icono-app.png") {
     const url = new URL(request.url);
-    return NextResponse.redirect(`${url.origin}/logo.svg`);
+    return NextResponse.redirect(`${url.origin}/icono-app.png`);
   }
 
   try {
@@ -26,6 +26,6 @@ export async function GET(request: Request) {
     });
   } catch {
     const url = new URL(request.url);
-    return NextResponse.redirect(`${url.origin}/logo.svg`);
+    return NextResponse.redirect(`${url.origin}/icono-app.png`);
   }
 }

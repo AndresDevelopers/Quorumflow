@@ -224,8 +224,8 @@ class FcmRepository {
                             title: payload.title,
                             body: payload.body,
                             tag: payload.tag,
-                            icon: "/logo.svg",
-                            badge: "/logo.svg",
+                            icon: "/icono-app.png",
+                            badge: "/icono-app.png",
                         },
                         fcmOptions: {
                             link: payload.url ?? "/",

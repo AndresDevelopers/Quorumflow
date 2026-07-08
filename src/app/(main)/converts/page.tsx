@@ -360,6 +360,8 @@ export default function ConvertsPage() {
         </div>
       </CardHeader>
       <CardContent>
+        {/* Desktop table view */}
+        <div className="hidden md:block overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -449,6 +451,78 @@ export default function ConvertsPage() {
             )}
           </TableBody>
         </Table>
+        </div>
+
+        {/* Mobile card view */}
+        <div className="md:hidden space-y-3">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+            ))
+          ) : converts.length === 0 ? (
+            <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
+              {t('converts.noData')}
+            </div>
+          ) : (
+            converts.map((item) => {
+              const convertAlertStatus = getConvertAlertStatus(item);
+              return (
+                <div key={item.id} className="flex items-center gap-3 rounded-lg border p-3">
+                  <div className="relative shrink-0">
+                    <Avatar>
+                      <AvatarImage src={item.photoURL} data-ai-hint="profile picture" />
+                      <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    {convertAlertStatus && (
+                      <span
+                        className={`absolute -top-0.5 -right-0.5 block h-0 w-0 border-l-[10px] border-b-[10px] border-l-transparent ${
+                          convertAlertStatus === 'inactive' ? 'border-b-red-500' : 'border-b-yellow-400'
+                        }`}
+                      />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: es })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                      <Link href={item.id.startsWith('member_')
+                        ? `/members/${item.id.substring(7)}`
+                        : item.memberId
+                          ? `/members/${item.memberId}`
+                          : `/members?search=${encodeURIComponent(item.name)}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openConvertInfo(item)}>
+                      <Info className="h-4 w-4" />
+                    </Button>
+                    {canWrite && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                      <Link href={item.id.startsWith('member_')
+                        ? buildMemberEditUrl(item.id.substring(7), '/converts')
+                        : item.memberId
+                          ? buildMemberEditUrl(item.memberId, '/converts')
+                          : `/members?search=${encodeURIComponent(item.name)}`}>
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
 
         <ConvertInfoSheet
           convert={selectedConvert}

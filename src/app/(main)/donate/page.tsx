@@ -70,6 +70,12 @@ export default function DonatePage() {
         <p className="text-sm text-muted-foreground italic">
           {t("donate.optional")}
         </p>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/50 p-4 text-sm text-amber-800 dark:text-amber-200">
+          <p className="leading-relaxed">
+            {t("donate.suggestedNote")}
+          </p>
+        </div>
       </div>
 
       {config?.qrImageUrl && (

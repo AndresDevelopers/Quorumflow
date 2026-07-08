@@ -439,6 +439,7 @@
   "donate.title": "Apoya {appName}",
   "donate.description": "Tu contribución, sin importar el monto, nos ayuda a cubrir los costos mensuales de mantener esta aplicación funcionando — servidores, bases de datos y servicios esenciales. Incluso una donación única hace una gran diferencia.",
   "donate.optional": "Donar es completamente opcional. Agradecemos cualquier apoyo que puedas ofrecer.",
+  "donate.suggestedNote": "Sugerimos una donación de $2 mensuales para ayudar a cubrir los costos operativos. Ten en cuenta que las donaciones no son automáticas: cada vez que desees contribuir deberás hacerlo manualmente, ya que todo aporte es completamente voluntario.",
   "donate.scanQR": "Escanea este código QR para donar:",
   "donate.orClickLink": "O haz clic en el enlace de abajo:",
   "donate.downloadQR": "Descargar imagen QR",

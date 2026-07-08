@@ -18,6 +18,14 @@ const ptSans = PT_Sans({
   style: ["normal", "italic"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: {
     template: `%s | ${appName}`,

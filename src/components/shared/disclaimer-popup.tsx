@@ -57,12 +57,14 @@ export function DisclaimerPopup({ persistent = false }: DisclaimerPopupProps) {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t("disclaimer.title")}</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-3">
-            <p>{t("disclaimer.description")}</p>
-            <p className="flex items-start gap-2 text-amber-600 dark:text-amber-400">
-              <Eye className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{t("disclaimer.observation")}</span>
-            </p>
+          <AlertDialogDescription className="space-y-3" asChild>
+            <div>
+              <p>{t("disclaimer.description")}</p>
+              <p className="flex items-start gap-2 text-amber-600 dark:text-amber-400">
+                <Eye className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{t("disclaimer.observation")}</span>
+              </p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

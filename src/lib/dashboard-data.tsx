@@ -15,21 +15,20 @@ import { buildActivityOverview } from '@/lib/activity-overview';
 import { subMonths, addDays, format, isAfter, isBefore } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
 
-export async function getFutureMembers(barrioOrg: string): Promise<Member[]> {
+function mapMember(docId: string, memberData: Record<string, any>): Member {
+  return {
+    id: docId,
+    ...memberData,
+    status: normalizeMemberStatus(memberData.status),
+  } as Member;
+}
+
+/** Derive future-baptism candidates from an already-loaded members list (no extra read). */
+export function deriveFutureMembers(members: Member[]): Member[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const snapshot = await getDocs(query(membersCollection, where('barrioOrg', '==', barrioOrg)));
-
-  const futureMembers = snapshot.docs
-    .map(doc => {
-      const memberData = doc.data();
-      return {
-        id: doc.id,
-        ...memberData,
-        status: normalizeMemberStatus(memberData.status),
-      } as Member;
-    })
+  return members
     .filter(member => {
       if (member.status === 'deceased') return false;
       const isBaptized = member.ordinances?.includes('baptism') ?? false;
@@ -40,110 +39,127 @@ export async function getFutureMembers(barrioOrg: string): Promise<Member[]> {
       if (!a.baptismDate || !b.baptismDate) return 0;
       return a.baptismDate.toMillis() - b.baptismDate.toMillis();
     });
-
-  return futureMembers;
 }
 
+export async function getFutureMembers(barrioOrg: string): Promise<Member[]> {
+  const snapshot = await getDocs(query(membersCollection, where('barrioOrg', '==', barrioOrg), limit(500)));
+  const members = snapshot.docs.map(doc => mapMember(doc.id, doc.data()));
+  return deriveFutureMembers(members);
+}
+
+/**
+ * Single-pass dashboard load: one members read + parallel scoped queries.
+ * Avoids re-fetching c_miembros 3–5 times per home visit.
+ */
 export async function getDashboardData(barrioOrg: string) {
-  // 1. Conversos Totales (últimos 24 meses, igual que la página de conversos)
   const twentyFourMonthsAgo = subMonths(new Date(), 24);
-  const twentyFourMonthsAgoTimestamp = Timestamp.fromDate(twentyFourMonthsAgo);
+  const twentyFourMonthsAgoTs = Timestamp.fromDate(twentyFourMonthsAgo);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sevenDaysFromNow = addDays(today, 7);
+  const fourteenDaysFromNow = addDays(today, 14);
 
-  // Conversos de la colección
-  const convertsSnapshot = await getDocs(query(convertsCollection, where('barrioOrg', '==', barrioOrg), orderBy('baptismDate', 'desc')));
+  const [
+    convertsSnapshot,
+    membersSnapshot,
+    ministeringSnapshot,
+    councilAnnotationsSnapshot,
+    servicesSnapshot,
+    upcomingBaptismsSnapshot,
+    activitiesSnapshot,
+  ] = await Promise.all([
+    getDocs(query(
+      convertsCollection,
+      where('barrioOrg', '==', barrioOrg),
+      where('baptismDate', '>=', twentyFourMonthsAgoTs),
+      orderBy('baptismDate', 'desc')
+    )),
+    // Single members load for converts-from-members, future, less_active, status cards
+    getDocs(query(membersCollection, where('barrioOrg', '==', barrioOrg), limit(500))),
+    getDocs(query(ministeringCollection, where('barrioOrg', '==', barrioOrg))),
+    getDocs(query(
+      annotationsCollection,
+      where('barrioOrg', '==', barrioOrg),
+      where('isResolved', '==', false)
+    )),
+    getDocs(query(
+      servicesCollection,
+      where('barrioOrg', '==', barrioOrg),
+      where('date', '>=', Timestamp.fromDate(today))
+    )),
+    getDocs(query(
+      futureMembersCollection,
+      where('barrioOrg', '==', barrioOrg),
+      where('baptismDate', '>=', Timestamp.fromDate(today)),
+      where('baptismDate', '<=', Timestamp.fromDate(sevenDaysFromNow))
+    )),
+    // Only next 14 days of activities (not full history)
+    getDocs(query(
+      activitiesCollection,
+      where('barrioOrg', '==', barrioOrg),
+      where('date', '>=', Timestamp.fromDate(today)),
+      where('date', '<=', Timestamp.fromDate(fourteenDaysFromNow)),
+      orderBy('date', 'asc')
+    )),
+  ]);
+
+  const members = membersSnapshot.docs.map(doc => mapMember(doc.id, doc.data()));
+  const membersAlive = members.filter(m => m.status !== 'deceased');
+
+  // 1. Converts (collection + members baptized in last 24 months)
   const convertsFromCollection = convertsSnapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() } as Convert))
-    .filter(convert => 
-      convert.baptismDate && 
-      convert.baptismDate.toDate &&
-      convert.baptismDate.toDate() > twentyFourMonthsAgo
-    );
+    .map(doc => ({ id: doc.id, ...doc.data() } as Convert));
 
-  // Miembros bautizados hace menos de 24 meses
-  const membersSnapshot = await getDocs(query(membersCollection, where('barrioOrg', '==', barrioOrg), orderBy('baptismDate', 'desc')));
-  const membersAsConverts = membersSnapshot.docs
-    .map(doc => {
-      const memberData = doc.data();
-      if (memberData.baptismDate && memberData.baptismDate.toDate) {
-        const baptismDate = memberData.baptismDate.toDate();
-        if (baptismDate > twentyFourMonthsAgo) {
-          return {
-            id: `member_${doc.id}`,
-            name: `${memberData.firstName} ${memberData.lastName}`,
-            baptismDate: memberData.baptismDate,
-            photoURL: memberData.photoURL,
-            councilCompleted: memberData.councilCompleted || false,
-            councilCompletedAt: memberData.councilCompletedAt || null,
-            observation: 'Bautizado como miembro',
-            missionaryReference: 'Registro de miembros'
-          } as Convert;
-        }
-      }
-      return null;
+  const membersAsConverts = members
+    .filter(m => {
+      if (m.status === 'deceased') return false;
+      if (!m.baptismDate?.toDate) return false;
+      return m.baptismDate.toDate() > twentyFourMonthsAgo;
     })
-    .filter(Boolean) as Convert[];
+    .map(m => ({
+      id: `member_${m.id}`,
+      name: `${m.firstName} ${m.lastName}`,
+      baptismDate: m.baptismDate!,
+      photoURL: m.photoURL,
+      councilCompleted: m.councilCompleted || false,
+      councilCompletedAt: m.councilCompletedAt || null,
+      observation: 'Bautizado como miembro',
+      missionaryReference: 'Registro de miembros'
+    } as Convert));
 
-  // Combinar y ordenar por fecha de bautismo (más reciente primero)
   const allConverts = [...convertsFromCollection, ...membersAsConverts]
     .sort((a, b) => b.baptismDate.toDate().getTime() - a.baptismDate.toDate().getTime());
 
-  // Eliminar duplicados basados en nombre y fecha de bautismo
-  const uniqueConverts = allConverts.filter((convert, index, self) => 
-    index === self.findIndex(c => 
-      c.name === convert.name && 
+  const uniqueConverts = allConverts.filter((convert, index, self) =>
+    index === self.findIndex(c =>
+      c.name === convert.name &&
       c.baptismDate.toDate().getTime() === convert.baptismDate.toDate().getTime()
     )
   );
 
   const convertsCount = uniqueConverts.length;
 
-  // 2. Future Members Count
-  const futureMembers = await getFutureMembers(barrioOrg);
-  const futureMembersCount = futureMembers.length;
+  // 2. Future members from same members array
+  const futureMembersCount = deriveFutureMembers(members).length;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const ministeringSnapshot = await getDocs(query(ministeringCollection, where('barrioOrg', '==', barrioOrg)));
+  // 3. Ministering urgent
   const companionships = ministeringSnapshot.docs.map(doc => doc.data() as Companionship);
+  const urgentNeedsCount = companionships.flatMap(c => c.families).filter(f => f.isUrgent).length;
 
-  // 4. Council Actions Count - Based on active items in Council page
-
-  // a. Unresolved annotations for council
-  const councilAnnotationsSnapshot = await getDocs(
-    query(annotationsCollection, where('barrioOrg', '==', barrioOrg), where('isResolved', '==', false))
-  );
+  // 4. Council actions
   const councilAnnotationsCount = councilAnnotationsSnapshot.size;
 
-  // b. Services not notified to council
-  const servicesSnapshot = await getDocs(
-    query(servicesCollection, where('barrioOrg', '==', barrioOrg), where('date', '>=', Timestamp.fromDate(today)))
-  );
   const services = servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Service));
   const servicesNotNotifiedCount = services.filter(service =>
     service.councilNotified === false || service.councilNotified === undefined
   ).length;
 
-  // c. Converts needing council follow-up (within 18 months, not completed)
-  const councilConvertsSnapshot = await getDocs(query(convertsCollection, where('barrioOrg', '==', barrioOrg), where('councilCompleted', '==', false)));
-  const pendingCouncilConverts = councilConvertsSnapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() } as Convert))
-  .filter(c => c.baptismDate && c.baptismDate.toDate() > twentyFourMonthsAgo).length;
+  const pendingCouncilConverts = convertsFromCollection
+    .filter(c => !c.councilCompleted && c.baptismDate && c.baptismDate.toDate() > twentyFourMonthsAgo)
+    .length;
 
-  // d. Upcoming baptisms (next 7 days)
-  const sevenDaysFromNow = addDays(today, 7);
-  const upcomingBaptismsSnapshot = await getDocs(
-    query(
-      futureMembersCollection,
-      where('barrioOrg', '==', barrioOrg),
-      where('baptismDate', '>=', Timestamp.fromDate(today)),
-      where('baptismDate', '<=', Timestamp.fromDate(sevenDaysFromNow))
-    )
-  );
   const upcomingBaptismsCount = upcomingBaptismsSnapshot.size;
 
-  // e. Upcoming activities (next 14 days)
-  const fourteenDaysFromNow = addDays(today, 14);
-  const activitiesSnapshot = await getDocs(query(activitiesCollection, where('barrioOrg', '==', barrioOrg), orderBy('date', 'desc')));
   const upcomingActivitiesCount = activitiesSnapshot.docs
     .map(doc => ({ id: doc.id, ...doc.data() } as Activity))
     .filter(activity => {
@@ -151,26 +167,65 @@ export async function getDashboardData(barrioOrg: string) {
       return isAfter(activityDate, today) && isBefore(activityDate, fourteenDaysFromNow);
     }).length;
 
-  // f. Urgent needs from ministering
-  const urgentNeedsCount = companionships.flatMap(c => c.families).filter(f => f.isUrgent).length;
+  const lessActiveMembersNeedingCouncilCount = membersAlive
+    .filter(m => m.status === 'less_active' && !m.councilCompleted)
+    .length;
 
-  // g. Less active members needing council follow-up
-  const lessActiveMembersSnapshot = await getDocs(
-    query(membersCollection, where('barrioOrg', '==', barrioOrg), where('status', '==', 'less_active'))
-  );
-  const lessActiveMembers = lessActiveMembersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Member));
-  const lessActiveMembersNeedingCouncilCount = lessActiveMembers.filter(member =>
-    !member.councilCompleted
-  ).length;
-
-  const councilActionsCount = councilAnnotationsCount + servicesNotNotifiedCount + pendingCouncilConverts +
-    upcomingBaptismsCount + upcomingActivitiesCount + urgentNeedsCount +
+  const councilActionsCount =
+    councilAnnotationsCount +
+    servicesNotNotifiedCount +
+    pendingCouncilConverts +
+    upcomingBaptismsCount +
+    upcomingActivitiesCount +
+    urgentNeedsCount +
     lessActiveMembersNeedingCouncilCount;
+
+  // Status breakdown for dashboard cards (from same members array)
+  const active = membersAlive.filter(m => m.status === 'active');
+  const lessActive = membersAlive.filter(m => m.status === 'less_active');
+  const inactive = membersAlive.filter(m => m.status === 'inactive');
+
+  // Deceased needing temple work (same list, filter in memory)
+  const allTempleOrdinances = [
+    'baptism',
+    'confirmation',
+    'initiatory',
+    'endowment',
+    'sealed_to_father',
+    'sealed_to_mother',
+    'sealed_to_spouse',
+  ] as const;
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const deceasedMembers = members
+    .filter(m => m.status === 'deceased')
+    .filter(member => {
+      const ordinances = [
+        ...(member.ordinances || []),
+        ...((member as any).templeOrdinances || []),
+      ];
+      const unique = [...new Set(ordinances)];
+      const allComplete = allTempleOrdinances.every(ord => unique.includes(ord));
+      if (allComplete) {
+        const completedAt = member.templeWorkCompletedAt?.toDate();
+        if (completedAt) return completedAt > sevenDaysAgo;
+        return true;
+      }
+      return true;
+    })
+    .sort((a, b) => a.lastName.localeCompare(b.lastName));
 
   return {
     convertsCount,
     futureMembersCount,
     councilActionsCount,
+    membersByStatus: {
+      active,
+      lessActive,
+      inactive,
+      total: membersAlive.length,
+    },
+    deceasedMembers,
   };
 }
 
@@ -178,34 +233,29 @@ export async function getMembersByStatus(barrioOrg: string) {
   const membersSnapshot = await getDocs(query(
     membersCollection,
     where('barrioOrg', '==', barrioOrg),
-    // Limit to a reasonable max for stats; beyond this, counts are approximate
     limit(500)
   ));
   const members = membersSnapshot.docs
-    .map(doc => {
-      const memberData = doc.data() as Record<string, any>;
-      return {
-        id: doc.id,
-        ...memberData,
-        status: normalizeMemberStatus(memberData.status),
-      } as Member;
-    })
+    .map(doc => mapMember(doc.id, doc.data()))
     .filter(member => member.status !== 'deceased');
 
-  const activeMembers = members.filter(m => m.status === 'active');
-  const lessActiveMembers = members.filter(m => m.status === 'less_active');
-  const inactiveMembers = members.filter(m => m.status === 'inactive');
-
   return {
-    active: activeMembers,
-    lessActive: lessActiveMembers,
-    inactive: inactiveMembers,
+    active: members.filter(m => m.status === 'active'),
+    lessActive: members.filter(m => m.status === 'less_active'),
+    inactive: members.filter(m => m.status === 'inactive'),
     total: members.length
   };
 }
 
 export async function getActivityOverviewData(barrioOrg: string) {
-  const activitiesSnapshot = await getDocs(query(activitiesCollection, where('barrioOrg', '==', barrioOrg), orderBy('date', 'asc')));
+  // Only current year — avoids loading full activity history
+  const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  const activitiesSnapshot = await getDocs(query(
+    activitiesCollection,
+    where('barrioOrg', '==', barrioOrg),
+    where('date', '>=', Timestamp.fromDate(yearStart)),
+    orderBy('date', 'asc')
+  ));
   const activities = activitiesSnapshot.docs.map((doc) => {
     const activity = doc.data() as Activity;
 
@@ -220,7 +270,13 @@ export async function getActivityOverviewData(barrioOrg: string) {
 
 
 export async function getActivityChartData(barrioOrg: string) {
-  const activitiesSnapshot = await getDocs(query(activitiesCollection, where('barrioOrg', '==', barrioOrg), orderBy('date', 'asc')));
+  const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  const activitiesSnapshot = await getDocs(query(
+    activitiesCollection,
+    where('barrioOrg', '==', barrioOrg),
+    where('date', '>=', Timestamp.fromDate(yearStart)),
+    orderBy('date', 'asc')
+  ));
   const activities = activitiesSnapshot.docs.map(doc => doc.data() as Activity);
 
   const monthlyTotals: { [key: string]: number } = {
@@ -234,30 +290,24 @@ export async function getActivityChartData(barrioOrg: string) {
     const activityDate = activity.date.toDate();
     if (activityDate.getFullYear() === currentYear) {
       const month = format(activityDate, 'MMM', { locale: getDateFnsLocale() });
-      // Capitalize first letter for consistency (e.g., 'Ene' -> 'Ene')
       const monthKey = month.charAt(0).toUpperCase() + month.slice(1).replace('.', '');
-      if (monthlyTotals.hasOwnProperty(monthKey)) {
+      if (Object.prototype.hasOwnProperty.call(monthlyTotals, monthKey)) {
         monthlyTotals[monthKey] += 1;
       }
     }
   });
 
-  // Map to the format expected by the chart
   const chartData = Object.entries(monthlyTotals).map(([name, total]) => ({
     name: name,
     total: total,
   }));
 
-  // Re-order to standard month order since locale might change it
   const standardOrder = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
   const monthNameMapping: { [key: string]: string } = {
     Jan: "Ene", Aug: "Ago", Apr: "Abr", Dec: "Dic"
   };
 
-
-
   const sortedChartData = standardOrder.map(monthName => {
-    // Find the English key that maps to the Spanish month name
     const englishKey = Object.keys(monthNameMapping).find(key => monthNameMapping[key] === monthName) || monthName;
     const dataEntry = chartData.find(d => d.name === englishKey || d.name === monthName);
     return {
@@ -265,7 +315,6 @@ export async function getActivityChartData(barrioOrg: string) {
       total: dataEntry ? dataEntry.total : 0,
     }
   });
-
 
   return sortedChartData;
 }

@@ -13,6 +13,7 @@ import { CalendarIcon, User, X, Upload, Loader2, UserCheck, Edit3 } from 'lucide
 import { addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { convertsCollection, storage } from '@/lib/collections';
+import { compressProfileImage } from '@/lib/image-compression';
 import logger from '@/lib/logger';
 
 import { Button } from '@/components/ui/button';
@@ -209,8 +210,9 @@ export function ConvertForm({ convert }: ConvertFormProps) {
     try {
       // Handle photo upload/update logic
       if (selectedFile) {
-        const storageRef = ref(storage, `profile_pictures/converts/${user.uid}/${Date.now()}_${selectedFile.name}`);
-        await uploadBytes(storageRef, selectedFile);
+        const optimized = await compressProfileImage(selectedFile);
+        const storageRef = ref(storage, `profile_pictures/converts/${user.uid}/${Date.now()}_${optimized.name}`);
+        await uploadBytes(storageRef, optimized, { contentType: optimized.type });
         finalPhotoURL = await getDownloadURL(storageRef);
 
         if (isEditMode && convert?.photoURL && convert.photoURL.startsWith('https://firebasestorage.googleapis.com')) {

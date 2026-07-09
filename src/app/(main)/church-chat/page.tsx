@@ -11,11 +11,11 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { usePermission } from '@/hooks/use-permission';
 import { useI18n } from '@/contexts/i18n-context';
 import { firestore } from '@/lib/firebase';
 import logger from '@/lib/logger';
-
+import enTranslations from '@/locales/en.json';
+import esTranslations from '@/locales/es.json';
 
 type BrowserSpeechRecognitionResult = {
   readonly isFinal: boolean;
@@ -55,16 +55,24 @@ type SpeechRecognitionWindow = Window & {
   webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
 };
 
+type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
+
 type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
+  /** Resolved text for user/assistant replies; may be empty when contentKey is set. */
   content: string;
+  /** i18n key for system-generated messages (e.g. welcome). Resolved at display time. */
+  contentKey?: string;
   createdAt: string;
 };
 
 type ChatSession = {
   id: string;
+  /** Resolved title after the first user message; may be empty when titleKey is set. */
   title: string;
+  /** i18n key for default titles (new chat). Resolved at display time. */
+  titleKey?: string;
   createdAt: string;
   messages: ChatMessage[];
 };
@@ -75,8 +83,21 @@ type ChatStoreDocument = {
 
 const MAX_SESSIONS = 25;
 const MAX_MESSAGES_PER_SESSION = 50;
-const SPEECH_LANGUAGE = 'es-ES';
 
+const TITLE_KEY_NEW_CHAT = 'churchChat.nuevoChat';
+const CONTENT_KEY_WELCOME = 'churchChat.welcome';
+
+const LEGACY_NEW_CHAT_TITLES = new Set([
+  TITLE_KEY_NEW_CHAT,
+  enTranslations[TITLE_KEY_NEW_CHAT as keyof typeof enTranslations],
+  esTranslations[TITLE_KEY_NEW_CHAT as keyof typeof esTranslations],
+]);
+
+const LEGACY_WELCOME_CONTENTS = new Set([
+  CONTENT_KEY_WELCOME,
+  enTranslations[CONTENT_KEY_WELCOME as keyof typeof enTranslations],
+  esTranslations[CONTENT_KEY_WELCOME as keyof typeof esTranslations],
+]);
 
 const getSpeechRecognitionConstructor = (): BrowserSpeechRecognitionConstructor | undefined => {
   if (typeof window === 'undefined') return undefined;
@@ -86,7 +107,16 @@ const getSpeechRecognitionConstructor = (): BrowserSpeechRecognitionConstructor 
 
 const canUseSpeechSynthesis = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
 
-const getOrgArticle = (org: string): { article: string; deArticle: string } => {
+const speechLocaleForLanguage = (language: string) => (language === 'en' ? 'en-US' : 'es-ES');
+
+/** Spanish gendered prepositions; English uses a fixed "of". */
+const getOrgArticle = (
+  org: string,
+  language: string,
+): { article: string; deArticle: string } => {
+  if (language === 'en') {
+    return { article: '', deArticle: 'of' };
+  }
   const lower = org.toLowerCase();
   if (lower.includes('elder') || lower.includes('élder')) return { article: 'el', deArticle: 'del' };
   if (lower.includes('mujeres')) return { article: 'las', deArticle: 'de las' };
@@ -97,61 +127,113 @@ type QuickOption = {
   key: string;
   generateMessage: (
     org: string,
-    t: (key: string, params?: Record<string, string | number>) => string,
+    language: string,
+    t: TranslateFn,
   ) => string;
 };
 
 const QUICK_OPTIONS: QuickOption[] = [
   {
     key: 'presidente',
-    generateMessage: (org, t) => {
-      const { deArticle } = getOrgArticle(org);
+    generateMessage: (org, language, t) => {
+      const { deArticle } = getOrgArticle(org, language);
       return t('churchChat.prompt.presidente', { deArticle, org });
     },
   },
   {
     key: 'consejero',
-    generateMessage: (org, t) => {
-      const { deArticle } = getOrgArticle(org);
+    generateMessage: (org, language, t) => {
+      const { deArticle } = getOrgArticle(org, language);
       return t('churchChat.prompt.consejero', { deArticle, org });
     },
   },
   {
     key: 'secretario',
-    generateMessage: (org, t) => {
-      const { deArticle } = getOrgArticle(org);
+    generateMessage: (org, language, t) => {
+      const { deArticle } = getOrgArticle(org, language);
       return t('churchChat.prompt.secretario', { deArticle, org });
     },
   },
   {
     key: 'otrosCargos',
-    generateMessage: (org, t) => {
-      const { article } = getOrgArticle(org);
+    generateMessage: (org, language, t) => {
+      const { article } = getOrgArticle(org, language);
       return t('churchChat.prompt.otrosCargos', { article, org });
     },
   },
   {
     key: 'novedades',
-    generateMessage: (org, t) => {
-      const { deArticle } = getOrgArticle(org);
+    generateMessage: (org, language, t) => {
+      const { deArticle } = getOrgArticle(org, language);
       return t('churchChat.prompt.novedades', { deArticle, org });
     },
   },
 ];
 
-const makeInitialAssistantMessage = (t: (key: string) => string): ChatMessage => ({
+const makeInitialAssistantMessage = (): ChatMessage => ({
   id: crypto.randomUUID(),
   role: 'assistant',
-  content: t('churchChat.welcome'),
+  content: '',
+  contentKey: CONTENT_KEY_WELCOME,
   createdAt: new Date().toISOString(),
 });
 
-const makeSession = (t: (key: string) => string): ChatSession => ({
+const makeSession = (): ChatSession => ({
   id: crypto.randomUUID(),
-  title: t('churchChat.nuevoChat'),
+  title: '',
+  titleKey: TITLE_KEY_NEW_CHAT,
   createdAt: new Date().toISOString(),
-  messages: [makeInitialAssistantMessage(t)],
+  messages: [makeInitialAssistantMessage()],
 });
+
+const resolveSessionTitle = (session: ChatSession, t: TranslateFn): string => {
+  if (session.titleKey) return t(session.titleKey);
+  return session.title || t(TITLE_KEY_NEW_CHAT);
+};
+
+const resolveMessageContent = (message: ChatMessage, t: TranslateFn): string => {
+  if (message.contentKey) return t(message.contentKey);
+  return message.content;
+};
+
+/** Migrate legacy sessions that stored resolved ES/EN strings (or raw keys) as content. */
+const normalizeMessage = (message: ChatMessage): ChatMessage => {
+  if (message.contentKey) {
+    return { ...message, content: message.content || '' };
+  }
+  if (message.role === 'assistant' && LEGACY_WELCOME_CONTENTS.has(message.content)) {
+    return {
+      ...message,
+      content: '',
+      contentKey: CONTENT_KEY_WELCOME,
+    };
+  }
+  return message;
+};
+
+const normalizeSession = (session: ChatSession): ChatSession => {
+  const onlyWelcome =
+    session.messages.length === 1 &&
+    session.messages[0]?.role === 'assistant' &&
+    (Boolean(session.messages[0].contentKey) ||
+      LEGACY_WELCOME_CONTENTS.has(session.messages[0].content));
+
+  const looksLikeDefaultTitle =
+    Boolean(session.titleKey) ||
+    LEGACY_NEW_CHAT_TITLES.has(session.title) ||
+    (!session.title && onlyWelcome);
+
+  const titleKey = looksLikeDefaultTitle
+    ? session.titleKey ?? TITLE_KEY_NEW_CHAT
+    : undefined;
+
+  return {
+    ...session,
+    titleKey,
+    title: titleKey ? '' : session.title,
+    messages: session.messages.map(normalizeMessage),
+  };
+};
 
 const boundSessionMessages = (session: ChatSession): ChatSession => {
   if (session.messages.length <= MAX_MESSAGES_PER_SESSION) return session;
@@ -162,21 +244,21 @@ const boundSessionMessages = (session: ChatSession): ChatSession => {
 };
 
 const toBoundedSessions = (sessions: ChatSession[]): ChatSession[] =>
-  sessions.slice(0, MAX_SESSIONS).map(boundSessionMessages);
+  sessions.slice(0, MAX_SESSIONS).map((session) => boundSessionMessages(normalizeSession(session)));
 
 const getStorageKey = (userId?: string) => `church-chat-sessions-v1-${userId ?? 'guest'}`;
 
-const loadSessionsFromLocal = (storageKey: string, t: (key: string) => string): ChatSession[] => {
-  if (typeof window === 'undefined') return [makeSession(t)];
+const loadSessionsFromLocal = (storageKey: string): ChatSession[] => {
+  if (typeof window === 'undefined') return [makeSession()];
 
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return [makeSession(t)];
+    if (!raw) return [makeSession()];
 
     const parsed = JSON.parse(raw) as ChatSession[];
-    return parsed.length > 0 ? toBoundedSessions(parsed) : [makeSession(t)];
+    return parsed.length > 0 ? toBoundedSessions(parsed) : [makeSession()];
   } catch {
-    return [makeSession(t)];
+    return [makeSession()];
   }
 };
 
@@ -250,8 +332,8 @@ function FormattedMessage({ content }: { content: string }) {
 export default function ChurchChatPage() {
   const { toast } = useToast();
   const { user, organizacion } = useAuth();
-  const { t } = useI18n();
-  const [sessions, setSessions] = useState<ChatSession[]>(() => [makeSession(t)]);
+  const { t, language } = useI18n();
+  const [sessions, setSessions] = useState<ChatSession[]>(() => [makeSession()]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -263,6 +345,7 @@ export default function ChurchChatPage() {
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const speechInputPrefixRef = useRef('');
   const storageKey = useMemo(() => getStorageKey(user?.uid), [user?.uid]);
+  const speechLang = speechLocaleForLanguage(language);
 
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId) ?? sessions[0],
@@ -300,7 +383,7 @@ export default function ChurchChatPage() {
 
   useEffect(() => {
     const bootstrap = async () => {
-      const localSessions = loadSessionsFromLocal(storageKey, t);
+      const localSessions = loadSessionsFromLocal(storageKey);
       setSessions(localSessions);
 
       if (!user?.uid) {
@@ -386,7 +469,7 @@ export default function ChurchChatPage() {
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = SPEECH_LANGUAGE;
+    recognition.lang = speechLang;
     recognition.interimResults = true;
     recognition.continuous = false;
     speechInputPrefixRef.current = input.trim();
@@ -429,7 +512,7 @@ export default function ChurchChatPage() {
         variant: 'destructive',
       });
     }
-  }, [input, loading, toast]);
+  }, [input, loading, speechLang, t, toast]);
 
   const handleCopyMessage = useCallback(async (content: string) => {
     try {
@@ -442,7 +525,7 @@ export default function ChurchChatPage() {
         variant: 'destructive',
       });
     }
-  }, [toast]);
+  }, [t, toast]);
 
   const handleSpeakMessage = useCallback((message: ChatMessage) => {
     if (!canUseSpeechSynthesis()) {
@@ -460,17 +543,18 @@ export default function ChurchChatPage() {
       return;
     }
 
+    const text = resolveMessageContent(message, t);
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(message.content);
-    utterance.lang = SPEECH_LANGUAGE;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = speechLang;
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = () => setSpeakingMessageId(null);
     setSpeakingMessageId(message.id);
     window.speechSynthesis.speak(utterance);
-  }, [speakingMessageId, toast]);
+  }, [speakingMessageId, speechLang, t, toast]);
 
   const handleNewChat = () => {
-    const next = makeSession(t);
+    const next = makeSession();
     updateSessions((current) => [next, ...current]);
     setActiveSessionId(next.id);
     setInput('');
@@ -481,7 +565,7 @@ export default function ChurchChatPage() {
     updateSessions((current) => {
       const filtered = current.filter((session) => session.id !== sessionId);
       if (filtered.length === 0) {
-        const replacement = makeSession(t);
+        const replacement = makeSession();
         setActiveSessionId(replacement.id);
         return [replacement];
       }
@@ -515,9 +599,11 @@ export default function ChurchChatPage() {
       current.map((session) => {
         if (session.id !== activeSession.id) return session;
         draftMessages = [...session.messages, userMessage];
+        const isFirstUserTurn = session.messages.length <= 1;
         return {
           ...session,
-          title: session.messages.length <= 1 ? messageContent.slice(0, 60) : session.title,
+          title: isFirstUserTurn ? messageContent.slice(0, 60) : session.title,
+          titleKey: isFirstUserTurn ? undefined : session.titleKey,
           messages: draftMessages,
         };
       })
@@ -527,18 +613,21 @@ export default function ChurchChatPage() {
       const history = draftMessages
         .filter((message) => message.id !== userMessage.id)
         .slice(-12)
-        .map((message) => ({ role: message.role, content: message.content }));
+        .map((message) => ({
+          role: message.role,
+          content: resolveMessageContent(message, t),
+        }));
 
       const response = await fetch('/api/church-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: messageText, history }),
+        body: JSON.stringify({ message: messageText, history, language }),
       });
 
       const payload = (await response.json()) as { answer?: string; error?: string };
 
       if (!response.ok || !payload.answer) {
-        throw new Error(payload.error ?? 'No fue posible responder en este momento.');
+        throw new Error(payload.error ?? t('churchChat.sendErrorDefault'));
       }
 
       const assistantMessage: ChatMessage = {
@@ -576,10 +665,8 @@ export default function ChurchChatPage() {
   };
 
   const handleQuickOption = (option: QuickOption) => {
-    void sendMessage(option.generateMessage(organizacion, t));
+    void sendMessage(option.generateMessage(organizacion, language, t));
   };
-
-
 
   return (
     <section className="grid gap-4 lg:grid-cols-[280px_1fr]">
@@ -599,38 +686,41 @@ export default function ChurchChatPage() {
           </p>
           <ScrollArea className="h-[420px] rounded-md border p-2">
             <div className="space-y-2">
-              {sessions.map((session) => (
-                <div
-                  key={session.id}
-                  className={`flex items-center gap-2 rounded-md border p-2 transition hover:bg-muted ${
-                    activeSession?.id === session.id ? 'border-primary bg-muted' : 'border-border'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveSessionId(session.id);
-                      setShowQuickOptions(session.messages.length <= 1);
-                    }}
-                    className="min-h-11 flex-1 text-left"
+              {sessions.map((session) => {
+                const displayTitle = resolveSessionTitle(session, t);
+                return (
+                  <div
+                    key={session.id}
+                    className={`flex items-center gap-2 rounded-md border p-2 transition hover:bg-muted ${
+                      activeSession?.id === session.id ? 'border-primary bg-muted' : 'border-border'
+                    }`}
                   >
-                    <p className="line-clamp-1 font-medium text-sm">{session.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(session.createdAt), 'd MMM yyyy, HH:mm', { locale: getDateFnsLocale() })}
-                    </p>
-                  </button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-11 w-11 shrink-0 opacity-100"
-                    onClick={() => handleDeleteSession(session.id)}
-                    aria-label={t('churchChat.deleteConversationAria', { title: session.title })}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveSessionId(session.id);
+                        setShowQuickOptions(session.messages.length <= 1);
+                      }}
+                      className="min-h-11 flex-1 text-left"
+                    >
+                      <p className="line-clamp-1 font-medium text-sm">{displayTitle}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(session.createdAt), 'd MMM yyyy, HH:mm', { locale: getDateFnsLocale() })}
+                      </p>
+                    </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-11 shrink-0 opacity-100"
+                      onClick={() => handleDeleteSession(session.id)}
+                      aria-label={t('churchChat.deleteConversationAria', { title: displayTitle })}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           </ScrollArea>
         </CardContent>
@@ -664,44 +754,47 @@ export default function ChurchChatPage() {
                   ))}
                 </div>
               )}
-              {activeSession?.messages.map((message) => (
-                <article
-                  key={message.id}
-                  className={`max-w-[90%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
-                    message.role === 'user'
-                      ? 'ml-auto bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground'
-                  }`}
-                >
-                  <FormattedMessage content={message.content} />
-                  {message.role === 'assistant' && (
-                    <div className="mt-2 flex justify-end gap-1 border-t border-border/60 pt-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-11 w-11"
-                        onClick={() => void handleCopyMessage(message.content)}
-                        aria-label={t('churchChat.copyResponseAria')}
-                        title={t('churchChat.copyResponseTitle')}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-11 w-11"
-                        onClick={() => handleSpeakMessage(message)}
-                        aria-label={speakingMessageId === message.id ? t('churchChat.stopReadingAria') : t('churchChat.readResponseAria')}
-                        title={speakingMessageId === message.id ? t('churchChat.stopReadingTitle') : t('churchChat.readResponseTitle')}
-                      >
-                        <Volume2 className={`h-4 w-4 ${speakingMessageId === message.id ? 'text-primary' : ''}`} />
-                      </Button>
-                    </div>
-                  )}
-                </article>
-              ))}
+              {activeSession?.messages.map((message) => {
+                const displayContent = resolveMessageContent(message, t);
+                return (
+                  <article
+                    key={message.id}
+                    className={`max-w-[90%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
+                      message.role === 'user'
+                        ? 'ml-auto bg-primary text-primary-foreground'
+                        : 'bg-muted text-foreground'
+                    }`}
+                  >
+                    <FormattedMessage content={displayContent} />
+                    {message.role === 'assistant' && (
+                      <div className="mt-2 flex justify-end gap-1 border-t border-border/60 pt-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-11 w-11"
+                          onClick={() => void handleCopyMessage(displayContent)}
+                          aria-label={t('churchChat.copyResponseAria')}
+                          title={t('churchChat.copyResponseTitle')}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-11 w-11"
+                          onClick={() => handleSpeakMessage(message)}
+                          aria-label={speakingMessageId === message.id ? t('churchChat.stopReadingAria') : t('churchChat.readResponseAria')}
+                          title={speakingMessageId === message.id ? t('churchChat.stopReadingTitle') : t('churchChat.readResponseTitle')}
+                        >
+                          <Volume2 className={`h-4 w-4 ${speakingMessageId === message.id ? 'text-primary' : ''}`} />
+                        </Button>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
               {loading && (
                 <article className="max-w-[90%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
                   <div className="flex items-center gap-2">

@@ -31,7 +31,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getDocs, query, where, orderBy, limit as fbLimit, Timestamp } from "firebase/firestore";
+import { getDocs, getCountFromServer, query, where, orderBy, limit as fbLimit, Timestamp } from "firebase/firestore";
 import {
   usersCollection,
   membersCollection,
@@ -106,14 +106,25 @@ export default function AdminHomePage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [usersSnap, membersSnap, activitiesSnap, convertsSnap, futureSnap, birthdaysSnap, servicesSnap] = await Promise.all([
+        // Counts via aggregation (1 read each) + limited docs only where field breakdown is needed
+        const [
+          usersSnap,
+          membersCountSnap,
+          membersRecentSnap,
+          activitiesCountSnap,
+          convertsCountSnap,
+          futureCountSnap,
+          birthdaysCountSnap,
+          servicesCountSnap,
+        ] = await Promise.all([
           getDocs(query(usersCollection, where('barrioOrg', '==', barrioOrg))),
-          getDocs(query(membersCollection, where('barrioOrg', '==', barrioOrg))),
-          getDocs(query(activitiesCollection, where('barrioOrg', '==', barrioOrg))),
-          getDocs(query(convertsCollection, where('barrioOrg', '==', barrioOrg))),
-          getDocs(query(futureMembersCollection, where('barrioOrg', '==', barrioOrg))),
-          getDocs(query(birthdaysCollection, where('barrioOrg', '==', barrioOrg))),
-          getDocs(query(servicesCollection, where('barrioOrg', '==', barrioOrg))),
+          getCountFromServer(query(membersCollection, where('barrioOrg', '==', barrioOrg))),
+          getDocs(query(membersCollection, where('barrioOrg', '==', barrioOrg), fbLimit(500))),
+          getCountFromServer(query(activitiesCollection, where('barrioOrg', '==', barrioOrg))),
+          getCountFromServer(query(convertsCollection, where('barrioOrg', '==', barrioOrg))),
+          getCountFromServer(query(futureMembersCollection, where('barrioOrg', '==', barrioOrg))),
+          getCountFromServer(query(birthdaysCollection, where('barrioOrg', '==', barrioOrg))),
+          getCountFromServer(query(servicesCollection, where('barrioOrg', '==', barrioOrg))),
         ]);
 
         const usersByRole: Record<UserRole, number> = {
@@ -134,21 +145,20 @@ export default function AdminHomePage() {
 
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         let recentMembers = 0;
-        let totalMembers = 0;
-        membersSnap.forEach((d) => {
+        const totalMembers = membersCountSnap.data().count;
+        membersRecentSnap.forEach((d) => {
           const data = d.data();
-          totalMembers++;
           const createdAt = data.createdAt as Timestamp | undefined;
           if (createdAt && typeof createdAt.toMillis === "function") {
             if (createdAt.toMillis() >= sevenDaysAgo) recentMembers += 1;
           }
         });
 
-        const totalActivities = activitiesSnap.size;
-        const totalConverts = convertsSnap.size;
-        const totalFuture = futureSnap.size;
-        const totalBirthdays = birthdaysSnap.size;
-        const totalServices = servicesSnap.size;
+        const totalActivities = activitiesCountSnap.data().count;
+        const totalConverts = convertsCountSnap.data().count;
+        const totalFuture = futureCountSnap.data().count;
+        const totalBirthdays = birthdaysCountSnap.data().count;
+        const totalServices = servicesCountSnap.data().count;
 
         setStats({
           totalUsers,

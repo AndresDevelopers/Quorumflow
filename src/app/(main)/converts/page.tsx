@@ -52,23 +52,30 @@ const getConvertAlertStatus = (convert: ConvertWithInfo): ConvertAlertStatus => 
 
 async function getConvertsWithInfo(barrioOrg: string): Promise<ConvertWithInfo[]> {
   const twentyFourMonthsAgo = subMonths(new Date(), 24);
+  const twentyFourMonthsAgoTs = Timestamp.fromDate(twentyFourMonthsAgo);
 
-  // Fetch all required data concurrently
+  // Scoped + date-bounded queries (avoid full-collection reads)
   const [
     convertsSnapshot,
     membersSnapshot,
     friendshipsSnapshot,
     companionshipsSnapshot
   ] = await Promise.all([
-    getDocs(query(convertsCollection, orderBy('baptismDate', 'desc'))),
-    getDocs(query(membersCollection, orderBy('baptismDate', 'desc'))),
+    getDocs(query(
+      convertsCollection,
+      where('barrioOrg', '==', barrioOrg),
+      where('baptismDate', '>=', twentyFourMonthsAgoTs),
+      orderBy('baptismDate', 'desc')
+    )),
+    getDocs(query(
+      membersCollection,
+      where('barrioOrg', '==', barrioOrg),
+      where('baptismDate', '>=', twentyFourMonthsAgoTs),
+      orderBy('baptismDate', 'desc')
+    )),
     getDocs(query(newConvertFriendsCollection, where('barrioOrg', '==', barrioOrg))),
     getDocs(query(ministeringCollection, where('barrioOrg', '==', barrioOrg)))
   ]);
-
-  // Filter by barrioOrg client-side (data may be mixed during migration)
-  const filterByBarrio = (doc: { barrioOrg?: string }) =>
-    !barrioOrg || !doc.barrioOrg || doc.barrioOrg === "" || doc.barrioOrg === barrioOrg;
 
   // Obtener conversos de la colección c_conversos
   const convertsFromCollection = convertsSnapshot.docs
@@ -76,15 +83,13 @@ async function getConvertsWithInfo(barrioOrg: string): Promise<ConvertWithInfo[]
     .filter(convert =>
       convert.baptismDate &&
       convert.baptismDate.toDate &&
-      convert.baptismDate.toDate() > twentyFourMonthsAgo &&
-      filterByBarrio(convert)
+      convert.baptismDate.toDate() > twentyFourMonthsAgo
     );
 
   // Obtener miembros bautizados hace 2 años
   const membersAsConverts = membersSnapshot.docs
     .map(doc => {
       const memberData = doc.data();
-      if (!filterByBarrio(memberData as { barrioOrg?: string })) return null;
       if (normalizeMemberStatus(memberData.status) === 'deceased') {
         return null;
       }

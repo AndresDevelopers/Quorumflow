@@ -85,7 +85,7 @@ import { getDateFnsLocale } from "@/lib/i18n-date";
 
 import { useRouter } from 'next/navigation';
 
-import { getDocs, query, orderBy } from 'firebase/firestore';
+import { getDocs, query, orderBy, where } from 'firebase/firestore';
 
 import { ministeringCollection } from '@/lib/collections';
 
@@ -307,7 +307,11 @@ export default function ObservationsPage() {
 
     try {
 
-      const q = query(ministeringCollection, orderBy('companions'));
+      const q = query(
+        ministeringCollection,
+        where('barrioOrg', '==', barrioOrg),
+        orderBy('companions')
+      );
 
       const snapshot = await getDocs(q);
 
@@ -331,7 +335,7 @@ export default function ObservationsPage() {
 
     }
 
-  }, [toast, t]);
+  }, [toast, t, barrioOrg]);
   const loadHealthConcerns = useCallback(async () => {
 
     if (authLoading || !user) {

@@ -50,10 +50,12 @@ const sanitizeFileName = (name: string) => {
 };
 
 const uploadPhoto = async (file: File, userId: string): Promise<UploadResult> => {
-  const safeName = sanitizeFileName(file.name || `salud-${Date.now()}.jpg`);
+  const { compressProfileImage } = await import('@/lib/image-compression');
+  const optimized = await compressProfileImage(file);
+  const safeName = sanitizeFileName(optimized.name || `salud-${Date.now()}.jpg`);
   const storagePath = `health-concerns/${userId}/${Date.now()}-${safeName}`;
   const storageRef = ref(storage, storagePath);
-  await uploadBytes(storageRef, file);
+  await uploadBytes(storageRef, optimized, { contentType: optimized.type });
   const photoURL = await getDownloadURL(storageRef);
   return { photoURL, photoPath: storagePath };
 };

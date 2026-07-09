@@ -56,31 +56,41 @@ export function NotificationBell() {
     try {
       const barrioOrgKey = barrio && organizacion ? `${barrio}|${organizacion}` : null;
 
-      // Query principal: últimas 30 notificaciones del usuario para su barrioOrg
+      // Query by user only, then filter client-side by barrioOrg.
+      // Firestore equality on barrioOrg would hide legacy notifications that
+      // were saved without the field (and Cloud Functions may still emit those).
       const q = query(
         notificationsCollection,
         where("userId", "==", user.uid),
-        ...(barrioOrgKey ? [where("barrioOrg", "==", barrioOrgKey)] : []),
         orderBy("createdAt", "desc"),
-        limit(30)
+        limit(50)
       );
       const snapshot = await getDocs(q);
-      const userNotifications = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as AppNotification)
-      );
+      const userNotifications = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() } as AppNotification))
+        .filter((notification) => {
+          if (!barrioOrgKey) return true;
+          // Include same-scope notifications and legacy ones without barrioOrg
+          return !notification.barrioOrg || notification.barrioOrg === barrioOrgKey;
+        })
+        .slice(0, 30);
 
       const deduplicated = deduplicateNotifications(userNotifications);
       setNotifications(deduplicated);
 
-      // Query ligera separada: solo contar no leídas, limitando lecturas
+      // Query ligera separada: no leídas del usuario, filtradas por scope en cliente
       const unreadQuery = query(
         notificationsCollection,
         where("userId", "==", user.uid),
-        ...(barrioOrgKey ? [where("barrioOrg", "==", barrioOrgKey)] : []),
         where("isRead", "==", false)
       );
       const unreadSnapshot = await getDocs(unreadQuery);
-      setHasUnread(unreadSnapshot.size > 0);
+      const unreadCount = unreadSnapshot.docs.filter((doc) => {
+        const data = doc.data() as AppNotification;
+        if (!barrioOrgKey) return true;
+        return !data.barrioOrg || data.barrioOrg === barrioOrgKey;
+      }).length;
+      setHasUnread(unreadCount > 0);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }

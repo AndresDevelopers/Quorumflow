@@ -13,6 +13,7 @@ import { addDoc, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { baptismsCollection } from '@/lib/collections';
+import { compressGalleryImage } from '@/lib/image-compression';
 import logger from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -94,9 +95,10 @@ export default function AddBaptismPage() {
             throw new Error(t('reports.baptismForm.fileInvalid', { name: photo.name }));
           }
 
-          const safeName = photo.name.replace(/[^\w.\-]+/g, '_');
+          const optimized = await compressGalleryImage(photo);
+          const safeName = optimized.name.replace(/[^\w.\-]+/g, '_');
           const storageRef = ref(storage, `baptisms/manual/${user.uid}/${Date.now()}_${safeName}`);
-          await uploadBytes(storageRef, photo, { contentType: photo.type });
+          await uploadBytes(storageRef, optimized, { contentType: optimized.type });
           const downloadURL = await getDownloadURL(storageRef);
           photoURLs.push(downloadURL);
         }

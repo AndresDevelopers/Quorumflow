@@ -18,6 +18,7 @@ import { useSearchParams } from 'next/navigation';
 import { doc, getDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { usersCollection, storage, membersCollection } from '@/lib/collections';
+import { compressProfileImage } from '@/lib/image-compression';
 import type { Member } from '@/lib/types';
 import { format, differenceInYears } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
@@ -211,11 +212,12 @@ export default function ProfilePage() {
             let nextPhotoUrl: string | null | undefined = basePhotoUrl;
 
             if (selectedFile) {
+                const optimized = await compressProfileImage(selectedFile);
                 const storageRef = ref(
                     storage,
-                    `profile_pictures/users/${targetUid}/${Date.now()}_${selectedFile.name}`
+                    `profile_pictures/users/${targetUid}/${Date.now()}_${optimized.name}`
                 );
-                await uploadBytes(storageRef, selectedFile);
+                await uploadBytes(storageRef, optimized, { contentType: optimized.type });
                 nextPhotoUrl = await getDownloadURL(storageRef);
 
                 if (basePhotoUrl?.startsWith('https://firebasestorage.googleapis.com')) {

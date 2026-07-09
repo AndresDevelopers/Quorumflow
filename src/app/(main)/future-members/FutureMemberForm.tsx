@@ -15,6 +15,7 @@ import { addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 import { futureMembersCollection, storage } from '@/lib/collections';
+import { compressProfileImage, compressGalleryImage } from '@/lib/image-compression';
 import logger from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -171,8 +172,9 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
 
     try {
       if (selectedFile) {
-        const storageRef = ref(storage, `profile_pictures/future_members/${user.uid}/${Date.now()}_${selectedFile.name}`);
-        await uploadBytes(storageRef, selectedFile);
+        const optimized = await compressProfileImage(selectedFile);
+        const storageRef = ref(storage, `profile_pictures/future_members/${user.uid}/${Date.now()}_${optimized.name}`);
+        await uploadBytes(storageRef, optimized, { contentType: optimized.type });
         finalPhotoURL = await getDownloadURL(storageRef);
 
         if (isEditMode && futureMember?.photoURL && futureMember.photoURL.startsWith('https://firebasestorage.googleapis.com')) {
@@ -190,8 +192,9 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
       const uploadedBaptismPhotoUrls = await Promise.all(
         baptismPhotos.map(async photo => {
           if (typeof photo === 'string') return photo;
-          const storageRef = ref(storage, `baptism_photos/future_members/${user.uid}/${Date.now()}_${photo.name}`);
-          await uploadBytes(storageRef, photo);
+          const optimized = await compressGalleryImage(photo);
+          const storageRef = ref(storage, `baptism_photos/future_members/${user.uid}/${Date.now()}_${optimized.name}`);
+          await uploadBytes(storageRef, optimized, { contentType: optimized.type });
           return getDownloadURL(storageRef);
         })
       );

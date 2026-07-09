@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.councilNotifications = exports.weeklyNotifications = exports.dailyNotifications = exports.onMissionaryAssignmentCreated = exports.onUrgentFamilyFlagged = exports.onServiceDeleted = exports.onServiceUpdated = exports.onServiceCreated = exports.onActivityDeleted = exports.onActivityUpdated = exports.onActivityCreated = exports.generateReport = exports.generateCompleteReport = exports.cleanupProfilePictures = void 0;
+exports.councilNotifications = exports.weeklyNotifications = exports.dailyNotifications = exports.onCouncilAnnotationDeleted = exports.onCouncilAnnotationUpdated = exports.onCouncilAnnotationCreated = exports.onMissionaryAssignmentCreated = exports.onUrgentFamilyFlagged = exports.onServiceDeleted = exports.onServiceUpdated = exports.onServiceCreated = exports.onActivityDeleted = exports.onActivityUpdated = exports.onActivityCreated = exports.generateReport = exports.generateCompleteReport = exports.cleanupProfilePictures = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const date_fns_1 = require("date-fns");
@@ -1198,6 +1198,132 @@ exports.onMissionaryAssignmentCreated = functions.firestore
         });
     }
 });
+/** Annotations that appear on the council page. */
+function isCouncilPageAnnotation(data) {
+    if (!data)
+        return false;
+    if (data.isResolved === true)
+        return false;
+    return data.source === "council" || data.isCouncilAction === true;
+}
+function truncateAnnotationText(text, maxLen = 120) {
+    const normalized = (text ?? "").trim().replace(/\s+/g, " ");
+    if (!normalized)
+        return "(sin texto)";
+    if (normalized.length <= maxLen)
+        return normalized;
+    return `${normalized.slice(0, maxLen - 1)}…`;
+}
+async function notifySecretariesAboutCouncilAnnotation(params) {
+    const { annotationId, annotation, action } = params;
+    const docBarrioOrg = annotation.barrioOrg || null;
+    const preview = truncateAnnotationText(annotation.text);
+    const allUsers = await getAllUsersNotificationData();
+    const eligible = getEligibleSecretaries(allUsers, "council", docBarrioOrg);
+    if (eligible.inAppUserIds.length === 0 && eligible.pushUserIds.length === 0) {
+        functions.logger.log("Council annotation notification: no eligible secretaries", {
+            annotationId,
+            action,
+            barrioOrg: docBarrioOrg,
+        });
+        return;
+    }
+    const isCreated = action === "created";
+    await notificationDispatcher.broadcastToUsers(eligible.inAppUserIds, {
+        title: isCreated ? "Nueva anotación en Consejo" : "Anotación eliminada del Consejo",
+        body: isCreated
+            ? `Se agregó una anotación: ${preview}`
+            : `Se eliminó una anotación: ${preview}`,
+        url: "/council",
+        tag: `council-annotation-${action}-${annotationId}`,
+        barrioOrg: docBarrioOrg || null,
+        context: {
+            contextType: "council",
+            contextId: annotationId,
+            actionUrl: "/council",
+            actionType: "navigate",
+        },
+    }, eligible.pushUserIds);
+}
+exports.onCouncilAnnotationCreated = functions.firestore
+    .document("c_anotaciones/{annotationId}")
+    .onCreate(async (snapshot, context) => {
+    try {
+        const annotation = snapshot.data();
+        if (!isCouncilPageAnnotation(annotation)) {
+            return;
+        }
+        await notifySecretariesAboutCouncilAnnotation({
+            annotationId: context.params.annotationId,
+            annotation,
+            action: "created",
+        });
+    }
+    catch (error) {
+        functions.logger.error("Failed to broadcast council annotation create notification", {
+            error,
+            annotationId: context.params.annotationId,
+        });
+    }
+});
+exports.onCouncilAnnotationUpdated = functions.firestore
+    .document("c_anotaciones/{annotationId}")
+    .onUpdate(async (change, context) => {
+    try {
+        const before = change.before.data();
+        const after = change.after.data();
+        if (!after)
+            return;
+        const wasOnCouncil = isCouncilPageAnnotation(before);
+        const isOnCouncil = isCouncilPageAnnotation(after);
+        // Dashboard annotation marked for council → appears as new on /council
+        if (!wasOnCouncil && isOnCouncil) {
+            await notifySecretariesAboutCouncilAnnotation({
+                annotationId: context.params.annotationId,
+                annotation: after,
+                action: "created",
+            });
+            return;
+        }
+        // Removed from council view without hard-delete (resolve / unmark council action)
+        if (wasOnCouncil && !isOnCouncil) {
+            await notifySecretariesAboutCouncilAnnotation({
+                annotationId: context.params.annotationId,
+                annotation: before ?? after,
+                action: "deleted",
+            });
+        }
+    }
+    catch (error) {
+        functions.logger.error("Failed to broadcast council annotation update notification", {
+            error,
+            annotationId: context.params.annotationId,
+        });
+    }
+});
+exports.onCouncilAnnotationDeleted = functions.firestore
+    .document("c_anotaciones/{annotationId}")
+    .onDelete(async (snapshot, context) => {
+    try {
+        const annotation = snapshot.data();
+        // On hard-delete, isResolved may already be false; still notify if it was a council item.
+        const wasCouncil = annotation?.source === "council" || annotation?.isCouncilAction === true;
+        if (!wasCouncil) {
+            return;
+        }
+        await notifySecretariesAboutCouncilAnnotation({
+            annotationId: context.params.annotationId,
+            annotation: annotation ?? {},
+            action: "deleted",
+        });
+    }
+    catch (error) {
+        functions.logger.error("Failed to broadcast council annotation delete notification", {
+            error,
+            annotationId: context.params.annotationId,
+        });
+    }
+});
 // ─────────────────────────────────────────────────────────────────────────────
 // Notification helpers – Ecuador timezone (UTC-5, no DST)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1260,6 +1386,7 @@ async function getAllUsersNotificationData() {
                 push: d.notificationPrefs?.push ?? {},
             },
             barrioOrg: `${barrio}|${organizacion}`,
+            role: typeof d.role === "string" ? d.role : null,
         };
     });
     _usersCache = { data, ts: now };
@@ -1292,17 +1419,34 @@ function buildNotificationTrace(source, category) {
     };
 }
 /**
+ * Normalize document barrioOrg for eligibility checks.
+ * - null/undefined/empty/"unknown" → unscoped (legacy data without multi-tenant key)
+ * - otherwise → exact match required against user.barrioOrg
+ *
+ * NOTE: getAllUsersNotificationData always assigns a barrioOrg string to every user
+ * (constructed from barrio|organizacion with defaults). The previous filter treated
+ * "doc without barrioOrg" as "only users without barrioOrg", which excluded ALL users
+ * and silently dropped Cloud Function notifications.
+ */
+function normalizeDocBarrioOrg(docBarrioOrg) {
+    if (!docBarrioOrg || docBarrioOrg === "unknown") {
+        return null;
+    }
+    return docBarrioOrg;
+}
+/**
  * Given all users and a category, return those eligible to receive in-app
  * and/or push notifications for that category.
  *
  * @param users - All users with notification preferences
  * @param category - Notification category
- * @param docBarrioOrg - Optional barrioOrg from the triggering document. If provided,
- *   only users with matching barrioOrg will be eligible. This ensures notifications
- *   are scoped to the correct barrio + organization.
+ * @param docBarrioOrg - Optional barrioOrg from the triggering document. If provided
+ *   (and not "unknown"), only users with matching barrioOrg will be eligible.
+ *   If missing/legacy, all preference-eligible users receive the notification.
  */
 function getEligibleUsers(users, category, docBarrioOrg) {
     const page = CATEGORY_PAGE[category];
+    const scope = normalizeDocBarrioOrg(docBarrioOrg);
     const inAppUserIds = [];
     const pushUserIds = [];
     for (const u of users) {
@@ -1310,16 +1454,10 @@ function getEligibleUsers(users, category, docBarrioOrg) {
         const hasPage = u.visiblePages === null || u.visiblePages.includes(page);
         if (!hasPage)
             continue;
-        // Filter by barrioOrg: never send cross-organization notifications.
-        // If the document has no barrioOrg, only legacy users without barrioOrg are eligible.
-        if (docBarrioOrg) {
-            if (u.barrioOrg && u.barrioOrg !== docBarrioOrg)
-                continue;
-        }
-        else {
-            if (u.barrioOrg)
-                continue;
-        }
+        // Multi-tenant scope: only apply when the document has a real barrioOrg.
+        // Legacy docs without barrioOrg must still notify eligible users.
+        if (scope && u.barrioOrg !== scope)
+            continue;
         const inAppCat = u.notificationPrefs.inApp[category] !== false;
         const pushCat = u.notificationPrefs.push[category] !== false;
         if (u.inAppEnabled && inAppCat)
@@ -1328,6 +1466,21 @@ function getEligibleUsers(users, category, docBarrioOrg) {
             pushUserIds.push(u.userId);
     }
     return { inAppUserIds, pushUserIds };
+}
+/** Matches frontend normalizeRole: admin is treated as secretary. */
+function isSecretaryRole(role) {
+    if (!role)
+        return false;
+    const normalized = role.trim().toLowerCase();
+    return normalized === "secretary" || normalized === "admin";
+}
+/**
+ * Eligible users for a category, restricted to the secretary role
+ * (includes legacy "admin" role).
+ */
+function getEligibleSecretaries(users, category, docBarrioOrg) {
+    const secretaries = users.filter((u) => isSecretaryRole(u.role));
+    return getEligibleUsers(secretaries, category, docBarrioOrg);
 }
 // ─────────────────────────────────────────────────────────────────────────────
 // DAILY NOTIFICATIONS – 09:00 Ecuador (America/Guayaquil)

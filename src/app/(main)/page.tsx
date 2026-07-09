@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/card";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { useI18n } from "@/contexts/i18n-context";
-import { getDashboardData, getActivityOverviewData, getMembersByStatus } from "@/lib/dashboard-data";
+import { getDashboardData, getActivityOverviewData } from "@/lib/dashboard-data";
 import { getDeceasedMembers } from "@/lib/members-data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCallback, useEffect, useState } from "react";
@@ -166,20 +166,36 @@ function DashboardPage() {
   const [deceasedMembers, setDeceasedMembers] = useState<Member[]>([]);
   const [loadingDeceased, setLoadingDeceased] = useState(true);
 
+  // One dashboard load: counts + members-by-status + deceased (single members read)
   useEffect(() => {
-    if (authLoading || !user) return; // Wait for authentication
+    if (authLoading || !user || !barrioOrg) return;
 
     async function loadData() {
       setLoading(true);
-      const dashboardData = await getDashboardData(barrioOrg);
-      setData(dashboardData);
-      setLoading(false);
+      setLoadingMembers(true);
+      setLoadingDeceased(true);
+      try {
+        const dashboardData = await getDashboardData(barrioOrg);
+        setData({
+          convertsCount: dashboardData.convertsCount,
+          futureMembersCount: dashboardData.futureMembersCount,
+          councilActionsCount: dashboardData.councilActionsCount,
+        });
+        setMembersData(dashboardData.membersByStatus);
+        setDeceasedMembers(dashboardData.deceasedMembers);
+      } catch (error) {
+        console.error('Error loading dashboard data', error);
+      } finally {
+        setLoading(false);
+        setLoadingMembers(false);
+        setLoadingDeceased(false);
+      }
     }
     loadData();
   }, [authLoading, user, barrioOrg]);
 
   useEffect(() => {
-    if (authLoading || !user) return; // Wait for authentication
+    if (authLoading || !user || !barrioOrg) return;
 
     async function loadActivityOverview() {
         setLoadingActivities(true);
@@ -191,34 +207,6 @@ function DashboardPage() {
       void loadActivityOverview();
     });
   }, [authLoading, user, barrioOrg])
-
-  useEffect(() => {
-    if (authLoading || !user) return; // Wait for authentication
-
-    async function loadMembersData() {
-        setLoadingMembers(true);
-        const data = await getMembersByStatus(barrioOrg);
-        setMembersData(data);
-        setLoadingMembers(false);
-    }
-    queueMicrotask(() => {
-      void loadMembersData();
-    });
-  }, [authLoading, user])
-
-  useEffect(() => {
-    if (authLoading || !user) return; // Wait for authentication
-
-    async function loadDeceasedMembers() {
-        setLoadingDeceased(true);
-        const data = await getDeceasedMembers(barrioOrg);
-        setDeceasedMembers(data);
-        setLoadingDeceased(false);
-    }
-    queueMicrotask(() => {
-      void loadDeceasedMembers();
-    });
-  }, [authLoading, user])
 
   const fetchAnnotations = useCallback(async () => {
     if (authLoading || !user) return; // Wait for authentication

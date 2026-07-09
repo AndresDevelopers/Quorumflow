@@ -2,62 +2,18 @@
 
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { MainLayout } from "@/components/main-layout";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { MembersProvider } from "@/contexts/members-context";
 import { Skeleton } from "@/components/ui/skeleton";
-import { doc, getDoc } from "firebase/firestore";
-import { usersCollection } from "@/lib/collections";
-import { normalizeRole } from "@/lib/roles";
 
 function PrivateRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, profileLoaded, userRole, mainPage, visiblePages } = useAuth();
   const router = useRouter();
-  const [checkingRole, setCheckingRole] = useState(true);
-  const [isRestricted, setIsRestricted] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      setCheckingRole(false);
-      setIsRestricted(null);
-      return;
-    }
-
-    let isMounted = true;
-    const fetchRole = async () => {
-      setCheckingRole(true);
-      try {
-        const userDocRef = doc(usersCollection, user.uid);
-        const snapshot = await getDoc(userDocRef);
-        if (!isMounted) return;
-
-        if (snapshot.exists()) {
-          const data = snapshot.data() as { role?: unknown };
-          const normalizedRole = normalizeRole(data.role);
-
-          setIsRestricted(normalizedRole === "user");
-        } else {
-          setIsRestricted(false);
-        }
-      } catch (error) {
-        console.error("Error fetching user role", error);
-        if (isMounted) {
-          setIsRestricted(null);
-        }
-      } finally {
-        if (isMounted) {
-          setCheckingRole(false);
-        }
-      }
-    };
-
-    fetchRole();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
+  const isRestricted = userRole === "user";
 
   useEffect(() => {
     if (!loading && !user) {
@@ -66,47 +22,28 @@ function PrivateRoute({ children }: { children: ReactNode }) {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (!loading && !checkingRole && user && isRestricted) {
+    if (!loading && profileLoaded && user && isRestricted) {
       router.replace('/no-permission');
     }
-  }, [checkingRole, isRestricted, loading, router, user]);
+  }, [profileLoaded, isRestricted, loading, router, user]);
 
-  // Redirect to user's main page if currently on the root path
+  // Redirect to user's main page if currently on the root path — uses auth context (no extra Firestore read)
   useEffect(() => {
-    if (!loading && user && !checkingRole && window.location.pathname === '/') {
-      const checkMainPageAccess = async () => {
-        try {
-          const userDocRef = doc(usersCollection, user.uid);
-          const snapshot = await getDoc(userDocRef);
-          
-          if (snapshot.exists()) {
-            const data = snapshot.data() as { mainPage?: string; visiblePages?: string[] };
-            const visiblePages = Array.isArray(data.visiblePages) ? data.visiblePages : [];
-            const effectiveVisiblePages = Array.from(new Set([...visiblePages, '/church-chat']));
-            const savedMainPage = data.mainPage || '/';
+    if (!loading && profileLoaded && user && !isRestricted && window.location.pathname === '/') {
+      const effectiveVisiblePages = Array.from(new Set([...visiblePages, '/church-chat']));
+      const savedMainPage = mainPage || '/';
 
-            // If saved main page is not in visible pages, redirect to first visible page or fallback
-            if (!effectiveVisiblePages.includes(savedMainPage) && effectiveVisiblePages.length > 0) {
-              router.replace(effectiveVisiblePages[0]);
-            } else if (effectiveVisiblePages.length === 0) {
-              router.replace('/members');
-            } else {
-              router.replace(savedMainPage);
-            }
-          } else {
-            router.replace('/members');
-          }
-        } catch (error) {
-          console.error("Error checking main page access", error);
-          router.replace('/members');
-        }
-      };
-      
-      checkMainPageAccess();
+      if (effectiveVisiblePages.length === 0) {
+        router.replace('/members');
+      } else if (!effectiveVisiblePages.includes(savedMainPage) && savedMainPage !== '/') {
+        router.replace(effectiveVisiblePages[0]);
+      } else {
+        router.replace(savedMainPage === '/' ? savedMainPage : savedMainPage);
+      }
     }
-  }, [loading, user, checkingRole, router]);
+  }, [loading, user, profileLoaded, isRestricted, router, mainPage, visiblePages]);
 
-  if (loading || checkingRole) {
+  if (loading || (user && !profileLoaded)) {
     return (
       <div className="flex h-svh w-full items-center justify-center">
         <div className="flex flex-col items-center gap-4 px-4">
@@ -121,10 +58,10 @@ function PrivateRoute({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    return null; // or a loading spinner
+    return null;
   }
 
-  if (!checkingRole && isRestricted) {
+  if (isRestricted) {
     return null;
   }
 
@@ -135,9 +72,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <PrivateRoute>
-        <SidebarProvider>
-          <MainLayout>{children}</MainLayout>
-        </SidebarProvider>
+        <MembersProvider>
+          <SidebarProvider>
+            <MainLayout>{children}</MainLayout>
+          </SidebarProvider>
+        </MembersProvider>
       </PrivateRoute>
     </AuthProvider>
   );

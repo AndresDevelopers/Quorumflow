@@ -20,10 +20,13 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  /** True once the Firestore user profile has been loaded (or confirmed missing). */
+  profileLoaded: boolean;
   firebaseUser: FirebaseUser | null;
   userRole: UserRole | null;
   userPermission: UserPermission | null;
   mainPage: string;
+  visiblePages: string[];
   userTheme: string;
   barrio: string;
   organizacion: string;
@@ -47,11 +50,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userPermission, setUserPermission] = useState<UserPermission | null>(null);
   const [mainPage, setMainPage] = useState<string>('/');
+  const [visiblePages, setVisiblePages] = useState<string[]>([]);
   const [userTheme, setUserTheme] = useState<string>('system');
   const [barrio, setBarrio] = useState<string>('');
   const [organizacion, setOrganizacion] = useState<string>('');
   const [barrioOrg, setBarrioOrg] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const { setTheme } = useTheme();
 
   useEffect(() => {
@@ -59,14 +64,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(formatUser(currentUser));
         setFirebaseUser(currentUser);
+        setProfileLoaded(false);
       } else {
         setUser(null);
         setFirebaseUser(null);
         setUserRole(null);
         setUserPermission(null);
+        setMainPage('/');
+        setVisiblePages([]);
         setBarrio('');
         setOrganizacion('');
         setBarrioOrg('');
+        setProfileLoaded(true);
       }
       setLoading(false);
     });
@@ -79,12 +88,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      setProfileLoaded(false);
       try {
         const userDocRef = doc(usersCollection, firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
         if (!userDoc.exists()) {
           setUserRole(normalizeRole(undefined));
-        setUserPermission(normalizePermission(undefined));
+          setUserPermission(normalizePermission(undefined));
+          setVisiblePages([]);
+          setProfileLoaded(true);
           return;
         }
 
@@ -92,6 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUserRole(normalizeRole(data.role));
         setUserPermission(normalizePermission(data.permission));
         setMainPage(data.mainPage || '/');
+        setVisiblePages(Array.isArray(data.visiblePages) ? data.visiblePages : []);
 
         const barrioVal = typeof data.barrio === "string" && data.barrio.trim().length > 0 ? data.barrio.trim() : "Libertad";
         const orgVal = typeof data.organizacion === "string" && data.organizacion.trim().length > 0 ? data.organizacion.trim() : "Quórum de Élderes";
@@ -113,6 +126,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch {
         setUserRole(normalizeRole(undefined));
+        setUserPermission(normalizePermission(undefined));
+      } finally {
+        setProfileLoaded(true);
       }
     };
 
@@ -126,12 +142,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const freshUser = auth.currentUser;
         if (freshUser) {
             setUser(formatUser(freshUser));
+            // Force profile re-fetch by updating firebaseUser reference
             setFirebaseUser(freshUser);
+            setProfileLoaded(false);
         }
     }
   }, []);
 
-  const value = { user, loading, firebaseUser, userRole, userPermission, mainPage, userTheme, barrio, organizacion, barrioOrg, refreshAuth };
+  const value = {
+    user,
+    loading,
+    profileLoaded,
+    firebaseUser,
+    userRole,
+    userPermission,
+    mainPage,
+    visiblePages,
+    userTheme,
+    barrio,
+    organizacion,
+    barrioOrg,
+    refreshAuth,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

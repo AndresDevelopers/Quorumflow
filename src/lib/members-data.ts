@@ -20,6 +20,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { ref, uploadBytes, getDownloadURL, deleteObject, getStorage } from 'firebase/storage';
 import { firebaseConfig } from '@/firebaseConfig';
 import type { Member, MemberStatus, Ordinance, TempleOrdinance } from './types';
+import { compressProfileImage, compressGalleryImage } from './image-compression';
 
 // Function to get Firestore instance, initializing if necessary
 function getFirestoreInstance() {
@@ -658,38 +659,32 @@ export async function getMembersForSelector(includeInactive = false, barrioOrg?:
   }
 }
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
+// Allow large camera originals; client compression reduces size before upload
+const MAX_FILE_SIZE = 15 * 1024 * 1024;
 
 function assertValidImageFile(file: File): void {
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`El archivo ${file.name} supera los 20MB.`);
+    throw new Error(`El archivo ${file.name} supera los 15MB.`);
   }
   if (!file.type || !file.type.startsWith('image/')) {
     throw new Error(`El archivo ${file.name} no es una imagen válida.`);
   }
 }
 
-// Upload member photo to storage
+// Upload member photo to storage (compressed client-side)
 export async function uploadMemberPhoto(file: File, userId: string): Promise<string> {
   try {
     assertValidImageFile(file);
     const storage = getStorageInstance();
+    const optimized = await compressProfileImage(file);
 
-    // Create a unique filename with timestamp
     const timestamp = new Date().getTime();
-    const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+    const safeName = optimized.name.replace(/[^\w.\-]+/g, '_');
     const fileName = `members/${userId}/${timestamp}_${safeName}`;
 
-    // Create a reference to the file
     const storageRef = ref(storage, fileName);
-
-    // Upload the file
-    const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
-
-    // Get the download URL
-    const downloadURL = await getDownloadURL(snapshot.ref);
-
-    return downloadURL;
+    const snapshot = await uploadBytes(storageRef, optimized, { contentType: optimized.type });
+    return await getDownloadURL(snapshot.ref);
   } catch (error) {
     console.error('Error uploading member photo:', error);
 
@@ -708,22 +703,21 @@ export async function uploadMemberPhoto(file: File, userId: string): Promise<str
   }
 }
 
-// Upload multiple baptism photos to storage
+// Upload multiple baptism photos to storage (compressed client-side)
 export async function uploadBaptismPhotos(files: File[], userId: string): Promise<string[]> {
   try {
     const storage = getStorageInstance();
 
     const uploadPromises = files.map(async (file, index) => {
       assertValidImageFile(file);
+      const optimized = await compressGalleryImage(file);
       const timestamp = new Date().getTime();
-      const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+      const safeName = optimized.name.replace(/[^\w.\-]+/g, '_');
       const fileName = `baptism_photos/${userId}/${timestamp}_${index}_${safeName}`;
 
       const storageRef = ref(storage, fileName);
-      const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
-      const downloadURL = await getDownloadURL(snapshot.ref);
-
-      return downloadURL;
+      const snapshot = await uploadBytes(storageRef, optimized, { contentType: optimized.type });
+      return getDownloadURL(snapshot.ref);
     });
 
     return await Promise.all(uploadPromises);

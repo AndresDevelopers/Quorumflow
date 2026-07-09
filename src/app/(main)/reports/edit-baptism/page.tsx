@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { compressGalleryImage } from '@/lib/image-compression';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -121,8 +122,9 @@ export default function EditBaptismPage() {
       throw new Error(t('reports.editBaptism.fileInvalid', { name: file.name }));
     }
 
-    const storageRef = ref(storage, `${path}/${uuidv4()}_${file.name}`);
-    await uploadBytes(storageRef, file, { contentType: file.type });
+    const optimized = await compressGalleryImage(file);
+    const storageRef = ref(storage, `${path}/${uuidv4()}_${optimized.name}`);
+    await uploadBytes(storageRef, optimized, { contentType: optimized.type });
     return getDownloadURL(storageRef);
   };
 

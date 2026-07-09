@@ -10,6 +10,9 @@ export declare const onServiceUpdated: functions.CloudFunction<functions.Change<
 export declare const onServiceDeleted: functions.CloudFunction<functions.firestore.QueryDocumentSnapshot>;
 export declare const onUrgentFamilyFlagged: functions.CloudFunction<functions.Change<functions.firestore.QueryDocumentSnapshot>>;
 export declare const onMissionaryAssignmentCreated: functions.CloudFunction<functions.firestore.QueryDocumentSnapshot>;
+export declare const onCouncilAnnotationCreated: functions.CloudFunction<functions.firestore.QueryDocumentSnapshot>;
+export declare const onCouncilAnnotationUpdated: functions.CloudFunction<functions.Change<functions.firestore.QueryDocumentSnapshot>>;
+export declare const onCouncilAnnotationDeleted: functions.CloudFunction<functions.firestore.QueryDocumentSnapshot>;
 export declare const dailyNotifications: functions.CloudFunction<unknown>;
 export declare const weeklyNotifications: functions.CloudFunction<unknown>;
 export declare const councilNotifications: functions.CloudFunction<unknown>;

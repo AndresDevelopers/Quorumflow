@@ -93,9 +93,10 @@ export default function MembersPage() {
   const { t } = useI18n();
   const { canWrite } = usePermission();
   const router = useRouter();
+  // Realtime onSnapshot disabled: API + local cache only (cuts continuous Firestore billed reads)
   const { members, loading, syncStatus, lastSyncTime, fetchMembers, clearCache } = useMembersSync({
-    enableInitialFetch: true, // Enable initial fetch for members page
-    enableRealtimeSync: true, // Enable real-time Firestore listener
+    enableInitialFetch: true,
+    enableRealtimeSync: false,
   });
 
   const resolveOrdinanceLabel = (ordinance: string) =>

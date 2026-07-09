@@ -302,7 +302,7 @@
   "churchChat.option.secretario": "Secretary",
   "churchChat.prompt.consejero": "What does the counselor {deArticle} {org} do?",
   "churchChat.prompt.novedades": "What are the recent official Church news items, and what resources or tasks can the secretary {deArticle} {org} do using the official Church website?",
-  "churchChat.prompt.otrosCargos": "What callings are available in {article} {org}?",
+  "churchChat.prompt.otrosCargos": "What callings are available in {org}?",
   "churchChat.prompt.presidente": "What does the president {deArticle} {org} do?",
   "churchChat.prompt.secretario": "What does the secretary {deArticle} {org} do?",
   "churchChat.readResponseAria": "Read response aloud",

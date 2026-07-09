@@ -68,6 +68,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { getDocs, query, orderBy, where, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { compressGalleryImage } from '@/lib/image-compression';
 import {
   Accordion,
   AccordionContent,
@@ -835,9 +836,10 @@ function ImagesTab({
         },
       ]);
 
-      // Upload to Firebase Storage
+      // Upload compressed image to Firebase Storage
+      const optimized = await compressGalleryImage(file);
       const storageRef = ref(storage, `missionary-images/${id}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      const uploadTask = uploadBytesResumable(storageRef, optimized, { contentType: optimized.type });
 
       uploadTask.on('state_changed',
         (snapshot) => {

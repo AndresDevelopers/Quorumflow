@@ -44,10 +44,8 @@ import { ChangelogDialog } from "./changelog-dialog";
 import { InstallPrompt } from "@/components/install-prompt";
 import { PushOnboardingGuide } from "@/components/push-onboarding-guide";
 import { navigationItems } from "@/lib/navigation";
-import { usersCollection } from "@/lib/collections";
-import { doc, getDoc } from "firebase/firestore";
 import { Shield } from "lucide-react";
-import { isAdmin, normalizeRole } from "@/lib/roles";
+import { isAdmin } from "@/lib/roles";
 import { getAppName, getAppLogo } from "@/lib/app-config";
 
 const appName = getAppName();
@@ -161,73 +159,27 @@ export function MainLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const { setOpenMobile } = useSidebar();
-  const { user, userRole } = useAuth();
+  const { userRole, visiblePages } = useAuth();
   const [version, setVersion] = useState("");
-  const [visibleNavItems, setVisibleNavItems] = useState(navigationItems);
   const showAdminLink = isAdmin(userRole);
 
-  const fetchVersion = () => {
+  // Derive nav from auth context — no extra Firestore read
+  const visibleNavItems = (() => {
+    if (Array.isArray(visiblePages) && visiblePages.length > 0) {
+      const effectiveAllowed = Array.from(new Set([...visiblePages, "/church-chat"]));
+      return navigationItems.filter((item) => effectiveAllowed.includes(item.href));
+    }
+    return navigationItems;
+  })();
+
+  useEffect(() => {
     fetch(`/changelog.json?v=${Date.now()}`)
       .then((res) => res.json())
       .then((data) => {
         setVersion(data.current);
       })
       .catch((error) => console.error("Error fetching version:", error));
-  };
-
-  useEffect(() => {
-    fetchVersion();
   }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchVisibility = async () => {
-      if (!user) {
-        if (isMounted) {
-          setVisibleNavItems(navigationItems);
-        }
-        return;
-      }
-
-      try {
-        const userDocRef = doc(usersCollection, user.uid);
-        const snapshot = await getDoc(userDocRef);
-
-        if (!isMounted) return;
-
-        if (!snapshot.exists()) {
-          setVisibleNavItems(navigationItems);
-          return;
-        }
-
-        const data = snapshot.data() as {
-          visiblePages?: string[];
-        };
-        const allowed = data.visiblePages;
-
-        if (Array.isArray(allowed) && allowed.length > 0) {
-          const effectiveAllowed = Array.from(new Set([...allowed, "/church-chat"]));
-          setVisibleNavItems(
-            navigationItems.filter((item) => effectiveAllowed.includes(item.href))
-          );
-        } else {
-          setVisibleNavItems(navigationItems);
-        }
-      } catch (error) {
-        console.error("Error fetching user visibility", error);
-        if (isMounted) {
-          setVisibleNavItems(navigationItems);
-        }
-      }
-    };
-
-    fetchVisibility();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user, userRole]);
 
   const translatedNavItems = visibleNavItems.map((item) => ({
     ...item,

@@ -13,6 +13,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { birthdaysCollection, storage, membersCollection } from '@/lib/collections';
 import type { Member } from '@/lib/types';
 import { normalizeMemberStatus } from '@/lib/members-data';
+import { compressProfileImage } from '@/lib/image-compression';
 import logger from '@/lib/logger';
 
 import { Button } from '@/components/ui/button';
@@ -232,8 +233,9 @@ export function BirthdayForm({ isOpen, onOpenChange, onFormSubmit, birthday }: B
   };
 
   const uploadNewImage = async (file: File) => {
-    const storageRef = ref(storage, `profile_pictures/birthdays/${user?.uid}/${Date.now()}_${file.name}`);
-    await uploadBytes(storageRef, file);
+    const optimized = await compressProfileImage(file);
+    const storageRef = ref(storage, `profile_pictures/birthdays/${user?.uid}/${Date.now()}_${optimized.name}`);
+    await uploadBytes(storageRef, optimized, { contentType: optimized.type });
     return getDownloadURL(storageRef);
   };
 

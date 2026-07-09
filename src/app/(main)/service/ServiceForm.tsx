@@ -13,6 +13,7 @@ import { addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 import { servicesCollection, storage } from '@/lib/collections';
+import { compressGalleryImage } from '@/lib/image-compression';
 import logger from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -168,8 +169,9 @@ export function ServiceForm({ service }: ServiceFormProps) {
     
     try {
       const uploadPromises = selectedFiles.map(async (file) => {
-        const storageRef = ref(storage, `service_images/${user.uid}/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
+        const optimized = await compressGalleryImage(file);
+        const storageRef = ref(storage, `service_images/${user.uid}/${Date.now()}_${optimized.name}`);
+        await uploadBytes(storageRef, optimized, { contentType: optimized.type });
         return getDownloadURL(storageRef);
       });
 

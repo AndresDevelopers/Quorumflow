@@ -62,6 +62,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { compressProfileImage } from '@/lib/image-compression';
 import { getMembersForSelector } from '@/lib/members-data';
 import type { Member } from '@/lib/types';
 import {
@@ -486,9 +487,10 @@ export default function SettingsPage() {
 
     try {
       if (selectedFile) {
-        // User uploaded a new photo
-        const storageRef = ref(storage, `profile_pictures/users/${firebaseUser.uid}/${Date.now()}_${selectedFile.name}`);
-        await uploadBytes(storageRef, selectedFile);
+        // User uploaded a new photo (compressed client-side)
+        const optimized = await compressProfileImage(selectedFile);
+        const storageRef = ref(storage, `profile_pictures/users/${firebaseUser.uid}/${Date.now()}_${optimized.name}`);
+        await uploadBytes(storageRef, optimized, { contentType: optimized.type });
         finalPhotoURL = await getDownloadURL(storageRef);
 
         if (firebaseUser.photoURL && firebaseUser.photoURL.startsWith('https://firebasestorage.googleapis.com')) {
@@ -824,13 +826,10 @@ export default function SettingsPage() {
 
     try {
       const userDocRef = doc(usersCollection, user.uid);
-      await setDoc(userDocRef, {
-        pushNotificationsEnabled: checked
-      }, { merge: true });
-
-      setPushNotificationsEnabled(checked);
 
       if (checked) {
+        // Request permission + token BEFORE flipping the server flag, so Cloud
+        // Functions never see pushEnabled=true without a registered FCM token.
         const token = await requestNotificationPermission();
         if (!token) {
           throw new Error(t('settings.toast.pushUpdateError'));
@@ -841,10 +840,20 @@ export default function SettingsPage() {
           throw new Error(t('settings.toast.pushUpdateError'));
         }
 
+        await setDoc(userDocRef, {
+          pushNotificationsEnabled: true
+        }, { merge: true });
+
+        setPushNotificationsEnabled(true);
         setFcmToken(token);
       } else {
         await deleteNotificationToken();
         await clearCurrentPushSubscription(user.uid);
+        await setDoc(userDocRef, {
+          pushNotificationsEnabled: false
+        }, { merge: true });
+
+        setPushNotificationsEnabled(false);
         setFcmToken(null);
       }
 
@@ -861,7 +870,7 @@ export default function SettingsPage() {
         description: t('settings.toast.pushUpdateError'),
         variant: 'destructive',
       });
-      // Revertir el estado en caso de error
+      // Keep UI in sync with the last known successful state
       setPushNotificationsEnabled(!checked);
     } finally {
       setIsPushNotificationLoading(false);

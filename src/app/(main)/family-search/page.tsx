@@ -56,19 +56,6 @@ const faqData = [
     { question: "familySearch.faq.q4", answer: "familySearch.faq.a4" }
 ];
 
-const trainingSchema = z.object({
-  familyName: z.string().min(2, 'El nombre de la familia es requerido.'),
-  memberId: z.string().optional(),
-  memberName: z.string().optional(),
-});
-const taskSchema = z.object({
-  task: z.string().min(5, 'La descripción de la tarea es requerida.'),
-});
-const annotationSchema = z.object({
-  note: z.string().min(5, 'La nota es requerida.'),
-});
-
-
 export default function FamilySearchPage() {
     const { user, loading: authLoading, barrioOrg } = useAuth();
     const { canWrite } = usePermission();
@@ -78,6 +65,18 @@ export default function FamilySearchPage() {
     const [loading, setLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
+
+    const trainingSchema = z.object({
+      familyName: z.string().min(2, t('familySearch.validation.familyNameRequired')),
+      memberId: z.string().optional(),
+      memberName: z.string().optional(),
+    });
+    const taskSchema = z.object({
+      task: z.string().min(5, t('familySearch.validation.taskRequired')),
+    });
+    const annotationSchema = z.object({
+      note: z.string().min(5, t('familySearch.validation.noteRequired')),
+    });
 
     // State for dialogs and forms
     const [isTrainingOpen, setTrainingOpen] = useState(false);
@@ -129,7 +128,7 @@ export default function FamilySearchPage() {
         const validated = trainingSchema.safeParse(data);
 
         if (!validated.success) {
-            toast({ title: 'Error de Validación', description: validated.error.errors[0].message, variant: 'destructive' });
+            toast({ title: t("familySearch.validation.error"), description: validated.error.errors[0].message, variant: 'destructive' });
             return;
         }
 
@@ -148,12 +147,12 @@ export default function FamilySearchPage() {
                 }
 
                 await addDoc(familySearchTrainingsCollection, trainingData);
-                toast({ title: 'Éxito', description: 'Familia agregada para capacitación.' });
+                toast({ title: t("common.success"), description: t("familySearch.training.addedSuccess") });
                 setTrainingOpen(false);
                 fetchData();
             } catch (error) {
                 logger.error({ error, message: 'Error adding family training' });
-                toast({ title: 'Error', description: 'No se pudo agregar la familia.', variant: 'destructive' });
+                toast({ title: t("common.error"), description: t("familySearch.training.addError"), variant: 'destructive' });
             }
         });
     }
@@ -165,20 +164,20 @@ export default function FamilySearchPage() {
         const validated = taskSchema.safeParse({ task });
 
         if (!validated.success) {
-            toast({ title: 'Error de Validación', description: validated.error.errors[0].message, variant: 'destructive' });
+            toast({ title: t("familySearch.validation.error"), description: validated.error.errors[0].message, variant: 'destructive' });
             return;
         }
 
         startTransition(async () => {
             try {
                 await addDoc(familySearchTasksCollection, { task, createdAt: serverTimestamp() });
-                toast({ title: 'Éxito', description: 'Tarea agregada.' });
+                toast({ title: t("common.success"), description: t("familySearch.task.addedSuccess") });
                 setTaskOpen(false);
                 taskFormRef.current?.reset();
                 fetchData();
             } catch (error) {
                 logger.error({ error, message: 'Error adding task' });
-                toast({ title: 'Error', description: 'No se pudo agregar la tarea.', variant: 'destructive' });
+                toast({ title: t("common.error"), description: t("familySearch.task.addError"), variant: 'destructive' });
             }
         });
     }
@@ -186,11 +185,11 @@ export default function FamilySearchPage() {
     const handleDeleteAnnotation = async (id: string) => {
         try {
             await deleteDocFirestore(doc(annotationsCollection, id));
-            toast({ title: 'Éxito', description: 'Anotación eliminada.' });
+            toast({ title: t("common.success"), description: t("familySearch.annotations.deletedSuccess") });
             fetchAnnotations();
         } catch (error) {
             logger.error({ error, message: 'Error deleting annotation' });
-            toast({ title: 'Error', description: 'No se pudo eliminar la anotación.', variant: 'destructive' });
+            toast({ title: t("common.error"), description: t("familySearch.annotations.deleteError"), variant: 'destructive' });
         }
     };
 
@@ -202,22 +201,22 @@ export default function FamilySearchPage() {
 
                 if (type === 'training') {
                     docRef = doc(familySearchTrainingsCollection, id);
-                    successMessage = 'Capacitación eliminada.';
+                    successMessage = t('familySearch.toast.deleteTrainingSuccess');
                 } else {
                     docRef = doc(familySearchTasksCollection, id);
-                    successMessage = 'Tarea eliminada.';
+                    successMessage = t('familySearch.toast.deleteTaskSuccess');
                 }
 
                 await deleteDoc(docRef);
-                toast({ title: 'Éxito', description: successMessage });
+                toast({ title: t('common.success'), description: successMessage });
                 fetchData();
 
             } catch (error) {
                  const errorMessage = (error as Error).message;
                  logger.error({ error: errorMessage, message: `Error deleting ${type}` });
                  toast({ 
-                    title: 'Error', 
-                    description: `No se pudo eliminar el elemento: ${errorMessage}`, 
+                    title: t('common.error'), 
+                    description: t('familySearch.toast.deleteError', { error: errorMessage }), 
                     variant: 'destructive' 
                 });
             }

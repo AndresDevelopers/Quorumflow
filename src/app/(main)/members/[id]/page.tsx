@@ -18,8 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
-import type { Member, MemberStatus, TempleOrdinance } from '@/lib/types';
-import { OrdinanceLabels, TempleOrdinanceLabels } from '@/lib/types';
+import type { Member, MemberStatus } from '@/lib/types';
 import { getMemberById } from '@/lib/members-data';
 import { buildMemberEditUrl } from '@/lib/navigation';
 import { format, differenceInYears } from 'date-fns';
@@ -89,7 +88,7 @@ export default function MemberProfilePage() {
         console.error('Error fetching member:', err);
         setError(t('memberProfile.error'));
         toast({
-          title: 'Error',
+          title: t('common.error'),
           description: t('memberProfile.error'),
           variant: 'destructive'
         });
@@ -199,7 +198,7 @@ export default function MemberProfilePage() {
               <div>
                 <h2 className="text-xl font-semibold sm:text-2xl">{member.firstName} {member.lastName}</h2>
                 <Badge variant={statusInfo.variant} className="mt-2">
-                  t(`member.status.${memberStatusKey}`)
+                  {t(`member.status.${memberStatusKey}`)}
                 </Badge>
               </div>
 
@@ -262,7 +261,7 @@ export default function MemberProfilePage() {
             {isDeceased && member.deathDate && (
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
-                  Fecha de Fallecimiento
+                  {t('memberProfile.deathDate')}
                 </label>
                 <p className="text-sm">
                   {format(member.deathDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })}
@@ -276,7 +275,7 @@ export default function MemberProfilePage() {
               </label>
               <div className="mt-1">
                 <Badge variant={statusInfo.variant}>
-                  t(`member.status.${memberStatusKey}`)
+                  {t(`member.status.${memberStatusKey}`)}
                 </Badge>
               </div>
             </div>
@@ -356,7 +355,7 @@ export default function MemberProfilePage() {
                       <Image
                         key={index}
                         src={photo}
-                        alt={`Bautismo ${index + 1}`}
+                        alt={t('memberProfile.baptismPhotoAlt', { index: index + 1 })}
                         width={240}
                         height={80}
                         className="w-full h-20 object-cover rounded border"
@@ -382,7 +381,7 @@ export default function MemberProfilePage() {
               <div className="flex flex-wrap gap-2">
                 {member.ordinances.map((ordinance) => (
                   <Badge key={ordinance} variant="outline">
-                    {OrdinanceLabels[ordinance]}
+                    {t(`ordinance.${ordinance}`)}
                   </Badge>
                 ))}
               </div>
@@ -396,10 +395,10 @@ export default function MemberProfilePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Ordenanzas del Templo
+                {t('memberProfile.templeOrdinances')}
               </CardTitle>
               <CardDescription>
-                Ordenanzas vicarias completadas para este miembro fallecido
+                {t('memberProfile.templeOrdinancesDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -407,22 +406,24 @@ export default function MemberProfilePage() {
                 {member.templeOrdinances && member.templeOrdinances.length > 0 ? (
                   member.templeOrdinances.map((ordinance) => (
                     <Badge key={ordinance} variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      {TempleOrdinanceLabels[ordinance]}
+                      {t(`templeOrdinance.${ordinance}`)}
                     </Badge>
                   ))
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No hay ordenanzas del templo registradas
+                    {t('memberProfile.noTempleOrdinances')}
                   </p>
                 )}
               </div>
               {(member.templeWorkCompletedAt) && (
                 <div className="mt-4 pt-4 border-t">
                   <p className="text-sm text-green-600 font-medium">
-                    ✓ Todas las ordenanzas del templo completadas
+                    {t('memberProfile.templeWorkCompleted')}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Fecha de completado: {format(member.templeWorkCompletedAt.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })}
+                    {t('memberProfile.templeWorkCompletedDate', {
+                      date: format(member.templeWorkCompletedAt.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() }),
+                    })}
                   </p>
                 </div>
               )}

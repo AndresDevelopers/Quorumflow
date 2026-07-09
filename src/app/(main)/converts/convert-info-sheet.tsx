@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlusCircle, Trash2, UserPlus, Users } from 'lucide-react';
 import { MemberSelector } from '@/components/members/member-selector';
 import type { Convert, Member, NewConvertFriendship, Ordinance } from '@/lib/types';
-import { OrdinanceLabels } from '@/lib/types';
+import { useI18n } from '@/contexts/i18n-context';
 
 // Extended convert type with additional info
 export type ConvertWithInfo = Convert & {
@@ -54,6 +54,7 @@ export function ConvertInfoSheet({
   canWrite,
   availableMembers = []
 }: ConvertInfoSheetProps) {
+  const { t } = useI18n();
   const [calling, setCalling] = useState(convert?.calling || '');
   const [notes, setNotes] = useState(convert?.notes || '');
   const [recommendationActive, setRecommendationActive] = useState(!!convert?.recommendationActive);
@@ -170,7 +171,7 @@ export function ConvertInfoSheet({
 
   const handleSaveTeachers = async () => {
     if (!convert?.memberData?.id || !onSaveTeachers) return;
-    const validTeachers = teacherInputs.filter(t => t.trim().length > 0);
+    const validTeachers = teacherInputs.filter(tchr => tchr.trim().length > 0);
     const previousTeachers = convert.ministeringTeachers || [];
     await onSaveTeachers(convert.memberData.id, validTeachers, previousTeachers);
     setEditingTeachers(false);
@@ -213,7 +214,9 @@ export function ConvertInfoSheet({
             <div className="text-left">
               <SheetTitle className="text-lg">{convert.name}</SheetTitle>
               <SheetDescription>
-                Bautizado: {format(convert.baptismDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })}
+                {t('converts.sheet.baptizedOn', {
+                  date: format(convert.baptismDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() }),
+                })}
               </SheetDescription>
             </div>
           </div>
@@ -226,7 +229,7 @@ export function ConvertInfoSheet({
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                   <span className={`inline-block w-2 h-2 rounded-full ${hasFriendship ? 'bg-green-500' : 'bg-amber-500'}`} />
-                  Amigo del Quórum Asignado
+                  {t('converts.sheet.quorumFriendAssigned')}
                 </h3>
                 {onSaveFriends && canWrite && (
                   <Button 
@@ -235,7 +238,7 @@ export function ConvertInfoSheet({
                     onClick={() => setEditingFriends(!editingFriends)}
                     className="h-7 px-2"
                   >
-                    {editingFriends ? 'Cancelar' : (hasFriendship ? 'Editar' : 'Agregar')}
+                    {editingFriends ? t('common.cancel') : (hasFriendship ? t('common.edit') : t('common.add'))}
                   </Button>
                 )}
               </div>
@@ -248,7 +251,7 @@ export function ConvertInfoSheet({
                           <MemberSelector
                             value={friend}
                             onValueChange={(value) => handleFriendInputChange(idx, value || '')}
-                            placeholder={`Seleccionar amigo ${idx + 1}`}
+                            placeholder={t('converts.sheet.selectFriendN', { n: idx + 1 })}
                             statusFilter={["active"]}
                             allowClear={false}
                           />
@@ -273,7 +276,7 @@ export function ConvertInfoSheet({
                       className="w-full"
                     >
                       <PlusCircle className="mr-2 h-4 w-4" />
-                      Agregar Amigo
+                      {t('converts.sheet.addFriend')}
                     </Button>
                     <div className="flex gap-2 pt-2">
                       <Button
@@ -282,7 +285,7 @@ export function ConvertInfoSheet({
                         onClick={() => setEditingFriends(false)}
                         className="flex-1"
                       >
-                        Cancelar
+                        {t('common.cancel')}
                       </Button>
                       <Button
                         size="sm"
@@ -290,7 +293,7 @@ export function ConvertInfoSheet({
                         disabled={saving}
                         className="flex-1"
                       >
-                        {saving ? 'Guardando...' : 'Guardar Amigos'}
+                        {saving ? t('common.saving') : t('converts.sheet.saveFriends')}
                       </Button>
                     </div>
                   </div>
@@ -305,7 +308,7 @@ export function ConvertInfoSheet({
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Sin amigos asignados. Haga clic en &quot;Agregar&quot; para asignar amigos.
+                    {t('converts.sheet.noFriends')}
                   </p>
                 )}
               </div>
@@ -316,20 +319,20 @@ export function ConvertInfoSheet({
             {/* Ordinances */}
             <section>
               <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-                Ordenanzas Recibidas
+                {t('converts.sheet.ordinancesReceived')}
               </h3>
               <div className="bg-muted/50 rounded-lg p-3">
                 {ordinances.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {ordinances.map((ordinance) => (
                       <Badge key={ordinance} variant="outline" className="text-xs">
-                        {OrdinanceLabels[ordinance as Ordinance]}
+                        {t(`ordinance.${ordinance as Ordinance}`)}
                       </Badge>
                     ))}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No hay ordenanzas registradas. Las ordenanzas se gestionan desde el perfil del miembro.
+                    {t('converts.sheet.noOrdinances')}
                   </p>
                 )}
               </div>
@@ -340,17 +343,17 @@ export function ConvertInfoSheet({
             {/* Calling Input */}
             <section>
               <Label htmlFor="calling" className="text-sm font-semibold text-muted-foreground mb-2 block">
-                Llamamiento
+                {t('converts.sheet.calling')}
               </Label>
               <Input
                 id="calling"
-                placeholder="Ej: Instructor de Escuela Dominical, Líder de Jóvenes..."
+                placeholder={t('converts.sheet.callingPlaceholder')}
                 value={calling}
                 onChange={(e) => handleCallingChange(e.target.value)}
                 className="text-sm"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Escriba manualmente el llamamiento actual del converso.
+                {t('converts.sheet.callingHelp')}
               </p>
             </section>
 
@@ -360,8 +363,8 @@ export function ConvertInfoSheet({
               <div className="space-y-3">
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div className="space-y-1">
-                    <Label className="text-sm font-semibold text-muted-foreground">Recomendación</Label>
-                    <p className="text-xs text-muted-foreground">Activar si cuenta con recomendación vigente.</p>
+                    <Label className="text-sm font-semibold text-muted-foreground">{t('converts.sheet.recommendation')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('converts.sheet.recommendationHelp')}</p>
                   </div>
                   <Switch
                     checked={recommendationActive}
@@ -370,8 +373,8 @@ export function ConvertInfoSheet({
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div className="space-y-1">
-                    <Label className="text-sm font-semibold text-muted-foreground">Curso de autosuficiencia</Label>
-                    <p className="text-xs text-muted-foreground">Marcar si asiste al curso de autosuficiencia.</p>
+                    <Label className="text-sm font-semibold text-muted-foreground">{t('converts.sheet.selfRelianceCourse')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('converts.sheet.selfRelianceCourseHelp')}</p>
                   </div>
                   <Switch
                     checked={selfRelianceCourse}
@@ -388,7 +391,7 @@ export function ConvertInfoSheet({
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Maestros Ministrantes
+                  {t('converts.sheet.ministeringTeachers')}
                 </h3>
                 {onSaveTeachers && convert?.memberData?.id && canWrite && (
                   <Button 
@@ -397,7 +400,7 @@ export function ConvertInfoSheet({
                     onClick={() => setEditingTeachers(!editingTeachers)}
                     className="h-7 px-2"
                   >
-                    {editingTeachers ? 'Cancelar' : (teachers.length > 0 ? 'Editar' : 'Agregar')}
+                    {editingTeachers ? t('common.cancel') : (teachers.length > 0 ? t('common.edit') : t('common.add'))}
                   </Button>
                 )}
               </div>
@@ -410,7 +413,7 @@ export function ConvertInfoSheet({
                           <MemberSelector
                             value={teacher}
                             onValueChange={(value) => handleTeacherInputChange(idx, value || '')}
-                            placeholder={`Seleccionar maestro ${idx + 1}`}
+                            placeholder={t('converts.sheet.selectTeacherN', { n: idx + 1 })}
                             statusFilter={["active"]}
                             allowClear={false}
                           />
@@ -435,7 +438,7 @@ export function ConvertInfoSheet({
                       className="w-full"
                     >
                       <PlusCircle className="mr-2 h-4 w-4" />
-                      Agregar Maestro
+                      {t('converts.sheet.addTeacher')}
                     </Button>
                     <div className="flex gap-2 pt-2">
                       <Button
@@ -444,7 +447,7 @@ export function ConvertInfoSheet({
                         onClick={() => setEditingTeachers(false)}
                         className="flex-1"
                       >
-                        Cancelar
+                        {t('common.cancel')}
                       </Button>
                       <Button
                         size="sm"
@@ -452,7 +455,7 @@ export function ConvertInfoSheet({
                         disabled={saving}
                         className="flex-1"
                       >
-                        {saving ? 'Guardando...' : 'Guardar Maestros'}
+                        {saving ? t('common.saving') : t('converts.sheet.saveTeachers')}
                       </Button>
                     </div>
                   </div>
@@ -467,8 +470,8 @@ export function ConvertInfoSheet({
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     {convert?.memberData?.id 
-                      ? 'Sin maestros asignados. Haga clic en "Agregar" para asignar maestros.'
-                      : 'No hay maestros ministrantes asignados. El converso debe estar vinculado a un miembro para asignar maestros.'}
+                      ? t('converts.sheet.noTeachersWithMember')
+                      : t('converts.sheet.noTeachersWithoutMember')}
                   </p>
                 )}
               </div>
@@ -479,11 +482,11 @@ export function ConvertInfoSheet({
             {/* Notes Textarea */}
             <section>
               <Label htmlFor="notes" className="text-sm font-semibold text-muted-foreground mb-2 block">
-                Observaciones
+                {t('converts.sheet.notes')}
               </Label>
               <Textarea
                 id="notes"
-                placeholder="Escriba observaciones adicionales sobre este converso..."
+                placeholder={t('converts.sheet.notesPlaceholder')}
                 value={notes}
                 onChange={(e) => handleNotesChange(e.target.value)}
                 rows={4}
@@ -500,7 +503,7 @@ export function ConvertInfoSheet({
               className="flex-1"
               onClick={() => onOpenChange(false)}
             >
-              Cerrar
+              {t('common.close')}
             </Button>
             {canWrite && (
             <Button
@@ -508,7 +511,7 @@ export function ConvertInfoSheet({
               onClick={handleSave}
               disabled={!hasChanges || saving}
             >
-              {saving ? 'Guardando...' : 'Guardar Cambios'}
+              {saving ? t('common.saving') : t('converts.sheet.saveChanges')}
             </Button>
             )}
           </div>

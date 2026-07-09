@@ -18,6 +18,17 @@ const nextConfig: NextConfig = {
   // Fix source map issues in development
   productionBrowserSourceMaps: false,
 
+  // Legacy Spanish route → multi-language council page
+  async redirects() {
+    return [
+      {
+        source: "/consejo",
+        destination: "/council",
+        permanent: true,
+      },
+    ];
+  },
+
   // ── Security & SEO Headers ─────────────────────────────────────────
   async headers() {
     return [

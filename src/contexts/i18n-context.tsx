@@ -11,6 +11,9 @@ const translations: Record<string, Record<string, string>> = {
   es: esTranslations,
 };
 
+/** Tracks missing keys already logged in development to avoid console spam. */
+const warnedMissingKeys = new Set<string>();
+
 type Language = "en" | "es";
 
 interface I18nContextType {
@@ -51,7 +54,18 @@ export const I18nProvider = ({ children }: { children: ReactNode }) => {
   const t = useCallback(
     (key: string, params?: Record<string, string | number>): string => {
       const langKey = language as keyof typeof translations;
-      let str = translations[langKey]?.[key] || key;
+      const catalog = translations[langKey];
+      let str = catalog?.[key];
+      if (str === undefined) {
+        if (process.env.NODE_ENV === "development") {
+          const warnKey = `${language}:${key}`;
+          if (!warnedMissingKeys.has(warnKey)) {
+            warnedMissingKeys.add(warnKey);
+            console.warn(`[i18n] Missing key "${key}" for language "${language}"`);
+          }
+        }
+        str = key;
+      }
       if (params) {
         for (const [k, v] of Object.entries(params)) {
           str = str.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));

@@ -512,9 +512,9 @@ export default function ServicePage() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                          <AlertDialogTitle>{t('service.deleteConfirmTitle')}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente el servicio: <strong>{item.title}</strong>.
+                            {t('service.deleteConfirmBody')} <strong>{item.title}</strong>.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Users, UserPlus } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
 
 interface FamilySelectorProps {
   onFamilySelect: (data: { familyName: string; memberId?: string; memberName?: string }) => void;
@@ -24,6 +25,7 @@ interface FamilySelectorProps {
 }
 
 export function FamilySelector({ onFamilySelect, disabled = false }: FamilySelectorProps) {
+  const { t } = useI18n();
   const { barrioOrg } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,21 +82,21 @@ export function FamilySelector({ onFamilySelect, disabled = false }: FamilySelec
           <RadioGroupItem value="existing" id="existing" />
           <Label htmlFor="existing" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Seleccionar miembro existente
+            {t('familySearch.selector.selectExisting')}
           </Label>
         </div>
         <div className="flex items-center space-x-2">
           <RadioGroupItem value="manual" id="manual" />
           <Label htmlFor="manual" className="flex items-center gap-2">
             <UserPlus className="h-4 w-4" />
-            Agregar familia manualmente
+            {t('familySearch.selector.addManual')}
           </Label>
         </div>
       </RadioGroup>
 
       {selectionType === 'existing' && (
         <div className="space-y-2">
-          <Label htmlFor="member-select">Seleccionar Miembro</Label>
+          <Label htmlFor="member-select">{t('familySearch.selector.selectMemberLabel')}</Label>
           {loading ? (
             <Skeleton className="h-10 w-full" />
           ) : (
@@ -104,14 +106,14 @@ export function FamilySelector({ onFamilySelect, disabled = false }: FamilySelec
               disabled={disabled}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona un miembro..." />
+                <SelectValue placeholder={t('familySearch.selector.selectMember')} />
               </SelectTrigger>
               <SelectContent>
                 {members.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
                     {member.firstName} {member.lastName}
                     {member.status === 'less_active' && (
-                      <span className="text-muted-foreground ml-2">(Menos activo)</span>
+                      <span className="text-muted-foreground ml-2">{t('familySearch.selector.lessActive')}</span>
                     )}
                   </SelectItem>
                 ))}
@@ -120,7 +122,11 @@ export function FamilySelector({ onFamilySelect, disabled = false }: FamilySelec
           )}
           {selectedMemberId && (
             <p className="text-sm text-muted-foreground">
-              Se agregará como: <strong>Familia {members.find(m => m.id === selectedMemberId)?.lastName}</strong>
+              {t('familySearch.selector.willAddAs', {
+                name: t('familySearch.selector.familyPrefix', {
+                  lastName: members.find(m => m.id === selectedMemberId)?.lastName ?? '',
+                }),
+              })}
             </p>
           )}
         </div>
@@ -128,12 +134,12 @@ export function FamilySelector({ onFamilySelect, disabled = false }: FamilySelec
 
       {selectionType === 'manual' && (
         <div className="space-y-2">
-          <Label htmlFor="manual-family-name">Nombre de la Familia</Label>
+          <Label htmlFor="manual-family-name">{t('familySearch.selector.familyNameLabel')}</Label>
           <Input
             id="manual-family-name"
             value={manualFamilyName}
             onChange={(e) => setManualFamilyName(e.target.value)}
-            placeholder="Ej: Familia García"
+            placeholder={t('familySearch.selector.manualPlaceholder')}
             disabled={disabled}
           />
         </div>
@@ -144,7 +150,7 @@ export function FamilySelector({ onFamilySelect, disabled = false }: FamilySelec
         disabled={!isValid || disabled}
         className="w-full"
       >
-        Agregar Familia
+        {t('familySearch.selector.addFamily')}
       </Button>
     </div>
   );

@@ -50,6 +50,7 @@ import { getDateFnsLocale } from "@/lib/i18n-date";
 import { EditAnnotationDialog } from './edit-annotation-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
+import { useI18n } from '@/contexts/i18n-context';
 
 interface AnnotationListProps {
   title: string;
@@ -78,6 +79,7 @@ export function AnnotationList({
   onDeleteAnnotation,
   currentUserId,
 }: AnnotationListProps) {
+  const { t } = useI18n();
   const { userRole, barrioOrg } = useAuth();
   const { canWrite } = usePermission();
   const isSecretary = userRole === 'secretary';
@@ -106,10 +108,10 @@ export function AnnotationList({
             const userDocRef = doc(usersCollection, id);
             const userDoc = await getDoc(userDocRef);
             if (!userDoc.exists()) {
-              return [id, 'Usuario'] as const;
+              return [id, t('dashboard.annotationList.userFallback')] as const;
             }
             const data = userDoc.data() as { name?: string; displayName?: string };
-            return [id, data.name ?? data.displayName ?? 'Usuario'] as const;
+            return [id, data.name ?? data.displayName ?? t('dashboard.annotationList.userFallback')] as const;
           })
         );
 
@@ -205,27 +207,27 @@ export function AnnotationList({
             <DialogTrigger asChild>
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Anotación
+                {t('dashboard.annotationList.addButton')}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Nueva Anotación</DialogTitle>
+                <DialogTitle>{t('dashboard.annotationList.newTitle')}</DialogTitle>
                 <DialogDescription>
-                  Escribe la nota que quieres registrar.
+                  {t('dashboard.annotationList.newDescription')}
                 </DialogDescription>
               </DialogHeader>
               <Textarea
                 value={newAnnotation}
                 onChange={(e) => setNewAnnotation(e.target.value)}
-                placeholder="Ej: Contactar a la familia Pérez para ofrecer ayuda con la mudanza..."
+                placeholder={t('dashboard.annotationList.placeholder')}
               />
               <DialogFooter>
                 <Button
                   onClick={handleAddAnnotation}
                   disabled={!newAnnotation.trim()}
                 >
-                  Guardar Anotación
+                  {t('dashboard.annotationList.save')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -243,7 +245,7 @@ export function AnnotationList({
           </div>
         ) : annotations.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-8">
-            No hay anotaciones.
+            {t('dashboard.annotationList.empty')}
           </p>
         ) : (
           <ul className="space-y-3">
@@ -261,16 +263,16 @@ export function AnnotationList({
                         id={`council-${item.id}`}
                         checked={item.isCouncilAction}
                         onCheckedChange={() => handleToggleCouncilAction(item.id, item.isCouncilAction)}
-                        aria-label="Marcar para consejo"
+                        aria-label={t('dashboard.annotationList.markForCouncil')}
                       />
                     )}
                     <div>
                       <p className="text-sm font-medium">{item.text}</p>
                       <p className="text-xs text-muted-foreground">
                         {format(item.createdAt.toDate(), 'd LLL yyyy, h:mm a', { locale: getDateFnsLocale() })}
-                        {item.userId && ` · Por: ${userNames[item.userId] ?? 'Usuario'}`}
+                        {item.userId && ` · ${t('dashboard.annotationList.byUser', { name: userNames[item.userId] ?? t('dashboard.annotationList.userFallback') })}`}
                         {showCouncilView &&
-                          ` - Creado en: ${item.source === 'dashboard' ? 'Dashboard' : 'Consejo'}`}
+                          ` - ${t('dashboard.annotationList.createdIn', { source: item.source === 'dashboard' ? t('dashboard.annotationList.source.dashboard') : t('dashboard.annotationList.source.council') })}`}
                       </p>
                     </div>
                   </div>
@@ -282,7 +284,7 @@ export function AnnotationList({
                         onClick={() => onResolveAnnotation(item.id)}
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Resolver
+                        {t('dashboard.annotationList.resolve')}
                       </Button>
                     )}
                     {canManage && (
@@ -290,7 +292,7 @@ export function AnnotationList({
                         variant="ghost"
                         size="icon"
                         onClick={() => handleEditAnnotation(item)}
-                        title="Editar anotación"
+                        title={t('dashboard.annotationList.editTitle')}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -312,19 +314,19 @@ export function AnnotationList({
     <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
         <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle>{t('dashboard.annotationList.deleteConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-            Esta acción no se puede deshacer. Esto eliminará permanentemente la anotación:{" "}
+            {t('dashboard.annotationList.deleteConfirmDescription')}{" "}
             <strong>&quot;{selectedAnnotation?.text}&quot;</strong>.
             </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedAnnotation(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setSelectedAnnotation(null)}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
                 onClick={handleDeleteConfirm}
                 className="bg-destructive hover:bg-destructive/90"
             >
-            Eliminar
+            {t('common.delete')}
             </AlertDialogAction>
         </AlertDialogFooter>
         </AlertDialogContent>

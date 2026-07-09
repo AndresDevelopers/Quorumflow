@@ -280,11 +280,11 @@ export function MainLayout({ children }: { children: ReactNode }) {
                 <Link href="/admin" onClick={handleLinkClick}>
                   <SidebarMenuButton
                     isActive={pathname.startsWith("/admin")}
-                    tooltip={{ children: "Administración" }}
+                    tooltip={{ children: t("mainLayout.adminTooltip") }}
                   >
                     <Shield className="h-5 w-5" />
                     <span className="group-data-[collapsible=icon]:hidden">
-                      Administración
+                      {t("mainLayout.adminTooltip")}
                     </span>
                   </SidebarMenuButton>
                 </Link>

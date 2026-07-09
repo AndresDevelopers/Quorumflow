@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 import { firestore, storage } from '@/lib/firebase';
 import { createMember } from '@/lib/members-data';
 import { Timestamp } from 'firebase/firestore';
@@ -16,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
  */
 export function FirebaseDebug() {
   const { user, loading: authLoading, barrioOrg } = useAuth();
+  const { t } = useI18n();
   const { toast } = useToast();
   const [testing, setTesting] = useState(false);
   const [results, setResults] = useState<{
@@ -117,45 +119,48 @@ export function FirebaseDebug() {
     // Show toast with results
     if (newResults.memberCreation) {
       toast({
-        title: '✅ Diagnóstico exitoso',
-        description: 'Todos los sistemas funcionan correctamente. El problema podría ser temporal.',
+        title: t('debug.firebase.successTitle'),
+        description: t('debug.firebase.successDescription'),
       });
     } else {
       toast({
-        title: '❌ Problema detectado',
-        description: newResults.error || 'Revisa la consola para más detalles.',
+        title: t('debug.firebase.problemTitle'),
+        description: newResults.error || t('debug.firebase.problemDescription'),
         variant: 'destructive',
       });
     }
   };
 
   const getStatusBadge = (status: boolean | null) => {
-    if (status === null) return <Badge variant="outline">No probado</Badge>;
-    if (status === true) return <Badge variant="default" className="bg-green-600">✅ OK</Badge>;
-    return <Badge variant="destructive">❌ Error</Badge>;
+    if (status === null) return <Badge variant="outline">{t('debug.firebase.notTested')}</Badge>;
+    if (status === true) return <Badge variant="default" className="bg-green-600">{t('debug.firebase.ok')}</Badge>;
+    return <Badge variant="destructive">{t('debug.firebase.errorBadge')}</Badge>;
   };
+
+  const configured = t('debug.firebase.configured');
+  const missing = t('debug.firebase.missing');
 
   return (
     <Card className="w-full max-w-2xl">
       <CardHeader>
-        <CardTitle>🔧 Diagnóstico de Firebase</CardTitle>
+        <CardTitle>{t('debug.firebase.title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="flex justify-between items-center">
-            <span>Autenticación:</span>
+            <span>{t('debug.firebase.auth')}</span>
             {getStatusBadge(results.auth)}
           </div>
           <div className="flex justify-between items-center">
-            <span>Firestore:</span>
+            <span>{t('debug.firebase.firestore')}</span>
             {getStatusBadge(results.firestore)}
           </div>
           <div className="flex justify-between items-center">
-            <span>Storage:</span>
+            <span>{t('debug.firebase.storage')}</span>
             {getStatusBadge(results.storage)}
           </div>
           <div className="flex justify-between items-center">
-            <span>Crear Miembro:</span>
+            <span>{t('debug.firebase.createMember')}</span>
             {getStatusBadge(results.memberCreation)}
           </div>
         </div>
@@ -163,27 +168,27 @@ export function FirebaseDebug() {
         {results.error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-800 text-sm">
-              <strong>Error:</strong> {results.error}
+              <strong>{t('debug.firebase.errorLabel')}</strong> {results.error}
             </p>
           </div>
         )}
 
         <div className="space-y-2">
-          <h4 className="font-medium">Estado del Usuario:</h4>
+          <h4 className="font-medium">{t('debug.firebase.userState')}</h4>
           <div className="text-sm text-muted-foreground space-y-1">
-            <p>Email: {user?.email || 'No autenticado'}</p>
-            <p>UID: {user?.uid || 'N/A'}</p>
-            <p>Cargando: {authLoading ? 'Sí' : 'No'}</p>
+            <p>{t('debug.firebase.email', { email: user?.email || t('debug.firebase.notAuth') })}</p>
+            <p>{t('debug.firebase.uid', { uid: user?.uid || 'N/A' })}</p>
+            <p>{t('debug.firebase.loading', { value: authLoading ? t('debug.firebase.yes') : t('debug.firebase.no') })}</p>
           </div>
         </div>
 
         <div className="space-y-2">
-          <h4 className="font-medium">Variables de Entorno:</h4>
+          <h4 className="font-medium">{t('debug.firebase.envVars')}</h4>
           <div className="text-sm text-muted-foreground space-y-1">
-            <p>API Key: {process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? '✅ Configurada' : '❌ Faltante'}</p>
-            <p>Project ID: {process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? '✅ Configurada' : '❌ Faltante'}</p>
-            <p>Auth Domain: {process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? '✅ Configurada' : '❌ Faltante'}</p>
-            <p>Storage Bucket: {process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? '✅ Configurada' : '❌ Faltante'}</p>
+            <p>API Key: {process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? configured : missing}</p>
+            <p>Project ID: {process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? configured : missing}</p>
+            <p>Auth Domain: {process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? configured : missing}</p>
+            <p>Storage Bucket: {process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? configured : missing}</p>
           </div>
         </div>
 
@@ -192,12 +197,12 @@ export function FirebaseDebug() {
           disabled={testing || authLoading}
           className="w-full"
         >
-          {testing ? '🔄 Ejecutando diagnósticos...' : '🚀 Ejecutar Diagnósticos'}
+          {testing ? t('debug.firebase.running') : t('debug.firebase.run')}
         </Button>
 
         <div className="text-xs text-muted-foreground">
-          <p>Este componente ejecuta pruebas para identificar problemas con Firebase.</p>
-          <p>Revisa la consola del navegador para logs detallados.</p>
+          <p>{t('debug.firebase.help1')}</p>
+          <p>{t('debug.firebase.help2')}</p>
         </div>
       </CardContent>
     </Card>

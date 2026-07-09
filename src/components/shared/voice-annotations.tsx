@@ -48,6 +48,7 @@ import { EditAnnotationDialog } from '../dashboard/edit-annotation-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
+import { useI18n } from '@/contexts/i18n-context';
 
 interface VoiceAnnotationsProps {
   title: string;
@@ -77,9 +78,11 @@ export function VoiceAnnotations({
   currentUserId,
 }: VoiceAnnotationsProps) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const { userRole, barrioOrg } = useAuth();
   const { canWrite } = usePermission();
   const isSecretary = userRole === 'secretary';
+  const userFallback = t('voiceAnnotations.userFallback');
   const [open, setOpen] = useState(false);
   const [newAnnotation, setNewAnnotation] = useState('');
   const [isAlertOpen, setIsAlertOpen] = useState(false);
@@ -105,10 +108,10 @@ export function VoiceAnnotations({
             const userDocRef = doc(usersCollection, id);
             const userDoc = await getDoc(userDocRef);
             if (!userDoc.exists()) {
-              return [id, 'Usuario'] as const;
+              return [id, userFallback] as const;
             }
             const data = userDoc.data() as { name?: string; displayName?: string };
-            return [id, data.name ?? data.displayName ?? 'Usuario'] as const;
+            return [id, data.name ?? data.displayName ?? userFallback] as const;
           })
         );
 
@@ -125,7 +128,7 @@ export function VoiceAnnotations({
     return () => {
       isMounted = false;
     };
-  }, [annotations, userNames]);
+  }, [annotations, userNames, userFallback]);
 
   const handleAddAnnotation = async () => {
     if (newAnnotation.trim() === '') return;
@@ -147,14 +150,14 @@ export function VoiceAnnotations({
       onAnnotationAdded();
 
       toast({
-        title: 'Exito',
-        description: 'Anotacion guardada correctamente.',
+        title: t('voiceAnnotations.toast.savedTitle'),
+        description: t('voiceAnnotations.toast.savedDescription'),
       });
     } catch (error) {
       console.error('Failed to add annotation: ', error);
       toast({
-        title: 'Error',
-        description: 'No se pudo guardar la anotacion.',
+        title: t('voiceAnnotations.toast.saveErrorTitle'),
+        description: t('voiceAnnotations.toast.saveErrorDescription'),
         variant: 'destructive',
       });
     }
@@ -171,8 +174,8 @@ export function VoiceAnnotations({
     } catch (error) {
       console.error('Failed to toggle annotation: ', error);
       toast({
-        title: 'Error',
-        description: 'No se pudo actualizar la anotacion.',
+        title: t('voiceAnnotations.toast.saveErrorTitle'),
+        description: t('voiceAnnotations.toast.updateErrorDescription'),
         variant: 'destructive',
       });
     }
@@ -219,20 +222,20 @@ export function VoiceAnnotations({
               <DialogTrigger asChild>
                 <Button className="shrink-0 w-full sm:w-auto">
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Anotacion
+                  {t('voiceAnnotations.addButton')}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Nueva Anotacion</DialogTitle>
+                  <DialogTitle>{t('voiceAnnotations.newTitle')}</DialogTitle>
                   <DialogDescription>
-                    Escribe la nota que quieres registrar.
+                    {t('voiceAnnotations.newDescription')}
                   </DialogDescription>
                 </DialogHeader>
                 <Textarea
                   value={newAnnotation}
                   onChange={(e) => setNewAnnotation(e.target.value)}
-                  placeholder="Ej: Contactar a la familia Perez para ofrecer ayuda con la mudanza..."
+                  placeholder={t('voiceAnnotations.placeholder')}
                   rows={4}
                 />
                 <DialogFooter>
@@ -240,7 +243,7 @@ export function VoiceAnnotations({
                     onClick={handleAddAnnotation}
                     disabled={!newAnnotation.trim()}
                   >
-                    Guardar Anotacion
+                    {t('voiceAnnotations.save')}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -258,7 +261,7 @@ export function VoiceAnnotations({
             </div>
           ) : annotations.length === 0 ? (
             <p className="text-center text-sm text-muted-foreground py-8">
-              No hay anotaciones.
+              {t('voiceAnnotations.empty')}
             </p>
           ) : (
             <ul className="space-y-3">
@@ -273,7 +276,7 @@ export function VoiceAnnotations({
                         id={`council-${item.id}`}
                         checked={item.isCouncilAction}
                         onCheckedChange={() => handleToggleCouncilAction(item.id, item.isCouncilAction)}
-                        aria-label="Marcar para consejo"
+                        aria-label={t('voiceAnnotations.markForCouncilAria')}
                         className="shrink-0"
                       />
                     )}
@@ -281,14 +284,10 @@ export function VoiceAnnotations({
                       <p className="text-sm font-medium break-words">{item.text}</p>
                       <p className="text-xs text-muted-foreground break-words">
                         {format(item.createdAt.toDate(), 'd LLL yyyy, h:mm a', { locale: getDateFnsLocale() })}
-                        {item.userId && ` - Por: ${userNames[item.userId] ?? 'Usuario'}`}
-                        {showCouncilView && ` - Creado en: ${item.source === 'dashboard'
-                          ? 'Dashboard'
-                          : item.source === 'council'
-                            ? 'Consejo'
-                            : item.source === 'family-search'
-                              ? 'FamilySearch'
-                              : 'Obra Misional'}`}
+                        {item.userId && t('voiceAnnotations.byUser', { name: userNames[item.userId] ?? userFallback })}
+                        {showCouncilView && t('voiceAnnotations.createdIn', {
+                          source: t(`voiceAnnotations.source.${item.source}`),
+                        })}
                       </p>
                     </div>
                   </div>
@@ -300,7 +299,7 @@ export function VoiceAnnotations({
                         onClick={() => onResolveAnnotation(item.id)}
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Resolver
+                        {t('voiceAnnotations.resolve')}
                       </Button>
                     )}
                     {canWrite && (isSecretary || (currentUserId && item.userId === currentUserId)) && (
@@ -308,7 +307,7 @@ export function VoiceAnnotations({
                         variant="ghost"
                         size="icon"
                         onClick={() => handleEditAnnotation(item)}
-                        title="Editar anotacion"
+                        title={t('voiceAnnotations.editTitle')}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -318,7 +317,7 @@ export function VoiceAnnotations({
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteTrigger(item)}
-                        title="Eliminar anotacion"
+                        title={t('voiceAnnotations.deleteTitle')}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -334,21 +333,21 @@ export function VoiceAnnotations({
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Estas seguro?</AlertDialogTitle>
+            <AlertDialogTitle>{t('voiceAnnotations.deleteConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta accion no se puede deshacer. Esto eliminara permanentemente la anotacion:{' '}
+              {t('voiceAnnotations.deleteConfirmDescription')}{' '}
               <strong>&quot;{selectedAnnotation?.text}&quot;</strong>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelectedAnnotation(null)}>
-              Cancelar
+              {t('voiceAnnotations.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-destructive hover:bg-destructive/90"
             >
-              Eliminar
+              {t('voiceAnnotations.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -28,10 +28,12 @@ import {
 } from '@/lib/push-subscription';
 import { doc, setDoc } from 'firebase/firestore';
 import { usersCollection } from '@/lib/collections';
+import { useI18n } from '@/contexts/i18n-context';
 
 export function PushNotificationManager() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
@@ -79,8 +81,8 @@ export function PushNotificationManager() {
   const subscribeToPush = async () => {
     if (!user) {
       toast({
-        title: "Error",
-        description: "No se puede activar las notificaciones en este momento.",
+        title: t('common.error'),
+        description: t('push.manager.toast.cannotEnable'),
         variant: "destructive"
       });
       return;
@@ -89,8 +91,8 @@ export function PushNotificationManager() {
     const target = getCurrentPushSubscriptionTarget(user.uid);
     if (!target) {
       toast({
-        title: "Error",
-        description: "No se pudo identificar este dispositivo.",
+        title: t('common.error'),
+        description: t('push.manager.toast.deviceIdError'),
         variant: "destructive"
       });
       return;
@@ -101,8 +103,8 @@ export function PushNotificationManager() {
       const fcmToken = await requestNotificationPermission();
       if (!fcmToken) {
         toast({
-          title: "Permiso Denegado",
-          description: "No se otorgo permiso para enviar notificaciones.",
+          title: t('push.manager.toast.permissionDeniedTitle'),
+          description: t('push.manager.toast.permissionDeniedDescription'),
           variant: "destructive"
         });
         return;
@@ -119,13 +121,13 @@ export function PushNotificationManager() {
 
       setIsSubscribed(true);
       toast({
-        title: "Notificaciones Activadas",
-        description: "Recibiras notificaciones push en este dispositivo.",
+        title: t('push.manager.toast.enabledTitle'),
+        description: t('push.manager.toast.enabledDescription'),
       });
 
       if (Notification.permission === 'granted') {
-        new Notification('Notificaciones activadas', {
-          body: 'Ahora recibiras recordatorios importantes de la aplicacion.',
+        new Notification(t('push.manager.nativeTitle'), {
+          body: t('push.manager.nativeBody'),
           icon: '/icono-app.png',
           badge: '/icono-app.png'
         });
@@ -133,8 +135,8 @@ export function PushNotificationManager() {
     } catch (error) {
       console.error('Error subscribing to push:', error);
       toast({
-        title: "Error",
-        description: "No se pudo activar las notificaciones. Intenta de nuevo.",
+        title: t('common.error'),
+        description: t('push.manager.toast.activateError'),
         variant: "destructive"
       });
     } finally {
@@ -167,14 +169,14 @@ export function PushNotificationManager() {
 
       setIsSubscribed(false);
       toast({
-        title: "Notificaciones Desactivadas",
-        description: "Ya no recibiras notificaciones push en este dispositivo.",
+        title: t('push.manager.toast.disabledTitle'),
+        description: t('push.manager.toast.disabledDescription'),
       });
     } catch (error) {
       console.error('Error unsubscribing from push:', error);
       toast({
-        title: "Error",
-        description: "No se pudo desactivar las notificaciones.",
+        title: t('common.error'),
+        description: t('push.manager.toast.deactivateError'),
         variant: "destructive"
       });
     } finally {
@@ -203,12 +205,12 @@ export function PushNotificationManager() {
         {isSubscribed ? (
           <>
             <BellOff className="mr-2 h-4 w-4" />
-            Desactivar Notificaciones
+            {t('push.manager.disable')}
           </>
         ) : (
           <>
             <Bell className="mr-2 h-4 w-4" />
-            Activar Notificaciones
+            {t('push.manager.enable')}
           </>
         )}
       </Button>
@@ -216,22 +218,22 @@ export function PushNotificationManager() {
       <AlertDialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Activar Notificaciones Push</AlertDialogTitle>
+            <AlertDialogTitle>{t('push.manager.dialogTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Deseas recibir notificaciones push en este dispositivo? Te enviaremos recordatorios importantes sobre:
+              {t('push.manager.dialogDescription')}
               <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Cumpleanos de miembros</li>
-                <li>Servicios proximos</li>
-                <li>Necesidades urgentes de ministracion</li>
-                <li>Actividades de tu organización</li>
-                <li>Asignaciones de la obra misional</li>
+                <li>{t('push.manager.item.birthdays')}</li>
+                <li>{t('push.manager.item.services')}</li>
+                <li>{t('push.manager.item.ministering')}</li>
+                <li>{t('push.manager.item.activities')}</li>
+                <li>{t('push.manager.item.missionary')}</li>
               </ul>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={subscribeToPush}>
-              Activar Notificaciones
+              {t('push.manager.activate')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

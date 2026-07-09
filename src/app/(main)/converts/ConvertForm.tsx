@@ -55,15 +55,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Convert, Member } from '@/lib/types';
 import { getMembersForSelector } from '@/lib/members-data';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 
-const convertSchema = z.object({
-  name: z.string().min(2, { message: 'El nombre es requerido.' }),
-  baptismDate: z.date({
-    required_error: 'La fecha de bautismo es requerida.',
-  }),
-});
+const createConvertSchema = (t: (key: string, params?: Record<string, string | number>) => string) =>
+  z.object({
+    name: z.string().min(2, { message: t('converts.validation.nameRequired') }),
+    baptismDate: z.date({
+      required_error: t('converts.validation.baptismDateRequired'),
+    }),
+  });
 
-type FormValues = z.infer<typeof convertSchema>;
+type FormValues = z.infer<ReturnType<typeof createConvertSchema>>;
 
 interface ConvertFormProps {
   convert?: Convert;
@@ -75,6 +77,7 @@ export function ConvertForm({ convert }: ConvertFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, barrioOrg } = useAuth();
+  const { t } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditMode = !!convert;
@@ -89,7 +92,7 @@ export function ConvertForm({ convert }: ConvertFormProps) {
   const [loadingMembers, setLoadingMembers] = useState(false);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(convertSchema),
+    resolver: zodResolver(createConvertSchema(t)),
     defaultValues: {
       name: '',
     },
@@ -104,13 +107,13 @@ export function ConvertForm({ convert }: ConvertFormProps) {
     } catch (error) {
       console.error("Error loading members:", error);
       toast({
-        title: "Error",
-        description: "No se pudieron cargar los miembros.",
+        title: t('common.error'),
+        description: t('converts.loadMembersError'),
         variant: "destructive",
       });
     }
     setLoadingMembers(false);
-  }, [toast]);
+  }, [toast, barrioOrg, t]);
 
   useEffect(() => {
     if (isEditMode && convert) {
@@ -174,8 +177,8 @@ export function ConvertForm({ convert }: ConvertFormProps) {
 
     if (file.size > MAX_FILE_SIZE) {
       toast({
-        title: "Archivo demasiado grande",
-        description: "El tamaño máximo de la imagen es de 20MB.",
+        title: t('converts.fileTooLargeTitle'),
+        description: t('converts.fileTooLargeDescription'),
         variant: "destructive",
       });
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -197,7 +200,7 @@ export function ConvertForm({ convert }: ConvertFormProps) {
 
   const onSubmit = async (values: FormValues) => {
     if (!user) {
-      toast({ title: "Error", description: "Debes iniciar sesión para guardar.", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('converts.mustSignIn'), variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
@@ -245,14 +248,16 @@ export function ConvertForm({ convert }: ConvertFormProps) {
         const docRef = doc(convertsCollection, convert.id);
         await updateDoc(docRef, dataToSave);
         toast({
-          title: "Converso Actualizado",
-          description: "Los datos del miembro han sido actualizados exitosamente.",
+          title: t('converts.updatedTitle'),
+          description: t('converts.updatedDescription'),
         });
       } else {
         await addDoc(convertsCollection, dataToSave);
         toast({
-          title: "Converso Agregado",
-          description: `El nuevo miembro ha sido registrado exitosamente${entryMode === 'automatic' ? ' desde el registro de miembros' : ''}.`,
+          title: t('converts.addedTitle'),
+          description: entryMode === 'automatic'
+            ? t('converts.addedDescriptionFromMembers')
+            : t('converts.addedDescription'),
         });
       }
       router.push('/converts');
@@ -260,8 +265,8 @@ export function ConvertForm({ convert }: ConvertFormProps) {
     } catch (e) {
       logger.error({ error: e, message: `Error ${isEditMode ? 'updating' : 'adding'} convert`, data: values });
       toast({
-        title: "Error",
-        description: 'Hubo un error al guardar los datos.',
+        title: t('common.error'),
+        description: t('converts.saveError'),
         variant: 'destructive',
       });
     } finally {
@@ -274,11 +279,11 @@ export function ConvertForm({ convert }: ConvertFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>{isEditMode ? 'Editar Converso' : 'Agregar Nuevo Converso'}</CardTitle>
+            <CardTitle>{isEditMode ? t('converts.editTitle') : t('converts.addTitle')}</CardTitle>
             <CardDescription>
-              {isEditMode ? 'Actualiza los detalles del miembro.' : 'Ingresa los detalles del nuevo miembro bautizado.'}
+              {isEditMode ? t('converts.editDescription') : t('converts.addDescription')}
               <br />
-              <span className="text-sm text-muted-foreground">Los campos marcados con <span className="text-red-600">*</span> son obligatorios.</span>
+              <span className="text-sm text-muted-foreground">{t('converts.requiredFieldsHint')}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -286,8 +291,8 @@ export function ConvertForm({ convert }: ConvertFormProps) {
             {!isEditMode && (
               <div className="space-y-4">
                 <div>
-                  <Label className="text-base font-medium">Método de Registro</Label>
-                  <p className="text-sm text-muted-foreground">Selecciona cómo deseas registrar al converso</p>
+                  <Label className="text-base font-medium">{t('converts.entryMethod')}</Label>
+                  <p className="text-sm text-muted-foreground">{t('converts.entryMethodHelp')}</p>
                 </div>
                 <RadioGroup
                   value={entryMode}
@@ -298,14 +303,14 @@ export function ConvertForm({ convert }: ConvertFormProps) {
                     <RadioGroupItem value="manual" id="manual" />
                     <Label htmlFor="manual" className="flex items-center gap-2 cursor-pointer">
                       <Edit3 className="h-4 w-4" />
-                      Manual - Ingresar datos manualmente
+                      {t('converts.entryManual')}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="automatic" id="automatic" />
                     <Label htmlFor="automatic" className="flex items-center gap-2 cursor-pointer">
                       <UserCheck className="h-4 w-4" />
-                      Automático - Seleccionar miembro existente
+                      {t('converts.entryAutomatic')}
                     </Label>
                   </div>
                 </RadioGroup>
@@ -315,11 +320,11 @@ export function ConvertForm({ convert }: ConvertFormProps) {
             {/* Member Selection - Only show in automatic mode */}
             {entryMode === 'automatic' && !isEditMode && (
               <FormItem>
-                <FormLabel>Seleccionar Miembro <span className="text-red-600">*</span></FormLabel>
+                <FormLabel>{t('converts.selectMember')} <span className="text-red-600">*</span></FormLabel>
                 <Select onValueChange={handleMemberSelect} disabled={loadingMembers}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={loadingMembers ? "Cargando miembros..." : "Selecciona un miembro"} />
+                      <SelectValue placeholder={loadingMembers ? t('converts.loadingMembers') : t('converts.selectMemberPlaceholder')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -344,11 +349,11 @@ export function ConvertForm({ convert }: ConvertFormProps) {
 
             {/* Photo Section */}
             <FormItem className="flex flex-col items-center">
-              <FormLabel>Foto de Perfil</FormLabel>
+              <FormLabel>{t('converts.profilePhoto')}</FormLabel>
               <FormControl>
                 <div className="relative">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={previewUrl ?? undefined} alt="Vista previa" data-ai-hint="profile picture" />
+                    <AvatarImage src={previewUrl ?? undefined} alt={t('converts.previewAlt')} data-ai-hint="profile picture" />
                     <AvatarFallback>
                       {isSubmitting ? <Loader2 className="animate-spin" /> : <User className="h-10 w-10 text-muted-foreground" />}
                     </AvatarFallback>
@@ -376,12 +381,12 @@ export function ConvertForm({ convert }: ConvertFormProps) {
                   disabled={isSubmitting}
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  {previewUrl ? 'Cambiar Imagen' : 'Subir Imagen'}
+                  {previewUrl ? t('converts.changeImage') : t('converts.uploadImage')}
                 </Button>
               )}
               {entryMode === 'automatic' && selectedMember && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  Foto del miembro seleccionado
+                  {t('converts.selectedMemberPhoto')}
                 </p>
               )}
               <Input
@@ -399,10 +404,10 @@ export function ConvertForm({ convert }: ConvertFormProps) {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre Completo <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('converts.fullName')} <span className="text-red-600">*</span></FormLabel>
                   <FormControl>
                     <Input 
-                      placeholder="Ej: Juan Pérez" 
+                      placeholder={t('converts.namePlaceholder')} 
                       {...field} 
                       disabled={entryMode === 'automatic' && !selectedMember}
                       readOnly={entryMode === 'automatic' && !!selectedMember}
@@ -410,7 +415,7 @@ export function ConvertForm({ convert }: ConvertFormProps) {
                   </FormControl>
                   {entryMode === 'automatic' && selectedMember && (
                     <p className="text-xs text-muted-foreground">
-                      Nombre obtenido del miembro seleccionado
+                      {t('converts.nameFromMember')}
                     </p>
                   )}
                   <FormMessage />
@@ -422,7 +427,7 @@ export function ConvertForm({ convert }: ConvertFormProps) {
               name="baptismDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Fecha de Bautismo <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('converts.baptismDate')} <span className="text-red-600">*</span></FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -436,7 +441,7 @@ export function ConvertForm({ convert }: ConvertFormProps) {
                           {field.value ? (
                             format(field.value, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                           ) : (
-                            <span>Selecciona una fecha</span>
+                            <span>{t('converts.selectDate')}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -463,10 +468,10 @@ export function ConvertForm({ convert }: ConvertFormProps) {
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button variant="outline" asChild>
-              <Link href="/converts">Cancelar</Link>
+              <Link href="/converts">{t('converts.cancel')}</Link>
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar'}
+              {isSubmitting ? t('converts.saving') : t('converts.save')}
             </Button>
           </CardFooter>
         </Card>
@@ -474,5 +479,3 @@ export function ConvertForm({ convert }: ConvertFormProps) {
     </Form>
   );
 }
-
-    

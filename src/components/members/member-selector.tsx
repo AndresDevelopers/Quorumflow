@@ -96,14 +96,14 @@ export function MemberSelector({
     } catch (error) {
       console.error('Error fetching members:', error);
       toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los miembros.',
+        title: t('common.error'),
+        description: t('memberSelector.toast.loadError'),
         variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
-  }, [includeInactive, statusFilter, toast, value]);
+  }, [includeInactive, statusFilter, toast, value, t, barrioOrg]);
 
   useEffect(() => {
     fetchMembers();

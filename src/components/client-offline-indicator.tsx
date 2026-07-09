@@ -19,10 +19,12 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef } from 'react';
 import { getAppName } from "@/lib/app-config";
+import { useI18n } from '@/contexts/i18n-context';
 
 const appName = getAppName();
 
 function ClientOfflineIndicator() {
+    const { t } = useI18n();
     const {
         isOnline,
         isInstalled,
@@ -125,14 +127,14 @@ function ClientOfflineIndicator() {
         try {
             await installApp();
             toast({
-                title: "App Instalada",
-                description: `${appName} se ha instalado correctamente en tu dispositivo.`,
+                title: t("offline.toast.installedTitle"),
+                description: t("offline.toast.installedDescription", { appName }),
             });
         } catch (error) {
             console.error('Installation error:', error);
             toast({
-                title: "Error de Instalación",
-                description: "No se pudo instalar la aplicación.",
+                title: t("offline.toast.installErrorTitle"),
+                description: t("offline.toast.installErrorDescription"),
                 variant: "destructive"
             });
         }
@@ -149,14 +151,14 @@ function ClientOfflineIndicator() {
         try {
             await forceSync();
             toast({
-                title: "Sincronización Completa",
-                description: "Todos los datos se han sincronizado correctamente.",
+                title: t("offline.toast.syncCompleteTitle"),
+                description: t("offline.toast.syncCompleteDescription"),
             });
         } catch (error) {
             console.error('Sync error:', error);
             toast({
-                title: "Error de Sincronización",
-                description: "No se pudo completar la sincronización.",
+                title: t("offline.toast.syncErrorTitle"),
+                description: t("offline.toast.syncErrorDescription"),
                 variant: "destructive"
             });
         }
@@ -173,14 +175,16 @@ function ClientOfflineIndicator() {
                                 <div className="flex items-center gap-2">
                                     <Wifi className="h-4 w-4 text-green-600" />
                                     <span className={`text-sm font-medium text-green-700`}>
-                                        En línea
+                                        {t('offline.online')}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {queuedOperations > 0 && (
                                         <Badge variant="secondary" className="text-xs">
                                             <Clock className="h-3 w-3 mr-1" />
-                                            {queuedOperations} pendiente{queuedOperations !== 1 ? 's' : ''}
+                                            {queuedOperations === 1
+                                              ? t('offline.pending', { count: queuedOperations })
+                                              : t('offline.pending_plural', { count: queuedOperations })}
                                         </Badge>
                                     )}
                                     {queuedOperations > 0 && (
@@ -212,7 +216,7 @@ function ClientOfflineIndicator() {
                             </div>
                             {showOnlineIndicator && (
                                 <p className="text-xs text-green-600 mt-2">
-                                    Conexión restablecida. Los datos se están sincronizando automáticamente.
+                                    {t('offline.reconnected')}
                                 </p>
                             )}
                         </CardContent>
@@ -223,7 +227,7 @@ function ClientOfflineIndicator() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <WifiOff className="h-4 w-4 text-red-600" />
-                                    <span className="text-sm font-medium text-red-700">Sin conexión</span>
+                                    <span className="text-sm font-medium text-red-700">{t('offline.offline')}</span>
                                 </div>
                                 <Button
                                     size="sm"
@@ -242,13 +246,15 @@ function ClientOfflineIndicator() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <WifiOff className="h-4 w-4 text-red-600" />
-                                    <span className="text-sm font-medium text-red-700">Sin conexión</span>
+                                    <span className="text-sm font-medium text-red-700">{t('offline.offline')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {queuedOperations > 0 && (
                                         <Badge variant="secondary" className="text-xs">
                                             <Clock className="h-3 w-3 mr-1" />
-                                            {queuedOperations} pendiente{queuedOperations !== 1 ? 's' : ''}
+                                            {queuedOperations === 1
+                                              ? t('offline.pending', { count: queuedOperations })
+                                              : t('offline.pending_plural', { count: queuedOperations })}
                                         </Badge>
                                     )}
                                     <Button
@@ -256,19 +262,19 @@ function ClientOfflineIndicator() {
                                         variant="ghost"
                                         onClick={toggleOfflineMinimized}
                                         className="h-8 w-8 p-0"
-                                        title="Minimizar"
+                                        title={t('offline.minimize')}
                                     >
                                         <ChevronDown className="h-3 w-3" />
                                     </Button>
                                 </div>
                             </div>
                             <p className="text-xs text-red-600 mt-2">
-                                Trabajando sin conexión. Los cambios se sincronizarán automáticamente cuando vuelvas a estar en línea.
+                                {t('offline.workingOffline')}
                             </p>
                             {syncInProgress && (
                                 <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
                                     <RefreshCw className="h-3 w-3 animate-spin" />
-                                    Sincronizando datos...
+                                    {t('offline.syncing')}
                                 </p>
                             )}
                         </CardContent>
@@ -283,7 +289,7 @@ function ClientOfflineIndicator() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-green-700">
                             <CheckCircle className="h-4 w-4" />
-                            <span className="text-sm font-medium">App Instalada</span>
+                            <span className="text-sm font-medium">{t('offline.appInstalled')}</span>
                             </div>
                             <Button
                                 size="sm"
@@ -295,7 +301,7 @@ function ClientOfflineIndicator() {
                             </Button>
                         </div>
                         <p className="text-xs text-green-600 mt-1">
-                            {appName} está instalado y funciona completamente offline.
+                            {t('offline.appInstalledDescription', { appName })}
                         </p>
                     </CardContent>
                 </Card>

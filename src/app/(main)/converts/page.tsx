@@ -271,10 +271,10 @@ export default function ConvertsPage() {
       setConverts(prev => prev.map(c =>
         c.id === convertId ? { ...c, calling, notes, recommendationActive, selfRelianceCourse } : c
       ));
-      toast({ title: '✅ Información guardada', description: 'Los datos del converso se actualizaron correctamente.' });
+      toast({ title: t('converts.saveInfoSuccessTitle'), description: t('converts.saveInfoSuccessDescription') });
     } catch (error) {
       console.error("Failed to save convert info:", error);
-      toast({ title: 'Error', description: 'No se pudo guardar la información.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('converts.saveInfoError'), variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -286,13 +286,13 @@ export default function ConvertsPage() {
         // Update existing friendship
         if (friends.length === 0) {
           await deleteDoc(doc(newConvertFriendsCollection, friendshipId));
-          toast({ title: '✅ Amigos eliminados', description: 'La asignación de amigos fue removida.' });
+          toast({ title: t('converts.friendsRemovedTitle'), description: t('converts.friendsRemovedDescription') });
         } else {
           await updateDoc(doc(newConvertFriendsCollection, friendshipId), {
             friends,
             updatedAt: Timestamp.now()
           });
-          toast({ title: '✅ Amigos guardados', description: 'La asignación de amigos se actualizó.' });
+          toast({ title: t('converts.friendsSavedTitle'), description: t('converts.friendsSavedDescription') });
         }
       } else if (friends.length > 0) {
         // Create new friendship
@@ -302,14 +302,14 @@ export default function ConvertsPage() {
           friends,
           assignedAt: serverTimestamp()
         });
-        toast({ title: '✅ Amigos asignados', description: 'Se asignaron amigos al converso.' });
+        toast({ title: t('converts.friendsAssignedTitle'), description: t('converts.friendsAssignedDescription') });
       }
 
       // Reload data to reflect changes
       await loadData();
     } catch (error) {
       console.error("Failed to save friends:", error);
-      toast({ title: 'Error', description: 'No se pudo guardar la asignación de amigos.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('converts.friendsSaveError'), variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -335,10 +335,10 @@ export default function ConvertsPage() {
 
       // Reload data to reflect changes
       await loadData();
-      toast({ title: '✅ Maestros guardados', description: 'Los maestros ministrantes se actualizaron.' });
+      toast({ title: t('converts.teachersSavedTitle'), description: t('converts.teachersSavedDescription') });
     } catch (error) {
       console.error("Failed to save teachers:", error);
-      toast({ title: 'Error', description: 'No se pudo guardar los maestros ministrantes.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('converts.teachersSaveError'), variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -405,8 +405,8 @@ export default function ConvertsPage() {
                           </Avatar>
                           {convertAlertStatus && (
                             <span
-                              aria-label={convertAlertStatus === 'inactive' ? 'Converso inactivo' : 'Converso menos activo'}
-                              title={convertAlertStatus === 'inactive' ? 'Inactivo' : 'Menos activo'}
+                              aria-label={convertAlertStatus === 'inactive' ? t('converts.alertInactiveAria') : t('converts.alertLessActiveAria')}
+                              title={convertAlertStatus === 'inactive' ? t('converts.alertInactiveTitle') : t('converts.alertLessActiveTitle')}
                               className={`absolute -top-0.5 -right-0.5 block h-0 w-0 border-l-[10px] border-b-[10px] border-l-transparent ${
                                 convertAlertStatus === 'inactive' ? 'border-b-red-500' : 'border-b-yellow-400'
                               }`}

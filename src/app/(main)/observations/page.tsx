@@ -75,8 +75,6 @@ import { useI18n } from '@/contexts/i18n-context';
 
 import type { Member, Companionship, Family, HealthConcern } from '@/lib/types';
 
-import { OrdinanceLabels } from '@/lib/types';
-
 import { getMembersByStatus } from '@/lib/members-data';
 
 import { fetchHealthConcerns, createHealthConcern, deleteHealthConcern, updateHealthConcern } from '@/lib/health-concerns';
@@ -139,15 +137,18 @@ const statusConfig = {
 
 const HEALTH_PHOTO_MAX_SIZE = 5 * 1024 * 1024;
 
-const healthConcernSchema = z.object({
-  firstName: z.string().min(2, { message: 'El nombre es obligatorio.' }),
-  lastName: z.string().min(2, { message: 'El apellido es obligatorio.' }),
-  address: z.string().min(5, { message: 'La dirección es obligatoria.' }),
-  observation: z.string().min(5, { message: 'La observación es obligatoria.' }),
-  helperIds: z.array(z.string()).min(1, { message: 'Selecciona al menos un miembro de apoyo.' }),
-});
+type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
 
-type HealthConcernFormValues = z.infer<typeof healthConcernSchema>;
+const createHealthConcernSchema = (t: TranslateFn) =>
+  z.object({
+    firstName: z.string().min(2, { message: t('observations.health.validation.firstName') }),
+    lastName: z.string().min(2, { message: t('observations.health.validation.lastName') }),
+    address: z.string().min(5, { message: t('observations.health.validation.address') }),
+    observation: z.string().min(5, { message: t('observations.health.validation.observation') }),
+    helperIds: z.array(z.string()).min(1, { message: t('observations.health.validation.helpers') }),
+  });
+
+type HealthConcernFormValues = z.infer<ReturnType<typeof createHealthConcernSchema>>;
 const DEFAULT_HEALTH_FORM_VALUES: HealthConcernFormValues = {
   firstName: '',
   lastName: '',
@@ -158,11 +159,11 @@ const DEFAULT_HEALTH_FORM_VALUES: HealthConcernFormValues = {
 
 const getInitials = (first: string, last: string) => `${(first?.[0] ?? '').toUpperCase()}${(last?.[0] ?? '').toUpperCase()}`.trim() || 'PS';
 
-const renderPhoneWithAge = (member: Member, fallback: string = 'Sin teléfono') => {
+const renderPhoneWithAge = (member: Member, fallback: string, ageLabel: (age: number) => string) => {
   let text = member.phoneNumber || fallback;
   if (member.birthDate) {
     const age = differenceInYears(new Date(), member.birthDate.toDate());
-    text += ` - ${age} Edad`;
+    text += ` - ${ageLabel(age)}`;
   }
   return text;
 };
@@ -234,7 +235,7 @@ export default function ObservationsPage() {
 
   const healthForm = useForm<HealthConcernFormValues>({
 
-    resolver: zodResolver(healthConcernSchema),
+    resolver: zodResolver(createHealthConcernSchema(t)),
 
     defaultValues: DEFAULT_HEALTH_FORM_VALUES,
 
@@ -284,9 +285,9 @@ export default function ObservationsPage() {
 
       toast({
 
-        title: 'Error',
+        title: t('common.error'),
 
-        description: 'No se pudieron cargar los miembros.',
+        description: t('observations.toast.loadMembersError'),
 
         variant: 'destructive'
 
@@ -298,7 +299,7 @@ export default function ObservationsPage() {
 
     }
 
-  }, [authLoading, user, toast]);
+  }, [authLoading, user, toast, t, barrioOrg]);
 
 
 
@@ -320,9 +321,9 @@ export default function ObservationsPage() {
 
       toast({
 
-        title: 'Error',
+        title: t('common.error'),
 
-        description: 'No se pudieron cargar las compañerías.',
+        description: t('observations.toast.loadCompanionshipsError'),
 
         variant: 'destructive'
 
@@ -330,7 +331,7 @@ export default function ObservationsPage() {
 
     }
 
-  }, [toast]);
+  }, [toast, t]);
   const loadHealthConcerns = useCallback(async () => {
 
     if (authLoading || !user) {
@@ -357,9 +358,9 @@ export default function ObservationsPage() {
 
       toast({
 
-        title: 'Error',
+        title: t('common.error'),
 
-        description: 'No se pudieron cargar los registros de salud.',
+        description: t('observations.toast.loadHealthError'),
 
         variant: 'destructive'
 
@@ -373,7 +374,7 @@ export default function ObservationsPage() {
 
 
 
-  }, [authLoading, user, toast]);
+  }, [authLoading, user, toast, t, barrioOrg]);
 
 
 
@@ -527,9 +528,9 @@ export default function ObservationsPage() {
 
       toast({
 
-        title: 'Imagen demasiado grande',
+        title: t('observations.toast.photoTooLargeTitle'),
 
-        description: 'El tamaño máximo permitido es de 5MB.',
+        description: t('observations.toast.photoTooLargeDescription'),
 
         variant: 'destructive'
 
@@ -639,9 +640,9 @@ export default function ObservationsPage() {
 
       toast({
 
-        title: 'Error',
+        title: t('common.error'),
 
-        description: 'Debes iniciar sesión para guardar.',
+        description: t('observations.toast.mustSignIn'),
 
         variant: 'destructive'
 
@@ -669,7 +670,7 @@ export default function ObservationsPage() {
 
         }
 
-        return 'Miembro sin registro';
+        return t('observations.health.memberUnregistered');
 
       });
 
@@ -709,9 +710,9 @@ export default function ObservationsPage() {
 
         toast({
 
-          title: 'Registro actualizado',
+          title: t('observations.toast.healthUpdatedTitle'),
 
-          description: 'La información de salud se actualizó correctamente.',
+          description: t('observations.toast.healthUpdatedDescription'),
 
         });
 
@@ -745,9 +746,9 @@ export default function ObservationsPage() {
 
         toast({
 
-          title: 'Registro creado',
+          title: t('observations.toast.healthCreatedTitle'),
 
-          description: 'Se agregó el registro de salud correctamente.',
+          description: t('observations.toast.healthCreatedDescription'),
 
         });
 
@@ -765,9 +766,9 @@ export default function ObservationsPage() {
 
       toast({
 
-        title: 'Error',
+        title: t('common.error'),
 
-        description: 'No se pudo guardar el registro. Inténtalo de nuevo.',
+        description: t('observations.toast.healthSaveError'),
 
         variant: 'destructive'
 
@@ -785,7 +786,12 @@ export default function ObservationsPage() {
 
   const handleDeleteHealthConcern = async (concern: HealthConcern) => {
 
-    const confirmed = window.confirm(`¿Eliminar el registro de ${concern.firstName} ${concern.lastName}?`);
+    const confirmed = window.confirm(
+      t('observations.confirm.deleteHealth', {
+        firstName: concern.firstName,
+        lastName: concern.lastName,
+      })
+    );
 
     if (!confirmed) {
 
@@ -815,9 +821,9 @@ export default function ObservationsPage() {
 
       toast({
 
-        title: 'Registro eliminado',
+        title: t('observations.toast.healthDeletedTitle'),
 
-        description: 'Se eliminó el registro de salud correctamente.',
+        description: t('observations.toast.healthDeletedDescription'),
 
       });
 
@@ -827,9 +833,9 @@ export default function ObservationsPage() {
 
       toast({
 
-        title: 'Error',
+        title: t('common.error'),
 
-        description: 'No se pudo eliminar el registro. Inténtalo de nuevo.',
+        description: t('observations.toast.healthDeleteError'),
 
         variant: 'destructive'
 
@@ -1068,11 +1074,11 @@ export default function ObservationsPage() {
 
       <div className="flex flex-col gap-2">
 
-        <h1 className="text-balance text-fluid-title font-semibold tracking-tight">Observaciones</h1>
+        <h1 className="text-balance text-fluid-title font-semibold tracking-tight">{t('observations.title')}</h1>
 
         <p className="text-balance text-fluid-subtitle text-muted-foreground">
 
-          Seguimiento de miembros que requieren atención especial.
+          {t('observations.subtitle')}
 
         </p>
 
@@ -1088,7 +1094,7 @@ export default function ObservationsPage() {
 
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 
-            <CardTitle className="text-sm font-medium">Sin Investidura</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('observations.stats.withoutEndowment')}</CardTitle>
 
             <AlertTriangle className="h-4 w-4 text-orange-600" />
 
@@ -1098,7 +1104,7 @@ export default function ObservationsPage() {
 
             <div className="text-2xl font-bold text-orange-600">{observationCounts.withoutEndowment}</div>
 
-            <p className="text-xs text-muted-foreground">miembros sin ordenanza de investidura</p>
+            <p className="text-xs text-muted-foreground">{t('observations.stats.withoutEndowmentDesc')}</p>
 
           </CardContent>
 
@@ -1107,24 +1113,24 @@ export default function ObservationsPage() {
         {isElderesQuorum && (
         <Card className="cursor-pointer" onClick={() => withoutElderOrdinationRef.current?.scrollIntoView({ behavior: 'smooth' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sin Ordenanza de Elderes</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('observations.stats.withoutElder')}</CardTitle>
             <UserCheck className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">{observationCounts.withoutElderOrdination}</div>
-            <p className="text-xs text-muted-foreground">miembros sin ordenanza de élder</p>
+            <p className="text-xs text-muted-foreground">{t('observations.stats.withoutElderDesc')}</p>
           </CardContent>
         </Card>
         )}
         {isElderesQuorum && (
         <Card className="cursor-pointer" onClick={() => withoutHigherPriesthoodRef.current?.scrollIntoView({ behavior: 'smooth' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sin Sacerdocio Mayor</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('observations.stats.withoutHigherPriesthood')}</CardTitle>
             <UserCheck className="h-4 w-4 text-indigo-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-indigo-600">{observationCounts.withoutHigherPriesthood}</div>
-            <p className="text-xs text-muted-foreground">miembros sin sacerdocio mayor</p>
+            <p className="text-xs text-muted-foreground">{t('observations.stats.withoutHigherPriesthoodDesc')}</p>
           </CardContent>
         </Card>
         )}
@@ -1133,7 +1139,7 @@ export default function ObservationsPage() {
 
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 
-            <CardTitle className="text-sm font-medium">Sin Ministrantes</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('observations.stats.withoutMinistering')}</CardTitle>
 
             <UserX className="h-4 w-4 text-blue-600" />
 
@@ -1143,7 +1149,7 @@ export default function ObservationsPage() {
 
             <div className="text-2xl font-bold text-blue-600">{observationCounts.withoutMinistering}</div>
 
-            <p className="text-xs text-muted-foreground">miembros sin maestros ministrantes</p>
+            <p className="text-xs text-muted-foreground">{t('observations.stats.withoutMinisteringDesc')}</p>
 
           </CardContent>
 
@@ -1151,23 +1157,23 @@ export default function ObservationsPage() {
 
         <Card className="cursor-pointer" onClick={() => inactiveNewConvertsRef.current?.scrollIntoView({ behavior: 'smooth' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Nuevos Conversos Inactivos</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('observations.stats.inactiveNewConverts')}</CardTitle>
             <UserX className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-600">{observationCounts.inactiveNewConverts}</div>
-            <p className="text-xs text-muted-foreground">conversos recientes marcados como inactivos</p>
+            <p className="text-xs text-muted-foreground">{t('observations.stats.inactiveNewConvertsDesc')}</p>
           </CardContent>
         </Card>
 
         <Card className="cursor-pointer" onClick={() => inactiveRef.current?.scrollIntoView({ behavior: 'smooth' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inactivos</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('observations.stats.inactive')}</CardTitle>
             <UserX className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{observationCounts.inactive}</div>
-            <p className="text-xs text-muted-foreground">miembros inactivos</p>
+            <p className="text-xs text-muted-foreground">{t('observations.stats.inactiveDesc')}</p>
           </CardContent>
         </Card>
 
@@ -1175,7 +1181,7 @@ export default function ObservationsPage() {
 
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 
-            <CardTitle className="text-sm font-medium">Familias en seguimiento</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('observations.stats.familyFocus')}</CardTitle>
 
             <Users className="h-4 w-4 text-sky-600" />
 
@@ -1185,7 +1191,7 @@ export default function ObservationsPage() {
 
             <div className="text-2xl font-bold text-sky-600">{observationCounts.familyFocusCompanionships}</div>
 
-            <p className="text-xs text-muted-foreground">compañerismos con familias menos activas o inactivas</p>
+            <p className="text-xs text-muted-foreground">{t('observations.stats.familyFocusDesc')}</p>
 
           </CardContent>
 
@@ -1197,7 +1203,7 @@ export default function ObservationsPage() {
 
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 
-            <CardTitle className="text-sm font-medium">Compañerías Problemáticas</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('observations.stats.problematicCompanionships')}</CardTitle>
 
             <Users className="h-4 w-4 text-orange-600" />
 
@@ -1207,7 +1213,7 @@ export default function ObservationsPage() {
 
             <div className="text-2xl font-bold text-orange-600">{observationCounts.problematicCompanionships}</div>
 
-            <p className="text-xs text-muted-foreground">compañerías con compañeros inactivos</p>
+            <p className="text-xs text-muted-foreground">{t('observations.stats.problematicCompanionshipsDesc')}</p>
 
           </CardContent>
 
@@ -1217,7 +1223,7 @@ export default function ObservationsPage() {
 
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 
-            <CardTitle className="text-sm font-medium">Apoyo de Salud</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('observations.stats.health')}</CardTitle>
 
             <HeartPulse className="h-4 w-4 text-rose-600" />
 
@@ -1227,7 +1233,7 @@ export default function ObservationsPage() {
 
             <div className="text-2xl font-bold text-rose-600">{observationCounts.healthConcerns}</div>
 
-            <p className="text-xs text-muted-foreground">personas con seguimiento de salud</p>
+            <p className="text-xs text-muted-foreground">{t('observations.stats.healthDesc')}</p>
 
           </CardContent>
 
@@ -1242,21 +1248,21 @@ export default function ObservationsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <HeartPulse className="h-5 w-5 text-rose-600" />
-            Personas con Necesidades de Salud
+            {t('observations.health.sectionTitle')}
           </CardTitle>
           <CardDescription>
-            Registra y coordina el apoyo para quienes enfrentan desafíos de salud dentro del barrio.
+            {t('observations.health.sectionDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="max-w-3xl text-sm text-muted-foreground">
-              Agrega manualmente a los hermanos o amigos que requieren visitas, ayuda específica o seguimiento por motivos de salud.
+              {t('observations.health.sectionHint')}
             </p>
             {canWrite && (
             <Button onClick={() => handleOpenHealthDialog()} disabled={savingHealthConcern} size="sm">
               <Plus className="mr-2 h-4 w-4" />
-              Agregar persona
+              {t('observations.health.addPerson')}
             </Button>
             )}
           </div>
@@ -1264,11 +1270,11 @@ export default function ObservationsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Persona</TableHead>
-                  <TableHead>Dirección</TableHead>
-                  <TableHead>Observación</TableHead>
-                  <TableHead>Miembros de apoyo</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead>{t('observations.health.col.person')}</TableHead>
+                  <TableHead>{t('observations.health.col.address')}</TableHead>
+                  <TableHead>{t('observations.health.col.observation')}</TableHead>
+                  <TableHead>{t('observations.health.col.helpers')}</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1285,7 +1291,7 @@ export default function ObservationsPage() {
                 ) : healthConcerns.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
-                      No hay personas registradas con seguimiento de salud.
+                      {t('observations.health.empty')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1296,7 +1302,7 @@ export default function ObservationsPage() {
                         const helper = membersById.get(helperId);
                         const helperName = helper
                           ? `${helper.firstName} ${helper.lastName}`
-                          : (concern.helperNames?.[index] ?? 'Miembro sin registro');
+                          : (concern.helperNames?.[index] ?? t('observations.health.memberUnregistered'));
                         return (
                           <Badge key={`${concern.id}-${helperId}-${index}`} variant="outline" className="text-xs font-normal">
                             {helperName}
@@ -1307,7 +1313,7 @@ export default function ObservationsPage() {
 
                     const createdAtLabel = concern.createdAt
                       ? format(concern.createdAt.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
-                      : 'Fecha no disponible';
+                      : t('observations.health.dateUnavailable');
 
                     return (
                       <TableRow key={concern.id}>
@@ -1322,7 +1328,7 @@ export default function ObservationsPage() {
                             </Avatar>
                             <div>
                               <p className="font-medium">{concern.firstName} {concern.lastName}</p>
-                              <p className="text-xs text-muted-foreground">Registrado el {createdAtLabel}</p>
+                              <p className="text-xs text-muted-foreground">{t('observations.health.registeredOn', { date: createdAtLabel })}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -1334,7 +1340,7 @@ export default function ObservationsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-2">
-                            {helpers.length > 0 ? helpers : <span className="text-sm text-muted-foreground">Sin asignar</span>}
+                            {helpers.length > 0 ? helpers : <span className="text-sm text-muted-foreground">{t('common.unassigned')}</span>}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -1345,7 +1351,7 @@ export default function ObservationsPage() {
                               size="sm"
                               onClick={() => handleOpenHealthDialog(concern)}
                               disabled={savingHealthConcern}
-                              title="Editar registro"
+                              title={t('observations.health.editTitle')}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -1354,7 +1360,7 @@ export default function ObservationsPage() {
                               size="sm"
                               onClick={() => handleDeleteHealthConcern(concern)}
                               disabled={deletingHealthConcernId === concern.id}
-                              title="Eliminar registro"
+                              title={t('observations.health.deleteTitle')}
                             >
                               {deletingHealthConcernId === concern.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1381,7 +1387,7 @@ export default function ObservationsPage() {
               <div className="py-12 text-center">
                 <HeartPulse className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                 <p className="text-muted-foreground">
-                  No hay personas registradas con seguimiento de salud.
+                  {t('observations.health.empty')}
                 </p>
               </div>
             ) : (
@@ -1392,7 +1398,7 @@ export default function ObservationsPage() {
                     const helper = membersById.get(helperId);
                     const helperName = helper
                       ? `${helper.firstName} ${helper.lastName}`
-                      : (concern.helperNames?.[index] ?? 'Miembro sin registro');
+                      : (concern.helperNames?.[index] ?? t('observations.health.memberUnregistered'));
                     return (
                       <Badge key={`${concern.id}-${helperId}-${index}`} variant="outline" className="text-xs font-normal">
                         {helperName}
@@ -1403,7 +1409,7 @@ export default function ObservationsPage() {
 
                 const createdAtLabel = concern.createdAt
                   ? format(concern.createdAt.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
-                  : 'Fecha no disponible';
+                  : t('observations.health.dateUnavailable');
 
                 return (
                   <Card key={concern.id}>
@@ -1419,17 +1425,17 @@ export default function ObservationsPage() {
                         <div>
                           <h3 className="font-semibold">{concern.firstName} {concern.lastName}</h3>
                           <p className="text-sm text-muted-foreground">{concern.address}</p>
-                          <p className="text-xs text-muted-foreground mt-1">Registrado el {createdAtLabel}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{t('observations.health.registeredOn', { date: createdAtLabel })}</p>
                         </div>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-muted-foreground">Observación</p>
+                        <p className="text-xs uppercase text-muted-foreground">{t('observations.health.col.observation')}</p>
                         <p className="mt-1 text-sm text-muted-foreground">{concern.observation}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-muted-foreground">Miembros de apoyo</p>
+                        <p className="text-xs uppercase text-muted-foreground">{t('observations.health.col.helpers')}</p>
                         <div className="mt-1 flex flex-wrap gap-2">
-                          {helpers.length > 0 ? helpers : <span className="text-sm text-muted-foreground">Sin asignar</span>}
+                          {helpers.length > 0 ? helpers : <span className="text-sm text-muted-foreground">{t('common.unassigned')}</span>}
                         </div>
                       </div>
                       <div className="flex justify-end gap-2">
@@ -1439,7 +1445,7 @@ export default function ObservationsPage() {
                           size="sm"
                           onClick={() => handleOpenHealthDialog(concern)}
                           disabled={savingHealthConcern}
-                          title="Editar registro"
+                          title={t('observations.health.editTitle')}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -1450,7 +1456,7 @@ export default function ObservationsPage() {
                           size="sm"
                           onClick={() => handleDeleteHealthConcern(concern)}
                           disabled={deletingHealthConcernId === concern.id}
-                          title="Eliminar registro"
+                          title={t('observations.health.deleteTitle')}
                         >
                           {deletingHealthConcernId === concern.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1479,13 +1485,13 @@ export default function ObservationsPage() {
 
             <AlertTriangle className="h-5 w-5 text-orange-600" />
 
-            Miembros Sin Ordenanza de Investidura
+            {t('observations.endowment.sectionTitle')}
 
           </CardTitle>
 
           <CardDescription>
 
-            Miembros que no han recibido la ordenanza del templo de investidura.
+            {t('observations.endowment.sectionDescription')}
 
           </CardDescription>
 
@@ -1501,15 +1507,15 @@ export default function ObservationsPage() {
 
                 <TableRow>
 
-                  <TableHead>Nombre</TableHead>
+                  <TableHead>{t('common.name')}</TableHead>
 
-                  <TableHead>Teléfono</TableHead>
+                  <TableHead>{t('common.phone')}</TableHead>
 
-                  <TableHead>Estado</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
 
-                  <TableHead>Ordenanzas Recibidas</TableHead>
+                  <TableHead>{t('observations.col.ordinancesReceived')}</TableHead>
 
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
 
                 </TableRow>
 
@@ -1543,7 +1549,7 @@ export default function ObservationsPage() {
 
                     <TableCell colSpan={5} className="h-24 text-center">
 
-                      Todos los miembros han recibido la investidura.
+                      {t('observations.endowment.empty')}
 
                     </TableCell>
 
@@ -1593,7 +1599,7 @@ export default function ObservationsPage() {
 
                         </TableCell>
 
-                        <TableCell>{renderPhoneWithAge(member, 'No especificado')}</TableCell>
+                        <TableCell>{renderPhoneWithAge(member, t('common.notSpecified'), (age) => t('observations.ageSuffix', { age }))}</TableCell>
 
                         <TableCell>
 
@@ -1617,7 +1623,7 @@ export default function ObservationsPage() {
 
                                 <Badge key={ordinance} variant="outline" className="text-xs">
 
-                                  {OrdinanceLabels[ordinance]}
+                                  {t(`ordinance.${ordinance}`)}
 
                                 </Badge>
 
@@ -1625,7 +1631,7 @@ export default function ObservationsPage() {
 
                             ) : (
 
-                              <span className="text-muted-foreground text-sm">Ninguna</span>
+                              <span className="text-muted-foreground text-sm">{t('common.none')}</span>
 
                             )}
 
@@ -1643,7 +1649,7 @@ export default function ObservationsPage() {
 
                             onClick={() => handleViewProfile(member.id)}
 
-                            title="Ver perfil"
+                            title={t('common.viewProfile')}
 
                           >
 
@@ -1689,7 +1695,7 @@ export default function ObservationsPage() {
 
                 <p className="text-muted-foreground">
 
-                  Todos los miembros han recibido la investidura.
+                  {t('observations.endowment.empty')}
 
                 </p>
 
@@ -1739,7 +1745,7 @@ export default function ObservationsPage() {
 
                             <p className="text-sm text-muted-foreground">
 
-                              {renderPhoneWithAge(member, 'Sin teléfono')}
+                              {renderPhoneWithAge(member, t('common.noPhone'), (age) => t('observations.ageSuffix', { age }))}
 
                             </p>
 
@@ -1761,7 +1767,7 @@ export default function ObservationsPage() {
 
                       <div className="mb-3">
 
-                        <p className="text-sm font-medium mb-2">Ordenanzas:</p>
+                        <p className="text-sm font-medium mb-2">{t('observations.label.ordinances')}</p>
 
                         <div className="flex flex-wrap gap-1">
 
@@ -1771,7 +1777,7 @@ export default function ObservationsPage() {
 
                               <Badge key={ordinance} variant="outline" className="text-xs">
 
-                                {OrdinanceLabels[ordinance]}
+                                {t(`ordinance.${ordinance}`)}
 
                               </Badge>
 
@@ -1779,7 +1785,7 @@ export default function ObservationsPage() {
 
                           ) : (
 
-                            <span className="text-muted-foreground text-sm">Ninguna</span>
+                            <span className="text-muted-foreground text-sm">{t('common.none')}</span>
 
                           )}
 
@@ -1803,7 +1809,7 @@ export default function ObservationsPage() {
 
                           <Eye className="mr-2 h-4 w-4" />
 
-                          Ver Perfil
+                          {t('common.viewProfile')}
 
                         </Button>
 
@@ -1837,13 +1843,13 @@ export default function ObservationsPage() {
 
             <UserCheck className="h-5 w-5 text-purple-600" />
 
-            Miembros Sin Ordenanza de Elderes
+            {t('observations.elder.sectionTitle')}
 
           </CardTitle>
 
           <CardDescription>
 
-            Miembros que no han recibido la ordenanza de élder (sacerdocio mayor).
+            {t('observations.elder.sectionDescription')}
 
           </CardDescription>
 
@@ -1859,15 +1865,15 @@ export default function ObservationsPage() {
 
                 <TableRow>
 
-                  <TableHead>Nombre</TableHead>
+                  <TableHead>{t('common.name')}</TableHead>
 
-                  <TableHead>Teléfono</TableHead>
+                  <TableHead>{t('common.phone')}</TableHead>
 
-                  <TableHead>Estado</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
 
-                  <TableHead>Ordenanzas Recibidas</TableHead>
+                  <TableHead>{t('observations.col.ordinancesReceived')}</TableHead>
 
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
 
                 </TableRow>
 
@@ -1901,7 +1907,7 @@ export default function ObservationsPage() {
 
                     <TableCell colSpan={5} className="h-24 text-center">
 
-                      Todos los miembros han recibido la ordenanza de élder.
+                      {t('observations.elder.empty')}
 
                     </TableCell>
 
@@ -1949,7 +1955,7 @@ export default function ObservationsPage() {
 
                         </TableCell>
 
-                        <TableCell>{renderPhoneWithAge(member, 'No especificado')}</TableCell>
+                        <TableCell>{renderPhoneWithAge(member, t('common.notSpecified'), (age) => t('observations.ageSuffix', { age }))}</TableCell>
 
                         <TableCell>
 
@@ -1973,7 +1979,7 @@ export default function ObservationsPage() {
 
                                 <Badge key={ordinance} variant="outline" className="text-xs">
 
-                                  {OrdinanceLabels[ordinance]}
+                                  {t(`ordinance.${ordinance}`)}
 
                                 </Badge>
 
@@ -1981,7 +1987,7 @@ export default function ObservationsPage() {
 
                             ) : (
 
-                              <span className="text-muted-foreground text-sm">Ninguna</span>
+                              <span className="text-muted-foreground text-sm">{t('common.none')}</span>
 
                             )}
 
@@ -1999,7 +2005,7 @@ export default function ObservationsPage() {
 
                             onClick={() => handleViewProfile(member.id)}
 
-                            title="Ver perfil"
+                            title={t('common.viewProfile')}
 
                           >
 
@@ -2045,7 +2051,7 @@ export default function ObservationsPage() {
 
                 <p className="text-muted-foreground">
 
-                  Todos los miembros han recibido la ordenanza de élder.
+                  {t('observations.elder.empty')}
 
                 </p>
 
@@ -2095,7 +2101,7 @@ export default function ObservationsPage() {
 
                             <p className="text-sm text-muted-foreground">
 
-                              {renderPhoneWithAge(member, 'Sin teléfono')}
+                              {renderPhoneWithAge(member, t('common.noPhone'), (age) => t('observations.ageSuffix', { age }))}
 
                             </p>
 
@@ -2117,7 +2123,7 @@ export default function ObservationsPage() {
 
                       <div className="mb-3">
 
-                        <p className="text-sm font-medium mb-2">Ordenanzas:</p>
+                        <p className="text-sm font-medium mb-2">{t('observations.label.ordinances')}</p>
 
                         <div className="flex flex-wrap gap-1">
 
@@ -2127,7 +2133,7 @@ export default function ObservationsPage() {
 
                               <Badge key={ordinance} variant="outline" className="text-xs">
 
-                                {OrdinanceLabels[ordinance]}
+                                {t(`ordinance.${ordinance}`)}
 
                               </Badge>
 
@@ -2135,7 +2141,7 @@ export default function ObservationsPage() {
 
                           ) : (
 
-                            <span className="text-muted-foreground text-sm">Ninguna</span>
+                            <span className="text-muted-foreground text-sm">{t('common.none')}</span>
 
                           )}
 
@@ -2159,7 +2165,7 @@ export default function ObservationsPage() {
 
                           <Eye className="mr-2 h-4 w-4" />
 
-                          Ver Perfil
+                          {t('common.viewProfile')}
 
                         </Button>
 
@@ -2192,13 +2198,13 @@ export default function ObservationsPage() {
 
             <UserCheck className="h-5 w-5 text-indigo-600" />
 
-            Miembros Sin Sacerdocio Mayor
+            {t('observations.higherPriesthood.sectionTitle')}
 
           </CardTitle>
 
           <CardDescription>
 
-            Miembros que no han recibido la ordenanza de élder ni de sumo sacerdote (sacerdocio mayor).
+            {t('observations.higherPriesthood.sectionDescription')}
 
           </CardDescription>
 
@@ -2214,15 +2220,15 @@ export default function ObservationsPage() {
 
                 <TableRow>
 
-                  <TableHead>Nombre</TableHead>
+                  <TableHead>{t('common.name')}</TableHead>
 
-                  <TableHead>Teléfono</TableHead>
+                  <TableHead>{t('common.phone')}</TableHead>
 
-                  <TableHead>Estado</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
 
-                  <TableHead>Ordenanzas Recibidas</TableHead>
+                  <TableHead>{t('observations.col.ordinancesReceived')}</TableHead>
 
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
 
                 </TableRow>
 
@@ -2256,7 +2262,7 @@ export default function ObservationsPage() {
 
                     <TableCell colSpan={5} className="h-24 text-center">
 
-                      Todos los miembros han recibido el sacerdocio mayor.
+                      {t('observations.higherPriesthood.empty')}
 
                     </TableCell>
 
@@ -2304,7 +2310,7 @@ export default function ObservationsPage() {
 
                         </TableCell>
 
-                        <TableCell>{renderPhoneWithAge(member, 'No especificado')}</TableCell>
+                        <TableCell>{renderPhoneWithAge(member, t('common.notSpecified'), (age) => t('observations.ageSuffix', { age }))}</TableCell>
 
                         <TableCell>
 
@@ -2328,7 +2334,7 @@ export default function ObservationsPage() {
 
                                 <Badge key={ordinance} variant="outline" className="text-xs">
 
-                                  {OrdinanceLabels[ordinance]}
+                                  {t(`ordinance.${ordinance}`)}
 
                                 </Badge>
 
@@ -2336,7 +2342,7 @@ export default function ObservationsPage() {
 
                             ) : (
 
-                              <span className="text-muted-foreground text-sm">Ninguna</span>
+                              <span className="text-muted-foreground text-sm">{t('common.none')}</span>
 
                             )}
 
@@ -2354,7 +2360,7 @@ export default function ObservationsPage() {
 
                             onClick={() => handleViewProfile(member.id)}
 
-                            title="Ver perfil"
+                            title={t('common.viewProfile')}
 
                           >
 
@@ -2400,7 +2406,7 @@ export default function ObservationsPage() {
 
                 <p className="text-muted-foreground">
 
-                  Todos los miembros han recibido el sacerdocio mayor.
+                  {t('observations.higherPriesthood.empty')}
 
                 </p>
 
@@ -2450,7 +2456,7 @@ export default function ObservationsPage() {
 
                             <p className="text-sm text-muted-foreground">
 
-                              {renderPhoneWithAge(member, 'Sin teléfono')}
+                              {renderPhoneWithAge(member, t('common.noPhone'), (age) => t('observations.ageSuffix', { age }))}
 
                             </p>
 
@@ -2472,7 +2478,7 @@ export default function ObservationsPage() {
 
                       <div className="mb-3">
 
-                        <p className="text-sm font-medium mb-2">Ordenanzas:</p>
+                        <p className="text-sm font-medium mb-2">{t('observations.label.ordinances')}</p>
 
                         <div className="flex flex-wrap gap-1">
 
@@ -2482,7 +2488,7 @@ export default function ObservationsPage() {
 
                               <Badge key={ordinance} variant="outline" className="text-xs">
 
-                                {OrdinanceLabels[ordinance]}
+                                {t(`ordinance.${ordinance}`)}
 
                               </Badge>
 
@@ -2490,7 +2496,7 @@ export default function ObservationsPage() {
 
                           ) : (
 
-                            <span className="text-muted-foreground text-sm">Ninguna</span>
+                            <span className="text-muted-foreground text-sm">{t('common.none')}</span>
 
                           )}
 
@@ -2514,7 +2520,7 @@ export default function ObservationsPage() {
 
                           <Eye className="mr-2 h-4 w-4" />
 
-                          Ver Perfil
+                          {t('common.viewProfile')}
 
                         </Button>
 
@@ -2547,13 +2553,13 @@ export default function ObservationsPage() {
 
             <UserX className="h-5 w-5 text-blue-600" />
 
-            Miembros Sin Maestros Ministrantes
+            {t('observations.ministering.sectionTitle')}
 
           </CardTitle>
 
           <CardDescription>
 
-            Miembros que no tienen asignados maestros ministrantes.
+            {t('observations.ministering.sectionDescription')}
 
           </CardDescription>
 
@@ -2569,13 +2575,13 @@ export default function ObservationsPage() {
 
                 <TableRow>
 
-                  <TableHead>Nombre</TableHead>
+                  <TableHead>{t('common.name')}</TableHead>
 
-                  <TableHead>Teléfono</TableHead>
+                  <TableHead>{t('common.phone')}</TableHead>
 
-                  <TableHead>Estado</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
 
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
 
                 </TableRow>
 
@@ -2607,7 +2613,7 @@ export default function ObservationsPage() {
 
                     <TableCell colSpan={4} className="h-24 text-center">
 
-                      Todos los miembros tienen maestros ministrantes asignados.
+                      {t('observations.ministering.empty')}
 
                     </TableCell>
 
@@ -2655,7 +2661,7 @@ export default function ObservationsPage() {
 
                         </TableCell>
 
-                        <TableCell>{renderPhoneWithAge(member, 'No especificado')}</TableCell>
+                        <TableCell>{renderPhoneWithAge(member, t('common.notSpecified'), (age) => t('observations.ageSuffix', { age }))}</TableCell>
 
                         <TableCell>
 
@@ -2679,7 +2685,7 @@ export default function ObservationsPage() {
 
                             onClick={() => handleViewProfile(member.id)}
 
-                            title="Ver perfil"
+                            title={t('common.viewProfile')}
 
                           >
 
@@ -2725,7 +2731,7 @@ export default function ObservationsPage() {
 
                 <p className="text-muted-foreground">
 
-                  Todos los miembros tienen maestros ministrantes asignados.
+                  {t('observations.ministering.empty')}
 
                 </p>
 
@@ -2775,7 +2781,7 @@ export default function ObservationsPage() {
 
                             <p className="text-sm text-muted-foreground">
 
-                              {renderPhoneWithAge(member, 'Sin teléfono')}
+                              {renderPhoneWithAge(member, t('common.noPhone'), (age) => t('observations.ageSuffix', { age }))}
 
                             </p>
 
@@ -2809,7 +2815,7 @@ export default function ObservationsPage() {
 
                           <Eye className="mr-2 h-4 w-4" />
 
-                          Ver Perfil
+                          {t('common.viewProfile')}
 
                         </Button>
 
@@ -2838,10 +2844,10 @@ export default function ObservationsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserX className="h-5 w-5 text-amber-600" />
-            Nuevos Conversos Inactivos
+            {t('observations.inactiveConverts.sectionTitle')}
           </CardTitle>
           <CardDescription>
-            Conversos bautizados en los últimos 24 meses que están marcados como inactivos.
+            {t('observations.inactiveConverts.sectionDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2849,10 +2855,10 @@ export default function ObservationsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Fecha de Bautismo</TableHead>
-                  <TableHead>Última Actividad</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead>{t('common.name')}</TableHead>
+                  <TableHead>{t('observations.col.baptismDate')}</TableHead>
+                  <TableHead>{t('observations.col.lastActivity')}</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -2868,7 +2874,7 @@ export default function ObservationsPage() {
                 ) : inactiveNewConverts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="h-24 text-center">
-                      No hay nuevos conversos inactivos.
+                      {t('observations.inactiveConverts.empty')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -2895,19 +2901,19 @@ export default function ObservationsPage() {
                       <TableCell>
                         {member.baptismDate
                           ? format(member.baptismDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
-                          : 'No especificada'}
+                          : t('common.notSpecifiedFeminine')}
                       </TableCell>
                       <TableCell>
                         {member.lastActiveDate
                           ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
-                          : 'Nunca'}
+                          : t('observations.never')}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleViewProfile(member.id)}
-                          title="Ver perfil"
+                          title={t('common.viewProfile')}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -2928,7 +2934,7 @@ export default function ObservationsPage() {
               <div className="text-center py-12">
                 <UserX className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">
-                  No hay nuevos conversos inactivos.
+                  {t('observations.inactiveConverts.empty')}
                 </p>
               </div>
             ) : (
@@ -2953,18 +2959,22 @@ export default function ObservationsPage() {
                         <div>
                           <h3 className="font-semibold">{member.firstName} {member.lastName}</h3>
                           <p className="text-sm text-muted-foreground">
-                            Bautismo: {member.baptismDate
-                              ? format(member.baptismDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
-                              : 'No especificada'}
+                            {t('observations.baptismLabel', {
+                              date: member.baptismDate
+                                ? format(member.baptismDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
+                                : t('common.notSpecifiedFeminine'),
+                            })}
                           </p>
                         </div>
                       </div>
                     </div>
 
                     <p className="text-sm text-muted-foreground mb-3">
-                      Última actividad: {member.lastActiveDate
-                        ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
-                        : 'Nunca'}
+                      {t('observations.lastActivityLabel', {
+                        date: member.lastActiveDate
+                          ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
+                          : t('observations.never'),
+                      })}
                     </p>
 
                     <div className="flex justify-end">
@@ -2974,7 +2984,7 @@ export default function ObservationsPage() {
                         onClick={() => handleViewProfile(member.id)}
                       >
                         <Eye className="mr-2 h-4 w-4" />
-                        Ver Perfil
+                        {t('common.viewProfile')}
                       </Button>
                     </div>
                   </CardContent>
@@ -2995,13 +3005,13 @@ export default function ObservationsPage() {
 
             <UserX className="h-5 w-5 text-red-600" />
 
-            Miembros Inactivos
+            {t('observations.inactive.sectionTitle')}
 
           </CardTitle>
 
           <CardDescription>
 
-            Miembros marcados como inactivos que requieren seguimiento especial.
+            {t('observations.inactive.sectionDescription')}
 
           </CardDescription>
 
@@ -3017,15 +3027,15 @@ export default function ObservationsPage() {
 
                 <TableRow>
 
-                  <TableHead>Nombre</TableHead>
+                  <TableHead>{t('common.name')}</TableHead>
 
-                  <TableHead>Teléfono</TableHead>
+                  <TableHead>{t('common.phone')}</TableHead>
 
-                  <TableHead>Fecha de Nacimiento</TableHead>
+                  <TableHead>{t('observations.col.birthDate')}</TableHead>
 
-                  <TableHead>Última Actividad</TableHead>
+                  <TableHead>{t('observations.col.lastActivity')}</TableHead>
 
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
 
                 </TableRow>
 
@@ -3059,7 +3069,7 @@ export default function ObservationsPage() {
 
                     <TableCell colSpan={5} className="h-24 text-center">
 
-                      No hay miembros inactivos.
+                      {t('observations.inactive.empty')}
 
                     </TableCell>
 
@@ -3101,7 +3111,7 @@ export default function ObservationsPage() {
 
                       </TableCell>
 
-                      <TableCell>{renderPhoneWithAge(member, 'No especificado')}</TableCell>
+                      <TableCell>{renderPhoneWithAge(member, t('common.notSpecified'), (age) => t('observations.ageSuffix', { age }))}</TableCell>
 
                       <TableCell>
 
@@ -3109,7 +3119,7 @@ export default function ObservationsPage() {
 
                           ? format(member.birthDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
 
-                          : 'No especificada'}
+                          : t('common.notSpecifiedFeminine')}
 
                       </TableCell>
 
@@ -3119,7 +3129,7 @@ export default function ObservationsPage() {
 
                           ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
 
-                          : 'Nunca'}
+                          : t('observations.never')}
 
                       </TableCell>
 
@@ -3133,7 +3143,7 @@ export default function ObservationsPage() {
 
                           onClick={() => handleViewProfile(member.id)}
 
-                          title="Ver perfil"
+                          title={t('common.viewProfile')}
 
                         >
 
@@ -3177,7 +3187,7 @@ export default function ObservationsPage() {
 
                 <p className="text-muted-foreground">
 
-                  No hay miembros inactivos.
+                  {t('observations.inactive.empty')}
 
                 </p>
 
@@ -3221,7 +3231,7 @@ export default function ObservationsPage() {
 
                           <p className="text-sm text-muted-foreground">
 
-                            {renderPhoneWithAge(member, 'Sin teléfono')}
+                            {renderPhoneWithAge(member, t('common.noPhone'), (age) => t('observations.ageSuffix', { age }))}
 
                           </p>
 
@@ -3238,11 +3248,11 @@ export default function ObservationsPage() {
 
                     <p className="text-sm text-muted-foreground mb-3">
 
-                      Última actividad: {member.lastActiveDate
-
-                        ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
-
-                        : 'Nunca'}
+                      {t('observations.lastActivityLabel', {
+                        date: member.lastActiveDate
+                          ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
+                          : t('observations.never'),
+                      })}
 
                     </p>
 
@@ -3262,7 +3272,7 @@ export default function ObservationsPage() {
 
                         <Eye className="mr-2 h-4 w-4" />
 
-                        Ver Perfil
+                        {t('common.viewProfile')}
 
                       </Button>
 
@@ -3294,11 +3304,11 @@ export default function ObservationsPage() {
 
             <Users className="h-5 w-5 text-sky-600" />
 
-            Familias que necesitan visita
+            {t('observations.familyFocus.sectionTitle')}
 
           </CardTitle>
 
-          <CardDescription>Compañerismos con familias asignadas donde hay miembros menos activos o inactivos.</CardDescription>
+          <CardDescription>{t('observations.familyFocus.sectionDescription')}</CardDescription>
 
         </CardHeader>
 
@@ -3314,11 +3324,11 @@ export default function ObservationsPage() {
 
                 <TableRow>
 
-                  <TableHead>Compañerismo</TableHead>
+                  <TableHead>{t('observations.col.companionship')}</TableHead>
 
-                  <TableHead>Familias y estado</TableHead>
+                  <TableHead>{t('observations.col.familiesAndStatus')}</TableHead>
 
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
 
                 </TableRow>
 
@@ -3348,7 +3358,7 @@ export default function ObservationsPage() {
 
                     <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
 
-                      No hay familias menos activas asignadas actualmente.
+                      {t('observations.familyFocus.empty')}
 
                     </TableCell>
 
@@ -3426,7 +3436,7 @@ export default function ObservationsPage() {
 
                           onClick={() => router.push(`/ministering/${companionship.id}`)}
 
-                          title="Ver compañerismo"
+                          title={t('observations.viewCompanionship')}
 
                         >
 
@@ -3464,7 +3474,7 @@ export default function ObservationsPage() {
 
                 <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
 
-                <p className="text-muted-foreground">No hay familias menos activas asignadas actualmente.</p>
+                <p className="text-muted-foreground">{t('observations.familyFocus.empty')}</p>
 
               </div>
 
@@ -3478,7 +3488,7 @@ export default function ObservationsPage() {
 
                     <div>
 
-                      <p className="text-sm font-medium mb-2">Compañeros:</p>
+                      <p className="text-sm font-medium mb-2">{t('observations.companionsLabel')}</p>
 
                       {companionship.companions.map((c, i) => (
 
@@ -3496,7 +3506,7 @@ export default function ObservationsPage() {
 
                     <div>
 
-                      <p className="text-sm font-medium mb-2">Familias por animar:</p>
+                      <p className="text-sm font-medium mb-2">{t('observations.familiesToEncourage')}</p>
 
                       {companionship.flaggedFamilies.map((flagged) => (
 
@@ -3546,7 +3556,7 @@ export default function ObservationsPage() {
 
                       >
 
-                        <Eye className="mr-2 h-4 w-4" />Ver más
+                        <Eye className="mr-2 h-4 w-4" />{t('observations.viewMore')}
 
                       </Button>
 
@@ -3578,13 +3588,13 @@ export default function ObservationsPage() {
 
             <Users className="h-5 w-5 text-orange-600" />
 
-            Compañerías con Compañeros Inactivos o Menos Activos
+            {t('observations.problematic.sectionTitle')}
 
           </CardTitle>
 
           <CardDescription>
 
-            Compañerías de ministración donde uno o más compañeros están marcados como inactivos o menos activos.
+            {t('observations.problematic.sectionDescription')}
 
           </CardDescription>
 
@@ -3600,13 +3610,13 @@ export default function ObservationsPage() {
 
                 <TableRow>
 
-                  <TableHead>Compañeros</TableHead>
+                  <TableHead>{t('observations.col.companions')}</TableHead>
 
-                  <TableHead>Familias Asignadas</TableHead>
+                  <TableHead>{t('observations.col.assignedFamilies')}</TableHead>
 
-                  <TableHead>Estado de Compañeros</TableHead>
+                  <TableHead>{t('observations.col.companionStatus')}</TableHead>
 
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
 
                 </TableRow>
 
@@ -3638,7 +3648,7 @@ export default function ObservationsPage() {
 
                     <TableCell colSpan={4} className="h-24 text-center">
 
-                      Todas las compañerías tienen compañeros activos.
+                      {t('observations.problematic.empty')}
 
                     </TableCell>
 
@@ -3744,7 +3754,7 @@ export default function ObservationsPage() {
 
                             onClick={() => router.push(`/ministering/${companionship.id}`)}
 
-                            title="Ver compañería"
+                            title={t('observations.viewCompanionshipButton')}
 
                           >
 
@@ -3790,7 +3800,7 @@ export default function ObservationsPage() {
 
                 <p className="text-muted-foreground">
 
-                  Todas las compañerías tienen compañeros activos.
+                  {t('observations.problematic.empty')}
 
                 </p>
 
@@ -3822,7 +3832,7 @@ export default function ObservationsPage() {
 
                       <div className="mb-3">
 
-                        <p className="text-sm font-medium mb-2">Compañeros:</p>
+                        <p className="text-sm font-medium mb-2">{t('observations.companionsLabel')}</p>
 
                         {companionship.companions.map((c, i) => (
 
@@ -3842,7 +3852,7 @@ export default function ObservationsPage() {
 
                       <div className="mb-3">
 
-                        <p className="text-sm font-medium mb-2">Familias:</p>
+                        <p className="text-sm font-medium mb-2">{t('observations.familiesLabel')}</p>
 
                         {companionship.families.map((f, i) => (
 
@@ -3862,7 +3872,7 @@ export default function ObservationsPage() {
 
                       <div className="mb-3">
 
-                        <p className="text-sm font-medium mb-2">Estado de Compañeros:</p>
+                        <p className="text-sm font-medium mb-2">{t('observations.companionStatusLabel')}</p>
 
                         <div className="flex flex-wrap gap-1">
 
@@ -3914,7 +3924,7 @@ export default function ObservationsPage() {
 
                           <Eye className="mr-2 h-4 w-4" />
 
-                          Ver Compañería
+                          {t('observations.viewCompanionshipButton')}
 
                         </Button>
 
@@ -3950,19 +3960,19 @@ export default function ObservationsPage() {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {isEditingHealthConcern ? 'Editar persona con necesidades de salud' : 'Agregar persona con necesidades de salud'}
+              {isEditingHealthConcern ? t('observations.health.dialog.editTitle') : t('observations.health.dialog.addTitle')}
             </DialogTitle>
             <DialogDescription>
               {isEditingHealthConcern
-                ? 'Actualiza la información para mantener coordinado el apoyo de salud.'
-                : 'Completa la información para organizar las visitas y el apoyo necesario.'}
+                ? t('observations.health.dialog.editDescription')
+                : t('observations.health.dialog.addDescription')}
             </DialogDescription>
           </DialogHeader>
           <Form {...healthForm}>
             <form onSubmit={healthForm.handleSubmit(handleHealthSubmit)} className="space-y-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={photoPreview || undefined} alt="Foto seleccionada" />
+                  <AvatarImage src={photoPreview || undefined} alt={t('observations.health.photoAlt')} />
                   <AvatarFallback>{getInitials(watchFirstName, watchLastName)}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-wrap gap-2">
@@ -3973,7 +3983,7 @@ export default function ObservationsPage() {
                     disabled={savingHealthConcern}
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    {photoPreview ? 'Cambiar foto' : 'Subir foto'}
+                    {photoPreview ? t('observations.health.changePhoto') : t('observations.health.uploadPhoto')}
                   </Button>
                   {photoPreview && (
                     <Button
@@ -3983,7 +3993,7 @@ export default function ObservationsPage() {
                       disabled={savingHealthConcern}
                     >
                       <X className="mr-2 h-4 w-4" />
-                      Quitar
+                      {t('observations.health.removePhoto')}
                     </Button>
                   )}
                 </div>
@@ -3994,7 +4004,7 @@ export default function ObservationsPage() {
                 accept="image/*"
                 className="hidden"
                 onChange={handlePhotoChange}
-                aria-label="Seleccionar foto para preocupación de salud"
+                aria-label={t('observations.health.selectPhotoAria')}
               />
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
@@ -4002,9 +4012,9 @@ export default function ObservationsPage() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nombre</FormLabel>
+                      <FormLabel>{t('observations.health.firstName')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Nombre" disabled={savingHealthConcern} />
+                        <Input {...field} placeholder={t('observations.health.firstName')} disabled={savingHealthConcern} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -4015,9 +4025,9 @@ export default function ObservationsPage() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Apellido</FormLabel>
+                      <FormLabel>{t('observations.health.lastName')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Apellido" disabled={savingHealthConcern} />
+                        <Input {...field} placeholder={t('observations.health.lastName')} disabled={savingHealthConcern} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -4028,11 +4038,11 @@ export default function ObservationsPage() {
                   name="address"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>Dirección</FormLabel>
+                      <FormLabel>{t('observations.health.address')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="Dirección o punto de referencia"
+                          placeholder={t('observations.health.addressPlaceholder')}
                           disabled={savingHealthConcern}
                         />
                       </FormControl>
@@ -4045,11 +4055,11 @@ export default function ObservationsPage() {
                   name="observation"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>Observación</FormLabel>
+                      <FormLabel>{t('observations.health.observation')}</FormLabel>
                       <FormControl>
                         <Textarea
                           {...field}
-                          placeholder="Detalle la situación de salud y acciones sugeridas."
+                          placeholder={t('observations.health.observationPlaceholder')}
                           rows={4}
                           disabled={savingHealthConcern}
                         />
@@ -4063,7 +4073,7 @@ export default function ObservationsPage() {
                   name="helperIds"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>Miembros que ayudarán</FormLabel>
+                      <FormLabel>{t('observations.health.helpersLabel')}</FormLabel>
                       <FormControl>
                         <div className="space-y-3">
                           <Popover open={helperPickerOpen} onOpenChange={setHelperPickerOpen}>
@@ -4075,8 +4085,8 @@ export default function ObservationsPage() {
                                 disabled={loading || savingHealthConcern}
                               >
                                 {field.value.length > 0
-                                  ? `${field.value.length} miembro${field.value.length > 1 ? 's' : ''} seleccionados`
-                                  : 'Seleccionar miembros'}
+                                  ? t('observations.health.helpersSelected', { count: field.value.length })
+                                  : t('observations.health.selectMembers')}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                               </Button>
                             </PopoverTrigger>
@@ -4086,13 +4096,13 @@ export default function ObservationsPage() {
                               className="w-[min(320px,90vw)] max-h-[min(60vh,420px)] overflow-y-auto p-0"
                             >
                               {loading ? (
-                                <div className="px-3 py-6 text-sm text-muted-foreground">Cargando miembros...</div>
+                                <div className="px-3 py-6 text-sm text-muted-foreground">{t('observations.health.loadingMembers')}</div>
                               ) : members.length === 0 ? (
-                                <div className="px-3 py-6 text-sm text-muted-foreground">No hay miembros disponibles.</div>
+                                <div className="px-3 py-6 text-sm text-muted-foreground">{t('observations.health.noMembersAvailable')}</div>
                               ) : (
                                 <Command>
-                                  <CommandInput placeholder="Buscar miembro..." />
-                                  <CommandEmpty>No se encontraron miembros.</CommandEmpty>
+                                  <CommandInput placeholder={t('observations.health.searchMember')} />
+                                  <CommandEmpty>{t('observations.health.noMembersFound')}</CommandEmpty>
                                   <CommandGroup>
                                     {members.map((member) => {
                                       const isSelected = field.value.includes(member.id);
@@ -4124,14 +4134,14 @@ export default function ObservationsPage() {
                           <div className="flex flex-wrap gap-2">
                             {field.value.length === 0 ? (
                               <span className="text-sm text-muted-foreground">
-                                Selecciona al menos un miembro que brindará apoyo.
+                                {t('observations.health.selectAtLeastOne')}
                               </span>
                             ) : (
                               field.value.map((helperId, index) => {
                                 const helper = membersById.get(helperId);
                                 const helperName = helper
                                   ? `${helper.firstName} ${helper.lastName}`
-                                  : 'Miembro sin registro';
+                                  : t('observations.health.memberUnregistered');
                                 return (
                                   <Badge
                                     key={`${helperId}-${index}`}
@@ -4143,7 +4153,7 @@ export default function ObservationsPage() {
                                       type="button"
                                       onClick={() => toggleHelper(helperId)}
                                       className="rounded-full p-0.5 hover:bg-muted"
-                                      aria-label={`Quitar ${helperName}`}
+                                      aria-label={t('observations.health.removeHelperAria', { name: helperName })}
                                     >
                                       <X className="h-3 w-3" />
                                     </button>
@@ -4169,16 +4179,16 @@ export default function ObservationsPage() {
                   }}
                   disabled={savingHealthConcern}
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" disabled={savingHealthConcern}>
                   {savingHealthConcern ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {isEditingHealthConcern ? 'Actualizando...' : 'Guardando...'}
+                      {isEditingHealthConcern ? t('common.updating') : t('common.saving')}
                     </>
                   ) : (
-                    isEditingHealthConcern ? 'Actualizar registro' : 'Guardar registro'
+                    isEditingHealthConcern ? t('observations.health.updateRecord') : t('observations.health.saveRecord')
                   )}
                 </Button>
               </DialogFooter>
@@ -4197,7 +4207,7 @@ export default function ObservationsPage() {
 
           size="icon"
 
-          title="Volver al inicio"
+          title={t('observations.scrollTop')}
 
         >
 

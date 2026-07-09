@@ -198,7 +198,7 @@ export default function BirthdaysPage() {
           {(item.isMember === false || item.isMember === undefined) && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Eliminar cumpleaños">
+                <Button variant="ghost" size="icon" aria-label={t('birthdays.deleteAriaLabel')}>
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </AlertDialogTrigger>
@@ -348,7 +348,7 @@ export default function BirthdaysPage() {
                     {(item.isMember === false || item.isMember === undefined) && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Eliminar cumpleaños">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t('birthdays.deleteAriaLabel')}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </AlertDialogTrigger>

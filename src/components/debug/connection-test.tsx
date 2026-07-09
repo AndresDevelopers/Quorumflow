@@ -8,6 +8,7 @@ import { firestore } from '@/lib/firebase';
 import { membersCollection } from '@/lib/collections';
 import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useI18n } from '@/contexts/i18n-context';
 
 /**
  * Componente de prueba específico para la conexión a Firestore
@@ -16,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 export function ConnectionTest() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [testing, setTesting] = useState(false);
   const [results, setResults] = useState<string[]>([]);
 
@@ -28,57 +30,59 @@ export function ConnectionTest() {
     setResults([]);
 
     try {
-      addResult('🔍 Iniciando pruebas de conexión...');
+      addResult(t('debug.connection.log.start'));
 
       // Test 1: Check user authentication
       if (!user) {
-        addResult('❌ Usuario no autenticado');
+        addResult(t('debug.connection.log.notAuth'));
         toast({
-          title: 'Error de Autenticación',
-          description: 'Debes estar autenticado para crear miembros.',
+          title: t('debug.connection.toast.authErrorTitle'),
+          description: t('debug.connection.toast.authErrorDescription'),
           variant: 'destructive'
         });
         setTesting(false);
         return;
       }
-      addResult(`✅ Usuario autenticado: ${user.email}`);
+      addResult(t('debug.connection.log.authOk', { email: user.email ?? '' }));
 
       // Test 2: Check Firestore initialization
       if (!firestore) {
-        addResult('❌ Firestore no inicializado');
+        addResult(t('debug.connection.log.firestoreMissing'));
         toast({
-          title: 'Error de Firebase',
-          description: 'Firestore no está inicializado correctamente.',
+          title: t('debug.connection.toast.firebaseErrorTitle'),
+          description: t('debug.connection.toast.firebaseErrorDescription'),
           variant: 'destructive'
         });
         setTesting(false);
         return;
       }
-      addResult('✅ Firestore inicializado');
+      addResult(t('debug.connection.log.firestoreOk'));
 
       // Test 3: Check members collection
       if (!membersCollection) {
-        addResult('❌ Colección de miembros no disponible');
+        addResult(t('debug.connection.log.collectionMissing'));
         toast({
-          title: 'Error de Colección',
-          description: 'La colección de miembros no está disponible.',
+          title: t('debug.connection.toast.collectionErrorTitle'),
+          description: t('debug.connection.toast.collectionErrorDescription'),
           variant: 'destructive'
         });
         setTesting(false);
         return;
       }
-      addResult('✅ Colección de miembros disponible');
+      addResult(t('debug.connection.log.collectionOk'));
 
       // Test 4: Try to read from collection (test permissions)
       try {
-        addResult('🔍 Probando permisos de lectura...');
+        addResult(t('debug.connection.log.readTest'));
         const snapshot = await getDocs(membersCollection);
-        addResult(`✅ Lectura exitosa: ${snapshot.size} documentos encontrados`);
+        addResult(t('debug.connection.log.readOk', { count: snapshot.size }));
       } catch (readError) {
-        addResult(`❌ Error de lectura: ${readError instanceof Error ? readError.message : 'Error desconocido'}`);
+        addResult(t('debug.connection.log.readError', {
+          error: readError instanceof Error ? readError.message : t('reports.unknownError'),
+        }));
         toast({
-          title: 'Error de Permisos',
-          description: 'No tienes permisos para leer la colección de miembros.',
+          title: t('debug.connection.toast.permissionErrorTitle'),
+          description: t('debug.connection.toast.readPermissionDescription'),
           variant: 'destructive'
         });
         setTesting(false);
@@ -87,7 +91,7 @@ export function ConnectionTest() {
 
       // Test 5: Try to create a test document
       try {
-        addResult('🔍 Probando permisos de escritura...');
+        addResult(t('debug.connection.log.writeTest'));
         const testData = {
           firstName: 'Test',
           lastName: 'Connection',
@@ -99,41 +103,45 @@ export function ConnectionTest() {
         };
 
         const docRef = await addDoc(membersCollection, testData);
-        addResult(`✅ Escritura exitosa: documento creado con ID ${docRef.id}`);
+        addResult(t('debug.connection.log.writeOk', { id: docRef.id }));
 
         // Clean up: delete the test document
         try {
           await deleteDoc(doc(membersCollection, docRef.id));
-          addResult('🧹 Documento de prueba eliminado');
+          addResult(t('debug.connection.log.cleanupOk'));
         } catch (deleteError) {
-          addResult(`⚠️ No se pudo eliminar el documento de prueba: ${deleteError instanceof Error ? deleteError.message : 'Error desconocido'}`);
+          addResult(t('debug.connection.log.cleanupFail', {
+            error: deleteError instanceof Error ? deleteError.message : t('reports.unknownError'),
+          }));
         }
 
         toast({
-          title: '✅ Conexión Exitosa',
-          description: 'Todos los sistemas funcionan correctamente.',
+          title: t('debug.connection.toast.successTitle'),
+          description: t('debug.connection.toast.successDescription'),
         });
 
       } catch (writeError) {
-        addResult(`❌ Error de escritura: ${writeError instanceof Error ? writeError.message : 'Error desconocido'}`);
+        addResult(t('debug.connection.log.writeError', {
+          error: writeError instanceof Error ? writeError.message : t('reports.unknownError'),
+        }));
         
         // Analyze specific error types
         if (writeError instanceof Error) {
           if (writeError.message.includes('permission-denied')) {
             toast({
-              title: 'Error de Permisos',
-              description: 'No tienes permisos para crear miembros. Verifica las reglas de Firestore.',
+              title: t('debug.connection.toast.permissionErrorTitle'),
+              description: t('debug.connection.toast.writePermissionDescription'),
               variant: 'destructive'
             });
           } else if (writeError.message.includes('unavailable')) {
             toast({
-              title: 'Servicio No Disponible',
-              description: 'Firebase no está disponible. Verifica tu conexión.',
+              title: t('debug.connection.toast.unavailableTitle'),
+              description: t('debug.connection.toast.unavailableDescription'),
               variant: 'destructive'
             });
           } else {
             toast({
-              title: 'Error de Escritura',
+              title: t('debug.connection.toast.writeErrorTitle'),
               description: writeError.message,
               variant: 'destructive'
             });
@@ -142,10 +150,12 @@ export function ConnectionTest() {
       }
 
     } catch (generalError) {
-      addResult(`❌ Error general: ${generalError instanceof Error ? generalError.message : 'Error desconocido'}`);
+      addResult(t('debug.connection.log.generalError', {
+        error: generalError instanceof Error ? generalError.message : t('reports.unknownError'),
+      }));
       toast({
-        title: 'Error General',
-        description: 'Ocurrió un error inesperado durante las pruebas.',
+        title: t('debug.connection.toast.generalErrorTitle'),
+        description: t('debug.connection.toast.generalErrorDescription'),
         variant: 'destructive'
       });
     } finally {
@@ -156,7 +166,7 @@ export function ConnectionTest() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>🔧 Prueba de Conexión Firebase</CardTitle>
+        <CardTitle>{t('debug.connection.title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button 
@@ -164,12 +174,12 @@ export function ConnectionTest() {
           disabled={testing}
           className="w-full"
         >
-          {testing ? '🔄 Ejecutando pruebas...' : '🚀 Probar Conexión'}
+          {testing ? t('debug.connection.running') : t('debug.connection.run')}
         </Button>
 
         {results.length > 0 && (
           <div className="space-y-2">
-            <h4 className="font-medium">Resultados:</h4>
+            <h4 className="font-medium">{t('debug.connection.results')}</h4>
             <div className="bg-gray-50 p-3 rounded-md max-h-60 overflow-y-auto">
               <pre className="text-xs whitespace-pre-wrap">
                 {results.join('\n')}
@@ -179,8 +189,8 @@ export function ConnectionTest() {
         )}
 
         <div className="text-xs text-muted-foreground">
-          <p>Esta prueba verifica paso a paso la conexión a Firebase.</p>
-          <p>Si alguna prueba falla, el problema estará identificado específicamente.</p>
+          <p>{t('debug.connection.help1')}</p>
+          <p>{t('debug.connection.help2')}</p>
         </div>
       </CardContent>
     </Card>

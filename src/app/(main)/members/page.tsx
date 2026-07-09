@@ -53,20 +53,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 import { usePermission } from '@/hooks/use-permission';
 import { useMembersSync } from '@/hooks/use-members-sync';
 import { SyncStatus } from '@/components/shared/sync-status';
 import type { Member, MemberStatus } from '@/lib/types';
-import { OrdinanceLabels } from '@/lib/types';
 import { MemberForm } from '@/components/members/member-form';
-import { deleteMember, updateMember } from '@/lib/members-data';
-import { NotificationCreators, createNotificationsForAll } from '@/lib/notification-helpers';
-import { format } from 'date-fns';
+import { updateMember } from '@/lib/members-data';
+import { createNotificationsForAll } from '@/lib/notification-helpers';
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { safeGetDate, safeFormatDate } from '@/lib/date-utils';
-
-const resolveOrdinanceLabel = (ordinance: string) =>
-  OrdinanceLabels[ordinance as keyof typeof OrdinanceLabels] ?? ordinance;
 
 const statusConfig = {
   active: {
@@ -94,12 +90,16 @@ const statusConfig = {
 export default function MembersPage() {
   const { toast } = useToast();
   const { barrioOrg } = useAuth();
+  const { t } = useI18n();
   const { canWrite } = usePermission();
   const router = useRouter();
   const { members, loading, syncStatus, lastSyncTime, fetchMembers, clearCache } = useMembersSync({
     enableInitialFetch: true, // Enable initial fetch for members page
     enableRealtimeSync: true, // Enable real-time Firestore listener
   });
+
+  const resolveOrdinanceLabel = (ordinance: string) =>
+    t(`ordinance.${ordinance}`) || ordinance;
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<MemberStatus | 'all'>('all');
   const [baptismFilter, setBaptismFilter] = useState<'all' | 'baptized' | 'not_baptized'>('all');
@@ -151,8 +151,8 @@ export default function MembersPage() {
       }
 
       toast({
-        title: 'Éxito',
-        description: 'Miembro eliminado correctamente.'
+        title: t('common.success'),
+        description: t('members.toast.deleted')
       });
 
       // Clear cache and refresh immediately
@@ -163,8 +163,8 @@ export default function MembersPage() {
     } catch (error) {
       console.error('Error deleting member:', error);
       toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el miembro.',
+        title: t('common.error'),
+        description: t('members.toast.deleteError'),
         variant: 'destructive'
       });
     }
@@ -211,8 +211,12 @@ export default function MembersPage() {
       if (markAsUrgent) {
         try {
           await createNotificationsForAll({
-            title: '⚠️ Miembro Marcado como Urgente',
-            body: `${member.firstName} ${member.lastName} ha sido marcado como urgente: ${reason}`,
+            title: t('members.notification.urgentTitle'),
+            body: t('members.notification.urgentBody', {
+              firstName: member.firstName,
+              lastName: member.lastName,
+              reason,
+            }),
             contextType: 'member',
             contextId: member.id,
             actionUrl: '/council'
@@ -223,8 +227,10 @@ export default function MembersPage() {
       }
 
       toast({
-        title: 'Éxito',
-        description: `${member.firstName} ${member.lastName} ${markAsUrgent ? 'marcado como urgente' : 'desmarcado como urgente'}.`,
+        title: t('common.success'),
+        description: markAsUrgent
+          ? t('members.toast.markedUrgent', { firstName: member.firstName, lastName: member.lastName })
+          : t('members.toast.unmarkedUrgent', { firstName: member.firstName, lastName: member.lastName }),
       });
 
       setUrgentDialogOpen(false);
@@ -236,8 +242,8 @@ export default function MembersPage() {
     } catch (error) {
       console.error('Error toggling urgent:', error);
       toast({
-        title: 'Error',
-        description: 'No se pudo actualizar el estado del miembro.',
+        title: t('common.error'),
+        description: t('members.toast.urgentUpdateError'),
         variant: 'destructive',
       });
     }
@@ -284,9 +290,9 @@ export default function MembersPage() {
       {/* Header */}
       <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between sm:gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-balance text-fluid-title font-semibold tracking-tight">Miembros</h1>
+          <h1 className="text-balance text-fluid-title font-semibold tracking-tight">{t('members.title')}</h1>
           <p className="text-balance text-fluid-subtitle text-muted-foreground">
-            Gestiona los miembros y su estado de actividad.
+            {t('members.subtitle')}
           </p>
           {/* Sync Status Indicator */}
           <SyncStatus
@@ -301,19 +307,19 @@ export default function MembersPage() {
             <DialogTrigger asChild>
               <Button className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" />
-                Agregar Miembro
+                {t('members.addMember')}
               </Button>
             </DialogTrigger>
             ) : null}
             <DialogContent className="left-0 top-0 h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-none p-4 sm:left-[50%] sm:top-1/2 sm:h-auto sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:p-6">
               <DialogHeader>
                 <DialogTitle>
-                  {editingMember ? 'Editar Miembro' : 'Agregar Nuevo Miembro'}
+                  {editingMember ? t('members.dialog.editTitle') : t('members.dialog.addTitle')}
                 </DialogTitle>
                 <DialogDescription>
                   {editingMember
-                    ? 'Modifica la información del miembro.'
-                    : 'Completa la información del nuevo miembro.'}
+                    ? t('members.dialog.editDescription')
+                    : t('members.dialog.addDescription')}
                 </DialogDescription>
               </DialogHeader>
               <MemberForm
@@ -333,62 +339,62 @@ export default function MembersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('members.stats.total')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{memberCounts.total}</div>
-            <p className="text-xs text-muted-foreground">miembros registrados</p>
+            <p className="text-xs text-muted-foreground">{t('members.stats.totalDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Activos</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('members.stats.active')}</CardTitle>
             <UserCheck className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{memberCounts.active}</div>
-            <p className="text-xs text-muted-foreground">miembros activos</p>
+            <p className="text-xs text-muted-foreground">{t('members.stats.activeDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Menos Activos</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('members.stats.lessActive')}</CardTitle>
             <UserX className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{memberCounts.less_active}</div>
-            <p className="text-xs text-muted-foreground">necesitan seguimiento</p>
+            <p className="text-xs text-muted-foreground">{t('members.stats.lessActiveDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inactivos</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('members.stats.inactive')}</CardTitle>
             <UserX className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{memberCounts.inactive}</div>
-            <p className="text-xs text-muted-foreground">miembros inactivos</p>
+            <p className="text-xs text-muted-foreground">{t('members.stats.inactiveDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Urgentes</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('members.stats.urgent')}</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{memberCounts.urgent}</div>
-            <p className="text-xs text-muted-foreground">miembros marcados urgentes</p>
+            <p className="text-xs text-muted-foreground">{t('members.stats.urgentDesc')}</p>
           </CardContent>
         </Card>
         <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setNoCedulaDialogOpen(true)}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sin Cédula</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('members.stats.withoutId')}</CardTitle>
             <IdCard className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">{memberCounts.withoutCedula}</div>
-            <p className="text-xs text-muted-foreground">miembros sin cédula de miembro</p>
+            <p className="text-xs text-muted-foreground">{t('members.stats.withoutIdDesc')}</p>
           </CardContent>
         </Card>
       </div>
@@ -396,9 +402,9 @@ export default function MembersPage() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Miembros</CardTitle>
+          <CardTitle>{t('members.listTitle')}</CardTitle>
           <CardDescription>
-            Busca y filtra los miembros por nombre o estado de actividad.
+            {t('members.listDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -406,7 +412,7 @@ export default function MembersPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Buscar por nombre..."
+                placeholder={t('members.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -415,36 +421,36 @@ export default function MembersPage() {
             <Select value={statusFilter} onValueChange={(value: MemberStatus | 'all') => setStatusFilter(value)}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filtrar por estado" />
+                <SelectValue placeholder={t('members.filterStatusPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="active">Activos</SelectItem>
-                <SelectItem value="less_active">Menos Activos</SelectItem>
-                <SelectItem value="inactive">Inactivos</SelectItem>
-                <SelectItem value="deceased">Fallecidos</SelectItem>
+                <SelectItem value="all">{t('members.filter.allStatuses')}</SelectItem>
+                <SelectItem value="active">{t('members.filter.active')}</SelectItem>
+                <SelectItem value="less_active">{t('members.filter.lessActive')}</SelectItem>
+                <SelectItem value="inactive">{t('members.filter.inactive')}</SelectItem>
+                <SelectItem value="deceased">{t('members.filter.deceased')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={baptismFilter} onValueChange={(value: 'all' | 'baptized' | 'not_baptized') => setBaptismFilter(value)}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filtrar por bautismo" />
+                <SelectValue placeholder={t('members.filterBaptismPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="baptized">Bautizados</SelectItem>
-                <SelectItem value="not_baptized">No bautizados (futuro)</SelectItem>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                <SelectItem value="baptized">{t('members.filter.baptized')}</SelectItem>
+                <SelectItem value="not_baptized">{t('members.filter.notBaptizedFuture')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={urgentFilter} onValueChange={(value: 'all' | 'urgent' | 'not_urgent') => setUrgentFilter(value)}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <AlertTriangle className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filtrar por urgencia" />
+                <SelectValue placeholder={t('members.filterUrgentPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="urgent">Urgentes</SelectItem>
-                <SelectItem value="not_urgent">No urgentes</SelectItem>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                <SelectItem value="urgent">{t('members.filter.urgent')}</SelectItem>
+                <SelectItem value="not_urgent">{t('members.filter.notUrgent')}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -455,16 +461,16 @@ export default function MembersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Fecha de Nacimiento</TableHead>
-                  <TableHead>Fecha de Fallecimiento</TableHead>
-                  <TableHead>Fecha de Bautismo</TableHead>
-                  <TableHead>Ordenanzas</TableHead>
-                  <TableHead>Ministrantes</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-center">Urgente</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead>{t('common.name')}</TableHead>
+                  <TableHead>{t('common.phone')}</TableHead>
+                  <TableHead>{t('members.col.birthDate')}</TableHead>
+                  <TableHead>{t('members.col.deathDate')}</TableHead>
+                  <TableHead>{t('members.col.baptismDate')}</TableHead>
+                  <TableHead>{t('members.col.ordinances')}</TableHead>
+                  <TableHead>{t('members.col.ministering')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
+                  <TableHead className="text-center">{t('members.col.urgent')}</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -486,10 +492,10 @@ export default function MembersPage() {
                   <TableRow>
                     <TableCell colSpan={10} className="h-24 text-center">
                       {searchTerm || statusFilter !== 'all'
-                        ? 'No se encontraron miembros con los filtros aplicados.'
+                        ? t('members.empty.filtered')
                         : syncStatus === 'syncing'
-                          ? 'Cargando miembros...'
-                          : 'No hay miembros registrados. Agrega el primer miembro.'}
+                          ? t('members.empty.loading')
+                          : t('members.empty.none')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -521,7 +527,7 @@ export default function MembersPage() {
                             <span>{member.firstName} {member.lastName}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{member.phoneNumber || 'No especificado'}</TableCell>
+                        <TableCell>{member.phoneNumber || t('common.notSpecified')}</TableCell>
                         <TableCell>
                           {safeFormatDate(member.birthDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}
                         </TableCell>
@@ -537,9 +543,11 @@ export default function MembersPage() {
                             if (isBaptized && baptismDate) {
                               return safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() });
                             } else if (!isBaptized && baptismDate) {
-                              return `Programado: ${safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}`;
+                              return t('members.baptismScheduled', {
+                                date: safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() }),
+                              });
                             } else {
-                              return 'No especificada';
+                              return t('common.notSpecifiedFeminine');
                             }
                           })()}
                         </TableCell>
@@ -552,7 +560,7 @@ export default function MembersPage() {
                                 </Badge>
                               ))
                             ) : (
-                              <span className="text-muted-foreground text-sm">Ninguna</span>
+                              <span className="text-muted-foreground text-sm">{t('common.none')}</span>
                             )}
                           </div>
                         </TableCell>
@@ -565,14 +573,14 @@ export default function MembersPage() {
                                 </Badge>
                               ))
                             ) : (
-                              <span className="text-muted-foreground text-sm">Sin asignar</span>
+                              <span className="text-muted-foreground text-sm">{t('common.unassigned')}</span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={statusInfo.variant} className="gap-1">
                             <StatusIcon className="h-3 w-3" />
-                            t(`member.status.${member.status}`)
+                            {t(`member.status.${member.status}`)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
@@ -581,7 +589,7 @@ export default function MembersPage() {
                             variant={member.isUrgent ? "destructive" : "outline"}
                             size="sm"
                             onClick={() => handleToggleUrgent(member)}
-                            title={member.isUrgent ? "Desmarcar como urgente" : "Marcar como urgente"}
+                            title={member.isUrgent ? t('members.unmarkUrgent') : t('members.markUrgent')}
                             className="px-2"
                           >
                             <AlertTriangle className={`h-4 w-4 ${member.isUrgent ? 'text-white' : 'text-orange-500'}`} />
@@ -596,7 +604,7 @@ export default function MembersPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleViewProfile(member.id)}
-                              title="Ver perfil"
+                              title={t('common.viewProfileTitle')}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -617,19 +625,21 @@ export default function MembersPage() {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Eliminar miembro?</AlertDialogTitle>
+                                  <AlertDialogTitle>{t('members.deleteDialog.title')}</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Esta acción no se puede deshacer. Se eliminará permanentemente
-                                    a {member.firstName} {member.lastName} de la base de datos.
+                                    {t('members.deleteDialog.description', {
+                                      firstName: member.firstName,
+                                      lastName: member.lastName,
+                                    })}
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => handleDeleteMember(member.id)}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                   >
-                                    Eliminar
+                                    {t('common.delete')}
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
@@ -657,10 +667,10 @@ export default function MembersPage() {
                 <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">
                   {searchTerm || statusFilter !== 'all'
-                    ? 'No se encontraron miembros con los filtros aplicados.'
+                    ? t('members.empty.filtered')
                     : syncStatus === 'syncing'
-                      ? 'Cargando miembros...'
-                      : 'No hay miembros registrados. Agrega el primer miembro.'}
+                      ? t('members.empty.loading')
+                      : t('members.empty.none')}
                 </p>
               </div>
             ) : (
@@ -690,25 +700,29 @@ export default function MembersPage() {
                           <div>
                             <h3 className="font-semibold">{member.firstName} {member.lastName}</h3>
                             <p className="text-sm text-muted-foreground">
-                              {member.phoneNumber || 'Sin teléfono'}
+                              {member.phoneNumber || t('common.noPhone')}
                             </p>
                           </div>
                         </div>
                         <Badge variant={statusInfo.variant} className="gap-1">
                           <StatusIcon className="h-3 w-3" />
-                          t(`member.status.${member.status}`)
+                          {t(`member.status.${member.status}`)}
                         </Badge>
                       </div>
 
                       {safeGetDate(member.birthDate) && (
                         <p className="text-sm text-muted-foreground mb-3">
-                          Nacimiento: {safeFormatDate(member.birthDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}
+                          {t('members.birthLabel', {
+                            date: safeFormatDate(member.birthDate, 'd MMM yyyy', { locale: getDateFnsLocale() }),
+                          })}
                         </p>
                       )}
 
                       {member.deathDate && (
                         <p className="text-sm text-muted-foreground mb-3">
-                          Fallecimiento: {safeFormatDate(member.deathDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}
+                          {t('members.deathLabel', {
+                            date: safeFormatDate(member.deathDate, 'd MMM yyyy', { locale: getDateFnsLocale() }),
+                          })}
                         </p>
                       )}
 
@@ -716,9 +730,14 @@ export default function MembersPage() {
                         const isBaptized = member.ordinances?.includes('baptism') ?? false;
                         const baptismDate = safeGetDate(member.baptismDate);
                         if (baptismDate) {
+                          const dateStr = safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() });
                           return (
                             <p className="text-sm text-muted-foreground mb-3">
-                              Bautismo: {isBaptized ? safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() }) : `Programado: ${safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}`}
+                              {isBaptized
+                                ? t('members.baptismLabel', { date: dateStr })
+                                : t('members.baptismLabel', {
+                                    date: t('members.baptismScheduled', { date: dateStr }),
+                                  })}
                             </p>
                           );
                         }
@@ -728,7 +747,7 @@ export default function MembersPage() {
                       {/* Ordenanzas en móvil */}
                       {member.ordinances && member.ordinances.length > 0 && (
                         <div className="mb-3">
-                          <p className="text-sm font-medium mb-2">Ordenanzas:</p>
+                          <p className="text-sm font-medium mb-2">{t('members.ordinancesLabel')}</p>
                           <div className="flex flex-wrap gap-1">
                             {member.ordinances.map((ordinance, index) => (
                               <Badge key={`${ordinance}-${index}`} variant="outline" className="text-xs">
@@ -741,7 +760,7 @@ export default function MembersPage() {
 
                       {/* Ministrantes en móvil */}
                       <div className="mb-3">
-                        <p className="text-sm font-medium mb-2">Ministrantes:</p>
+                        <p className="text-sm font-medium mb-2">{t('members.ministeringLabel')}</p>
                         <div className="flex flex-wrap gap-1">
                           {member.ministeringTeachers && member.ministeringTeachers.length > 0 ? (
                             member.ministeringTeachers.map((teacher, index) => (
@@ -750,7 +769,7 @@ export default function MembersPage() {
                               </Badge>
                             ))
                           ) : (
-                            <span className="text-muted-foreground text-sm">Sin asignar</span>
+                            <span className="text-muted-foreground text-sm">{t('common.unassigned')}</span>
                           )}
                         </div>
                       </div>
@@ -765,7 +784,7 @@ export default function MembersPage() {
                           className="flex-1"
                         >
                           <AlertTriangle className={`mr-2 h-4 w-4 ${member.isUrgent ? 'text-white' : 'text-orange-500'}`} />
-                          {member.isUrgent ? 'Urgente' : 'Marcar Urgente'}
+                          {member.isUrgent ? t('members.col.urgent') : t('members.markUrgentButton')}
                         </Button>
                       </div>
                       )}
@@ -778,7 +797,7 @@ export default function MembersPage() {
                           className="w-full sm:w-auto"
                         >
                           <Eye className="mr-2 h-4 w-4" />
-                          Ver Perfil
+                          {t('common.viewProfile')}
                         </Button>
                         {canWrite && (
                         <>
@@ -789,30 +808,32 @@ export default function MembersPage() {
                           className="w-full sm:w-auto"
                         >
                           <Edit className="mr-2 h-4 w-4" />
-                          Editar
+                          {t('common.edit')}
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm" className="w-full sm:w-auto">
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Eliminar
+                              {t('common.delete')}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar miembro?</AlertDialogTitle>
+                              <AlertDialogTitle>{t('members.deleteDialog.title')}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminará permanentemente
-                                a {member.firstName} {member.lastName} de la base de datos.
+                                {t('members.deleteDialog.description', {
+                                  firstName: member.firstName,
+                                  lastName: member.lastName,
+                                })}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleDeleteMember(member.id)}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
-                                Eliminar
+                                {t('common.delete')}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -846,10 +867,10 @@ export default function MembersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <IdCard className="h-5 w-5 text-purple-600" />
-              Miembros sin Cédula
+              {t('members.noCedula.title')}
             </DialogTitle>
             <DialogDescription>
-              Los siguientes miembros aún no tienen registrada su cédula de miembro.
+              {t('members.noCedula.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -861,7 +882,7 @@ export default function MembersPage() {
               </div>
             ) : membersWithoutCedula.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">
-                Todos los miembros tienen su cédula registrada.
+                {t('members.noCedula.empty')}
               </p>
             ) : (
               membersWithoutCedula.map((member) => {
@@ -895,13 +916,13 @@ export default function MembersPage() {
                           {member.firstName} {member.lastName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {member.phoneNumber || 'Sin teléfono'}
+                          {member.phoneNumber || t('common.noPhone')}
                         </p>
                       </div>
                     </div>
                     <Badge variant={statusInfo.variant} className="gap-1 flex-shrink-0">
                       <StatusIcon className="h-3 w-3" />
-                      t(`member.status.${member.status}`)
+                      {t(`member.status.${member.status}`)}
                     </Badge>
                   </div>
                 );
@@ -923,18 +944,21 @@ export default function MembersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Marcar como Urgente
+              {t('members.urgentDialog.title')}
             </DialogTitle>
             <DialogDescription>
-              {urgentMember && `¿Por qué ${urgentMember.firstName} ${urgentMember.lastName} necesita atención urgente?`}
+              {urgentMember && t('members.urgentDialog.description', {
+                firstName: urgentMember.firstName,
+                lastName: urgentMember.lastName,
+              })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="urgent-reason">Razón de urgencia</Label>
+              <Label htmlFor="urgent-reason">{t('members.urgentDialog.reasonLabel')}</Label>
               <Textarea
                 id="urgent-reason"
-                placeholder="Describe la razón por la cual este miembro requiere atención urgente..."
+                placeholder={t('members.urgentDialog.reasonPlaceholder')}
                 value={urgentReason}
                 onChange={(e) => setUrgentReason(e.target.value)}
                 rows={3}
@@ -946,7 +970,7 @@ export default function MembersPage() {
                 setUrgentMember(null);
                 setUrgentReason('');
               }}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button
                 variant="destructive"
@@ -958,7 +982,7 @@ export default function MembersPage() {
                 }}
               >
                 <AlertTriangle className="mr-2 h-4 w-4" />
-                Marcar Urgente
+                {t('members.urgentDialog.confirm')}
               </Button>
             </div>
           </div>

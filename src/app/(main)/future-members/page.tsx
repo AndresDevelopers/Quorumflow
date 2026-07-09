@@ -115,7 +115,7 @@ export default function FutureMembersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }) : 'No especificada'}
+                    {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }) : t('futureMembers.dateNotSpecified')}
                   </TableCell>
                    <TableCell className="text-right">
                      {canWrite && (

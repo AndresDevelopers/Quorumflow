@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
 import * as z from 'zod';
@@ -61,28 +61,29 @@ import { storage } from '@/lib/firebase';
 import { safeGetDate } from '@/lib/date-utils';
 import { normalizeDateForEcuadorStorage } from '@/lib/date-utils';
 
-const memberFormSchema = z.object({
-  firstName: z.string().min(1, 'El nombre es requerido'),
-  lastName: z.string().min(1, 'El apellido es requerido'),
-  phoneNumber: z.string().optional(),
-  memberId: z.string().optional(),
-  address: z.string().optional(),
-  birthDate: z.date().optional(),
-  baptismDate: z.date().optional(),
-  deathDate: z.date().optional(),
-  status: z.enum(['active', 'less_active', 'inactive', 'deceased'] as const),
-  photoURL: z.string().nullable().optional(),
-  baptismPhotos: z.array(z.string()).optional(),
-  ordinances: z.array(z.enum(['baptism', 'confirmation', 'elder_ordination', 'endowment', 'sealed_spouse', 'sealed_to_father', 'sealed_to_mother', 'high_priest_ordination', 'aronico_ordination'] as const)).optional(),
-  templeOrdinances: z.array(z.enum(['baptism', 'confirmation', 'initiatory', 'endowment', 'sealed_to_father', 'sealed_to_mother', 'sealed_to_spouse'] as const)).optional(),
-  ministeringTeachers: z.array(z.string()).optional(),
-  isUrgent: z.boolean().optional(),
-  isInCouncil: z.boolean().optional(),
-  inactiveSince: z.date().optional(),
-  inactiveObservation: z.string().optional(),
-  lessActiveSince: z.date().optional(),
-  lessActiveObservation: z.string().optional(),
-});
+const createMemberFormSchema = (t: (key: string) => string) =>
+  z.object({
+    firstName: z.string().min(1, t('memberForm.validation.firstName')),
+    lastName: z.string().min(1, t('memberForm.validation.lastName')),
+    phoneNumber: z.string().optional(),
+    memberId: z.string().optional(),
+    address: z.string().optional(),
+    birthDate: z.date().optional(),
+    baptismDate: z.date().optional(),
+    deathDate: z.date().optional(),
+    status: z.enum(['active', 'less_active', 'inactive', 'deceased'] as const),
+    photoURL: z.string().nullable().optional(),
+    baptismPhotos: z.array(z.string()).optional(),
+    ordinances: z.array(z.enum(['baptism', 'confirmation', 'elder_ordination', 'endowment', 'sealed_spouse', 'sealed_to_father', 'sealed_to_mother', 'high_priest_ordination', 'aronico_ordination'] as const)).optional(),
+    templeOrdinances: z.array(z.enum(['baptism', 'confirmation', 'initiatory', 'endowment', 'sealed_to_father', 'sealed_to_mother', 'sealed_to_spouse'] as const)).optional(),
+    ministeringTeachers: z.array(z.string()).optional(),
+    isUrgent: z.boolean().optional(),
+    isInCouncil: z.boolean().optional(),
+    inactiveSince: z.date().optional(),
+    inactiveObservation: z.string().optional(),
+    lessActiveSince: z.date().optional(),
+    lessActiveObservation: z.string().optional(),
+  });
 
 const normalizeMemberStatus = (status?: string | null): MemberStatus => {
   if (!status) return 'active';
@@ -98,7 +99,7 @@ const normalizeMemberStatus = (status?: string | null): MemberStatus => {
   return 'active';
 };
 
-type MemberFormValues = z.infer<typeof memberFormSchema>;
+type MemberFormValues = z.infer<ReturnType<typeof createMemberFormSchema>>;
 
 interface MemberFormProps {
   member?: Member | null;
@@ -109,6 +110,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
   const { user, loading: authLoading, barrioOrg, organizacion } = useAuth();
   const { toast } = useToast();
   const { t } = useI18n();
+  const memberFormSchema = useMemo(() => createMemberFormSchema(t), [t]);
   const [loading, setLoading] = useState(false);
   const [resolvedMember, setResolvedMember] = useState<Member | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -458,8 +460,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
         toast({
-          title: 'Error',
-          description: 'Por favor selecciona un archivo de imagen válido.',
+          title: t('common.error'),
+          description: t('memberForm.toast.invalidImage'),
           variant: 'destructive'
         });
         return;
@@ -468,8 +470,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast({
-          title: 'Error',
-          description: 'La imagen debe ser menor a 5MB.',
+          title: t('common.error'),
+          description: t('memberForm.toast.imageTooLarge'),
           variant: 'destructive'
         });
         return;
@@ -503,8 +505,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
 
       if (validFiles.length !== files.length) {
         toast({
-          title: 'Formato inválido',
-          description: 'Por favor selecciona solo archivos de imagen.',
+          title: t('memberForm.toast.invalidFormatTitle'),
+          description: t('memberForm.toast.imagesOnly'),
           variant: 'destructive'
         });
         return;
@@ -514,8 +516,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       const totalFiles = [...baptismPhotoFiles, ...validFiles];
       if (totalFiles.length > 10) {
         toast({
-          title: 'Límite excedido',
-          description: 'Puedes subir máximo 10 fotos de bautismo.',
+          title: t('memberForm.toast.limitExceededTitle'),
+          description: t('memberForm.toast.maxBaptismPhotos'),
           variant: 'destructive'
         });
         return;
@@ -543,8 +545,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
   const handleGetCurrentLocation = () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
       toast({
-        title: 'GPS no disponible',
-        description: 'Tu navegador no soporta geolocalización.',
+        title: t('memberForm.toast.gpsUnavailableTitle'),
+        description: t('memberForm.toast.gpsUnavailableDesc'),
         variant: 'destructive',
       });
       return;
@@ -561,21 +563,21 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             { headers: { 'User-Agent': `${getAppName()}/1.0` } }
           );
           if (!response.ok) {
-            throw new Error('No se pudo obtener la dirección');
+            throw new Error(t('memberForm.toast.addressLookupError'));
           }
           const data = await response.json();
           const formattedAddress = data.display_name || `${latitude}, ${longitude}`;
           form.setValue('address', formattedAddress, { shouldValidate: true });
           toast({
-            title: 'Ubicación obtenida',
-            description: 'La dirección se completó automáticamente con el GPS.',
+            title: t('memberForm.toast.locationObtainedTitle'),
+            description: t('memberForm.toast.locationObtainedDesc'),
           });
         } catch (error) {
           console.error('Error reverse geocoding:', error);
           form.setValue('address', `${latitude}, ${longitude}`, { shouldValidate: true });
           toast({
-            title: 'Dirección parcial',
-            description: 'Se guardaron las coordenadas. Puedes editarlas manualmente.',
+            title: t('memberForm.toast.partialAddressTitle'),
+            description: t('memberForm.toast.partialAddressDesc'),
           });
         } finally {
           setGettingLocation(false);
@@ -583,16 +585,16 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       },
       (error) => {
         setGettingLocation(false);
-        let message = 'No se pudo obtener la ubicación.';
+        let message = t('memberForm.toast.gpsGenericError');
         if (error.code === error.PERMISSION_DENIED) {
-          message = 'Permiso de ubicación denegado. Activa el GPS en tu navegador.';
+          message = t('memberForm.toast.gpsPermissionDenied');
         } else if (error.code === error.POSITION_UNAVAILABLE) {
-          message = 'La ubicación no está disponible en este momento.';
+          message = t('memberForm.toast.gpsUnavailableNow');
         } else if (error.code === error.TIMEOUT) {
-          message = 'La solicitud de ubicación tardó demasiado.';
+          message = t('memberForm.toast.gpsTimeout');
         }
         toast({
-          title: 'Error de GPS',
+          title: t('memberForm.toast.gpsErrorTitle'),
           description: message,
           variant: 'destructive',
         });
@@ -660,8 +662,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         } catch (error) {
           console.error('Error uploading baptism photos:', error);
           toast({
-            title: 'Advertencia',
-            description: 'No se pudieron subir algunas fotos de bautismo.',
+            title: t('memberForm.toast.baptismPhotoUploadWarnTitle'),
+            description: t('memberForm.toast.baptismPhotoUploadWarnDesc'),
             variant: 'destructive'
           });
           // Mantener las fotos existentes en caso de error
@@ -867,8 +869,11 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         }
 
         toast({
-          title: '✅ Miembro Actualizado',
-          description: `${values.firstName} ${values.lastName} ha sido actualizado correctamente.`
+          title: t('memberForm.toast.updatedTitle'),
+          description: t('memberForm.toast.updatedDescription', {
+            firstName: values.firstName,
+            lastName: values.lastName,
+          }),
         });
         console.log('✅ Member updated successfully:', { memberId: member.id, updatedData: memberData });
 
@@ -876,8 +881,11 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         if (values.isUrgent && !member.isUrgent) {
           try {
             await createNotificationsForAll({
-              title: '⚠️ Miembro Marcado como Urgente',
-              body: `${values.firstName} ${values.lastName} ha sido marcado como urgente y requiere atención prioritaria`,
+              title: t('memberForm.notification.urgentTitle'),
+              body: t('memberForm.notification.urgentBody', {
+                firstName: values.firstName,
+                lastName: values.lastName,
+              }),
               contextType: 'member',
               contextId: member.id,
               actionUrl: '/members'
@@ -957,8 +965,11 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         }
 
         toast({
-          title: '✅ Miembro Creado',
-          description: `${values.firstName} ${values.lastName} ha sido agregado como nuevo miembro.`
+          title: t('memberForm.toast.createdTitle'),
+          description: t('memberForm.toast.createdDescription', {
+            firstName: values.firstName,
+            lastName: values.lastName,
+          }),
         });
         console.log('✅ New member created successfully:', { memberId: newMemberId, memberData: newMember });
 
@@ -966,8 +977,11 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         if (values.isUrgent) {
           try {
             await createNotificationsForAll({
-              title: '⚠️ Miembro Marcado como Urgente',
-              body: `${values.firstName} ${values.lastName} ha sido marcado como urgente y requiere atención prioritaria`,
+              title: t('memberForm.notification.urgentTitle'),
+              body: t('memberForm.notification.urgentBody', {
+                firstName: values.firstName,
+                lastName: values.lastName,
+              }),
               contextType: 'member',
               contextId: newMemberId,
               actionUrl: '/members'
@@ -983,15 +997,15 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       console.error('Error saving member:', error);
 
       let errorMessage = member
-        ? 'No se pudo actualizar el miembro.'
-        : 'No se pudo crear el miembro.';
+        ? t('memberForm.toast.updateError')
+        : t('memberForm.toast.createError');
 
       if (error instanceof Error) {
         errorMessage = error.message;
       }
 
       toast({
-        title: 'Error',
+        title: t('common.error'),
         description: errorMessage,
         variant: 'destructive'
       });
@@ -1013,39 +1027,43 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Miembro Guardado Anteriormente</AlertDialogTitle>
-            <AlertDialogDescription>
-              Ya existe un miembro con el nombre{" "}
-              &quot;{form.getValues('firstName')} {form.getValues('lastName')}&quot;.
-              {duplicateMembers.length > 0 && (
-                <div className="mt-3">
-                  <div className="text-sm font-medium mb-2">Miembros encontrados:</div>
-                  <div className="space-y-2">
-                    {duplicateMembers.map((dupMember) => (
-                      <div key={dupMember.id} className="flex items-center gap-3 p-2 bg-muted rounded-md">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={dupMember.photoURL} />
-                          <AvatarFallback className="text-xs">
-                            {dupMember.firstName.charAt(0)}{dupMember.lastName.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{dupMember.firstName} {dupMember.lastName}</p>
-                          <p className="text-xs text-muted-foreground capitalize">
-                            Estado: {dupMember.status === 'active' ? 'Activo' :
-                              dupMember.status === 'less_active' ? 'Menos Activo' :
-                                dupMember.status === 'inactive' ? 'Inactivo' : 'Fallecido'}
-                          </p>
+            <AlertDialogTitle>{t('memberForm.duplicate.title')}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                {t('memberForm.duplicate.description', {
+                  firstName: form.getValues('firstName'),
+                  lastName: form.getValues('lastName'),
+                })}
+                {duplicateMembers.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-sm font-medium mb-2">{t('memberForm.duplicate.found')}</div>
+                    <div className="space-y-2">
+                      {duplicateMembers.map((dupMember) => (
+                        <div key={dupMember.id} className="flex items-center gap-3 p-2 bg-muted rounded-md">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={dupMember.photoURL} />
+                            <AvatarFallback className="text-xs">
+                              {dupMember.firstName.charAt(0)}{dupMember.lastName.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{dupMember.firstName} {dupMember.lastName}</p>
+                            <p className="text-xs text-muted-foreground capitalize">
+                              {t('memberForm.duplicate.status', {
+                                status: t(`member.status.${dupMember.status}`),
+                              })}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
+                )}
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    {t('memberForm.duplicate.whatToDo')}
+                  </p>
                 </div>
-              )}
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-800">
-                  ¿Qué deseas hacer?
-                </p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1056,14 +1074,14 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
               setDuplicateDecisionMade(true);
               onClose(); // Cerrar el formulario
             }}>
-              Cancelar y Salir
+              {t('memberForm.duplicate.cancelExit')}
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => {
               setShowDuplicateDialog(false);
               setAllowContinueWithDuplicate(true);
               setDuplicateDecisionMade(true);
             }}>
-              Continuar Llenando
+              {t('memberForm.duplicate.continue')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1073,7 +1091,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
           {/* Photo Upload */}
           <div className="space-y-4">
-            <Label>Foto de Perfil (Opcional)</Label>
+            <Label>{t('memberForm.photoLabel')}</Label>
             <div className="flex items-center gap-4">
               <Avatar className="w-20 h-20">
                 <AvatarImage src={photoPreview || undefined} />
@@ -1088,7 +1106,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                     <Button type="button" variant="outline" size="sm" asChild>
                       <span>
                         <Upload className="mr-2 h-4 w-4" />
-                        Subir Foto
+                        {t('memberForm.uploadPhoto')}
                       </span>
                     </Button>
                   </Label>
@@ -1107,12 +1125,12 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                       onClick={removePhoto}
                     >
                       <X className="mr-2 h-4 w-4" />
-                      Quitar
+                      {t('memberForm.remove')}
                     </Button>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Formatos: JPG, PNG, GIF. Máximo 5MB.
+                  {t('memberForm.photoHint')}
                 </p>
               </div>
             </div>
@@ -1125,10 +1143,10 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
               name="firstName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre *</FormLabel>
+                  <FormLabel>{t('memberForm.firstName')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Nombre"
+                      placeholder={t('memberForm.firstNamePlaceholder')}
                       {...field}
                       onBlur={(e) => {
                         field.onBlur();
@@ -1147,10 +1165,10 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
               name="lastName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Apellido *</FormLabel>
+                  <FormLabel>{t('memberForm.lastName')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Apellido"
+                      placeholder={t('memberForm.lastNamePlaceholder')}
                       {...field}
                       onBlur={(e) => {
                         field.onBlur();
@@ -1172,16 +1190,16 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             name="phoneNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Número de Teléfono</FormLabel>
+                <FormLabel>{t('memberForm.phone')}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="Ej: +1 234 567 8900"
+                    placeholder={t('memberForm.phonePlaceholder')}
                     type="tel"
                     {...field}
                   />
                 </FormControl>
                 <FormDescription>
-                  Opcional. Incluye el código de país si es necesario.
+                  {t('memberForm.phoneDescription')}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -1197,7 +1215,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 <FormLabel>{t('memberProfile.memberId')}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="Ej: 123456"
+                    placeholder={t('memberForm.memberIdPlaceholder')}
                     {...field}
                   />
                 </FormControl>
@@ -1218,11 +1236,11 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             name="address"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Dirección</FormLabel>
+                <FormLabel>{t('memberForm.address')}</FormLabel>
                 <div className="flex gap-2">
                   <FormControl>
                     <Input
-                      placeholder="Escribe la dirección o usa el GPS para obtenerla automáticamente"
+                      placeholder={t('memberForm.addressPlaceholder')}
                       {...field}
                       value={field.value || ''}
                     />
@@ -1233,8 +1251,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                     size="icon"
                     onClick={handleGetCurrentLocation}
                     disabled={gettingLocation}
-                    title="Obtener dirección actual con GPS"
-                    aria-label="Obtener dirección con GPS"
+                    title={t('memberForm.gpsTitle')}
+                    aria-label={t('memberForm.gpsAria')}
                   >
                     {gettingLocation ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1244,7 +1262,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                   </Button>
                 </div>
                 <FormDescription>
-                  Puedes escribir la dirección manualmente o usar el botón GPS para completarla con tu ubicación actual.
+                  {t('memberForm.addressDescription')}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -1257,7 +1275,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             name="birthDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Fecha de Nacimiento</FormLabel>
+                <FormLabel>{t('memberForm.birthDate')}</FormLabel>
                 <div className="flex gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
@@ -1274,7 +1292,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                               {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: getDateFnsLocale() })}
                             </span>
                           ) : (
-                            <span>Selecciona una fecha</span>
+                            <span>{t('common.selectDate')}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -1299,7 +1317,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                       variant="outline"
                       size="icon"
                       onClick={() => field.onChange(undefined)}
-                      title="Borrar fecha"
+                      title={t('memberForm.clearDate')}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -1316,7 +1334,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             name="baptismDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Fecha de Bautismo</FormLabel>
+                <FormLabel>{t('memberForm.baptismDate')}</FormLabel>
                 <div className="flex gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
@@ -1333,7 +1351,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                               {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: getDateFnsLocale() })}
                             </span>
                           ) : (
-                            <span>Selecciona una fecha</span>
+                            <span>{t('common.selectDate')}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -1356,7 +1374,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                       variant="outline"
                       size="icon"
                       onClick={() => field.onChange(undefined)}
-                      title="Borrar fecha"
+                      title={t('memberForm.clearDate')}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -1369,14 +1387,14 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
 
           {/* Baptism Photos */}
           <div className="space-y-4">
-            <Label>Fotos de Bautismo (Opcional)</Label>
+            <Label>{t('memberForm.baptismPhotosLabel')}</Label>
             <div className="space-y-3">
               <div className="flex gap-2">
                 <Label htmlFor="baptism-photos-upload" className="cursor-pointer">
                   <Button type="button" variant="outline" size="sm" asChild>
                     <span>
                       <Upload className="mr-2 h-4 w-4" />
-                      Agregar Fotos
+                      {t('memberForm.addPhotos')}
                     </span>
                   </Button>
                 </Label>
@@ -1398,7 +1416,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                       <div className="relative w-full h-24 rounded-md border overflow-hidden">
                         <Image
                           src={preview}
-                          alt={`Foto de bautismo ${index + 1}`}
+                          alt={t('memberForm.baptismPhotoAlt', { index: index + 1 })}
                           fill
                           className="object-cover"
                           unoptimized
@@ -1408,8 +1426,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                         type="button"
                         onClick={() => removeBaptismPhoto(index)}
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Eliminar foto de bautismo"
-                        aria-label={`Eliminar foto de bautismo ${index + 1}`}
+                        title={t('memberForm.removeBaptismPhotoTitle')}
+                        aria-label={t('memberForm.removeBaptismPhotoAria', { index: index + 1 })}
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -1419,7 +1437,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
               )}
 
               <p className="text-xs text-muted-foreground">
-                Puedes subir hasta 10 fotos. Formatos: JPG, PNG, GIF. Máximo 5MB por foto.
+                {t('memberForm.baptismPhotosHint')}
               </p>
             </div>
           </div>
@@ -1454,26 +1472,26 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
               
               // Get labels for combined list
               const getOrdinanceLabel = (ordinance: string): string => {
-                if (OrdinanceLabels[ordinance as Ordinance]) {
-                  return OrdinanceLabels[ordinance as Ordinance];
+                const ordinanceLabel = t(`ordinance.${ordinance}`);
+                if (ordinanceLabel !== `ordinance.${ordinance}`) {
+                  return ordinanceLabel;
                 }
-                if (ordinance === 'initiatory') return 'Iniciatoria';
-                if (ordinance === 'endowment') return 'Endowment';
-                if (ordinance === 'sealed_to_father') return 'Sellado al Padre';
-                if (ordinance === 'sealed_to_mother') return 'Sellado a la Madre';
-                if (ordinance === 'sealed_to_spouse') return 'Sellado al Cónyuge';
+                const templeLabel = t(`templeOrdinance.${ordinance}`);
+                if (templeLabel !== `templeOrdinance.${ordinance}`) {
+                  return templeLabel;
+                }
                 return ordinance;
               };
 
               return (
                 <FormItem>
                   <FormLabel>
-                    {isDeceased ? 'Ordenanzas del Templo' : 'Ordenanzas Recibidas'}
+                    {isDeceased ? t('memberForm.ordinancesTemple') : t('memberForm.ordinancesReceived')}
                   </FormLabel>
                   <FormDescription>
                     {isDeceased
-                      ? 'Selecciona las ordenanzas del templo completadas. Bautismo y Confirmación son obligatorios para todos los miembros.'
-                      : 'Selecciona las ordenanzas que ha recibido el miembro. Bautismo y Confirmación son obligatorios.'}
+                      ? t('memberForm.ordinancesTempleDesc')
+                      : t('memberForm.ordinancesReceivedDesc')}
                   </FormDescription>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                     {allOrdinances.map((ordinance) => {
@@ -1509,18 +1527,18 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             name="ministeringTeachers"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Maestros Ministrantes</FormLabel>
+                <FormLabel>{t('memberForm.ministeringTeachers')}</FormLabel>
                 <FormDescription>
-                  Selecciona los miembros que ministran a esta persona/familia.
+                  {t('memberForm.ministeringTeachersDesc')}
                 </FormDescription>
                 <div className="max-h-48 overflow-y-auto border rounded-md p-3">
                   {loadingMembers ? (
                     <div className="text-sm text-muted-foreground text-center py-4">
-                      Cargando miembros disponibles...
+                      {t('memberForm.loadingMembers')}
                     </div>
                   ) : availableMembers.length === 0 ? (
                     <div className="text-sm text-muted-foreground text-center py-4">
-                      No hay miembros disponibles para asignar.
+                      {t('memberForm.noMembersToAssign')}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1554,9 +1572,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                                 </Label>
                                 {availableMember.status && (
                                   <p className="text-xs text-muted-foreground capitalize">
-                                    {availableMember.status === 'active' ? 'Activo' :
-                                      availableMember.status === 'less_active' ? 'Menos Activo' :
-                                        availableMember.status === 'inactive' ? 'Inactivo' : 'Fallecido'}
+                                    {t(`member.status.${availableMember.status}`)}
                                   </p>
                                 )}
                               </div>
@@ -1569,7 +1585,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 </div>
                 {field.value && field.value.length > 0 && (
                   <p className="text-sm text-muted-foreground">
-                    {field.value.length} ministrante(s) seleccionado(s)
+                    {t('memberForm.ministeringSelected', { count: field.value.length })}
                   </p>
                 )}
                 <FormMessage />
@@ -1583,25 +1599,25 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             name="status"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Estado de Actividad *</FormLabel>
+                <FormLabel>{t('memberForm.statusLabel')}</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   value={normalizeMemberStatus(field.value)}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecciona el estado" />
+                      <SelectValue placeholder={t('memberForm.statusPlaceholder')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="active">Activo</SelectItem>
-                    <SelectItem value="less_active">Menos Activo</SelectItem>
-                    <SelectItem value="inactive">Inactivo</SelectItem>
-                    <SelectItem value="deceased">Fallecido</SelectItem>
+                    <SelectItem value="active">{t('member.status.active')}</SelectItem>
+                    <SelectItem value="less_active">{t('member.status.less_active')}</SelectItem>
+                    <SelectItem value="inactive">{t('member.status.inactive')}</SelectItem>
+                    <SelectItem value="deceased">{t('member.status.deceased')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  El estado determina cómo aparece el miembro en los reportes y seguimientos.
+                  {t('memberForm.statusDescription')}
                 </FormDescription>
 
                 <FormMessage />
@@ -1615,10 +1631,10 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
               name="deathDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fecha de Fallecimiento</FormLabel>
+                  <FormLabel>{t('memberForm.deathDate')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="DD/MM/YYYY"
+                      placeholder={t('memberForm.deathDatePlaceholder')}
                       value={deathDateInput}
                       onChange={(e) => {
                         const inputValue = e.target.value;
@@ -1649,7 +1665,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                     />
                   </FormControl>
                   <FormDescription>
-                    Opcional. Ingresa la fecha en formato DD/MM/YYYY (ejemplo: 15/03/1990)
+                    {t('memberForm.deathDateDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -1664,7 +1680,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 name="inactiveSince"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Fecha de Inactividad</FormLabel>
+                    <FormLabel>{t('memberForm.inactiveSince')}</FormLabel>
                     <div className="flex gap-2">
                       <Popover>
                         <PopoverTrigger asChild>
@@ -1682,7 +1698,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                                   {format(form.watch('inactiveSince')!, "d 'de' LLLL 'de' yyyy", { locale: getDateFnsLocale() })}
                                 </span>
                               ) : (
-                                <span>Selecciona una fecha</span>
+                                <span>{t('common.selectDate')}</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -1707,14 +1723,14 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                           variant="outline"
                           size="icon"
                           onClick={() => form.setValue('inactiveSince', undefined, { shouldDirty: true, shouldValidate: true })}
-                          title="Borrar fecha"
+                          title={t('memberForm.clearDate')}
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
                     <FormDescription>
-                      Opcional. Fecha desde la cual el miembro está inactivo. Si no se especifica, se usará la fecha actual.
+                      {t('memberForm.inactiveSinceDesc')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -1726,10 +1742,10 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 name="inactiveObservation"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Observación de Inactividad</FormLabel>
+                    <FormLabel>{t('memberForm.inactiveObservation')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Motivo de la inactividad..."
+                        placeholder={t('memberForm.inactiveObservationPlaceholder')}
                         value={field.value || ''}
                         onChange={field.onChange}
                         onBlur={field.onBlur}
@@ -1739,7 +1755,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                       />
                     </FormControl>
                     <FormDescription>
-                      Opcional. Describe el motivo o circunstancia de la inactividad.
+                      {t('memberForm.inactiveObservationDesc')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -1755,7 +1771,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 name="lessActiveSince"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Fecha desde Menos Activo</FormLabel>
+                    <FormLabel>{t('memberForm.lessActiveSince')}</FormLabel>
                     <div className="flex gap-2">
                       <Popover>
                         <PopoverTrigger asChild>
@@ -1773,7 +1789,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                                   {format(form.watch('lessActiveSince')!, "d 'de' LLLL 'de' yyyy", { locale: getDateFnsLocale() })}
                                 </span>
                               ) : (
-                                <span>Selecciona una fecha</span>
+                                <span>{t('common.selectDate')}</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -1798,14 +1814,14 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                           variant="outline"
                           size="icon"
                           onClick={() => form.setValue('lessActiveSince', undefined, { shouldDirty: true, shouldValidate: true })}
-                          title="Borrar fecha"
+                          title={t('memberForm.clearDate')}
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
                     <FormDescription>
-                      Opcional. Fecha desde la cual el miembro es menos activo. Si no se especifica, se usará la fecha actual.
+                      {t('memberForm.lessActiveSinceDesc')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -1817,10 +1833,10 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 name="lessActiveObservation"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Observación de Menos Activo</FormLabel>
+                    <FormLabel>{t('memberForm.lessActiveObservation')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Motivo de menos actividad..."
+                        placeholder={t('memberForm.lessActiveObservationPlaceholder')}
                         value={field.value || ''}
                         onChange={field.onChange}
                         onBlur={field.onBlur}
@@ -1830,7 +1846,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                       />
                     </FormControl>
                     <FormDescription>
-                      Opcional. Describe el motivo o circunstancia de la menor actividad.
+                      {t('memberForm.lessActiveObservationDesc')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -1847,16 +1863,16 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
               onClick={onClose}
               disabled={loading}
             >
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={loading}>
               {loading ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-current" />
-                  {member ? 'Actualizando...' : 'Creando...'}
+                  {member ? t('common.updating') : t('common.creating')}
                 </>
               ) : (
-                `${member ? 'Actualizar' : 'Crear'} Miembro`
+                member ? t('memberForm.updateMember') : t('memberForm.createMember')
               )}
             </Button>
           </div>

@@ -82,37 +82,42 @@ import {
   saveCurrentPushSubscription,
 } from '@/lib/push-subscription';
 
-const profileSchema = z.object({
-  name: z.string().min(2, { message: "El nombre es requerido." }),
-  birthDate: z.date({
-    required_error: "La fecha de nacimiento es requerida.",
-  }),
-  memberId: z.string().trim().optional(),
-});
+type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
 
-type FormValues = z.infer<typeof profileSchema>;
+const createProfileSchema = (t: TranslateFn) =>
+  z.object({
+    name: z.string().min(2, { message: t('settings.profile.validation.name') }),
+    birthDate: z.date({
+      required_error: t('settings.profile.validation.birthDate'),
+    }),
+    memberId: z.string().trim().optional(),
+  });
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, { message: "Ingresa tu contraseña actual." }),
-  newPassword: z
-    .string()
-    .min(6, { message: "Mínimo 6 caracteres." })
-    .regex(/[A-Za-z]/, { message: "Debe incluir al menos una letra." })
-    .regex(/\d/, { message: "Debe incluir al menos un número." }),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Las contraseñas no coinciden.",
-  path: ["confirmPassword"],
-});
+type FormValues = z.infer<ReturnType<typeof createProfileSchema>>;
 
-type PasswordValues = z.infer<typeof passwordSchema>;
+const createPasswordSchema = (t: TranslateFn) =>
+  z.object({
+    currentPassword: z.string().min(1, { message: t('settings.security.currentPasswordRequired') }),
+    newPassword: z
+      .string()
+      .min(6, { message: t('settings.security.passwordMinLength') })
+      .regex(/[A-Za-z]/, { message: t('settings.security.passwordNeedsLetter') })
+      .regex(/\d/, { message: t('settings.security.passwordNeedsNumber') }),
+    confirmPassword: z.string(),
+  }).refine((data) => data.newPassword === data.confirmPassword, {
+    message: t('settings.security.passwordMismatch'),
+    path: ["confirmPassword"],
+  });
 
-const emailSchema = z.object({
-  newEmail: z.string().email({ message: "Correo inválido." }),
-  currentPassword: z.string().min(1, { message: "Confirma tu contraseña." }),
-});
+type PasswordValues = z.infer<ReturnType<typeof createPasswordSchema>>;
 
-type EmailValues = z.infer<typeof emailSchema>;
+const createEmailSchema = (t: TranslateFn) =>
+  z.object({
+    newEmail: z.string().email({ message: t('settings.security.emailInvalid') }),
+    currentPassword: z.string().min(1, { message: t('settings.security.confirmPasswordRequired') }),
+  });
+
+type EmailValues = z.infer<ReturnType<typeof createEmailSchema>>;
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
@@ -180,13 +185,13 @@ export default function SettingsPage() {
   const syncDropdownRef = useRef<HTMLDivElement>(null);
   const roleFriendlyNames = useMemo<Record<UserRole, string>>(
     () => ({
-      user: 'Miembro',
-      counselor: 'Consejero',
-      president: 'Presidente',
-      secretary: 'Secretario',
-      other: 'Otro',
+      user: t('settings.role.user'),
+      counselor: t('settings.role.counselor'),
+      president: t('settings.role.president'),
+      secretary: t('settings.role.secretary'),
+      other: t('settings.role.other'),
     }),
-    []
+    [t]
   );
 
 
@@ -301,7 +306,7 @@ export default function SettingsPage() {
   );
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(profileSchema),
+    resolver: zodResolver(createProfileSchema(t)),
     defaultValues: {
       name: '',
       memberId: '',
@@ -309,7 +314,7 @@ export default function SettingsPage() {
   });
 
   const passwordForm = useForm<PasswordValues>({
-    resolver: zodResolver(passwordSchema),
+    resolver: zodResolver(createPasswordSchema(t)),
     defaultValues: {
       currentPassword: '',
       newPassword: '',
@@ -318,7 +323,7 @@ export default function SettingsPage() {
   });
 
   const emailForm = useForm<EmailValues>({
-    resolver: zodResolver(emailSchema),
+    resolver: zodResolver(createEmailSchema(t)),
     defaultValues: {
       newEmail: '',
       currentPassword: '',
@@ -768,8 +773,8 @@ export default function SettingsPage() {
   const handleInAppNotificationChange = async (checked: boolean) => {
     if (!user) {
       toast({
-        title: 'Error',
-        description: 'Debes iniciar sesión para cambiar esta configuración.',
+        title: t('common.error'),
+        description: t('settings.toast.mustSignIn'),
         variant: 'destructive',
       });
       return;
@@ -786,16 +791,16 @@ export default function SettingsPage() {
       setInAppNotificationsEnabled(checked);
 
       toast({
-        title: checked ? 'Notificaciones In-App Activadas' : 'Notificaciones In-App Desactivadas',
+        title: checked ? t('settings.toast.inAppEnabledTitle') : t('settings.toast.inAppDisabledTitle'),
         description: checked
-          ? 'Recibirás notificaciones dentro de la aplicación sobre actividades importantes.'
-          : 'No recibirás notificaciones in-app.',
+          ? t('settings.toast.inAppEnabledDesc')
+          : t('settings.toast.inAppDisabledDesc'),
       });
     } catch (error) {
       logger.error({ error, message: 'Failed to update in-app notification preference' });
       toast({
-        title: 'Error',
-        description: 'No se pudo actualizar la preferencia de notificaciones in-app.',
+        title: t('common.error'),
+        description: t('settings.toast.inAppUpdateError'),
         variant: 'destructive',
       });
       // Revertir el estado en caso de error
@@ -808,8 +813,8 @@ export default function SettingsPage() {
   const handlePushNotificationChange = async (checked: boolean) => {
     if (!user) {
       toast({
-        title: 'Error',
-        description: 'Debes iniciar sesión para cambiar esta configuración.',
+        title: t('common.error'),
+        description: t('settings.toast.mustSignIn'),
         variant: 'destructive',
       });
       return;
@@ -828,12 +833,12 @@ export default function SettingsPage() {
       if (checked) {
         const token = await requestNotificationPermission();
         if (!token) {
-          throw new Error('No se pudo obtener un token FCM para este dispositivo');
+          throw new Error(t('settings.toast.pushUpdateError'));
         }
 
         const saved = await saveCurrentPushSubscription(user.uid, token);
         if (!saved) {
-          throw new Error('No se pudo guardar la suscripcion push del dispositivo');
+          throw new Error(t('settings.toast.pushUpdateError'));
         }
 
         setFcmToken(token);
@@ -844,16 +849,16 @@ export default function SettingsPage() {
       }
 
       toast({
-        title: checked ? 'Notificaciones Push Activadas' : 'Notificaciones Push Desactivadas',
+        title: checked ? t('settings.toast.pushEnabledTitle') : t('settings.toast.pushDisabledTitle'),
         description: checked
-          ? 'Recibirás notificaciones push en tu dispositivo Android/iOS.'
-          : 'No recibirás notificaciones push en tu dispositivo.',
+          ? t('settings.toast.pushEnabledDesc')
+          : t('settings.toast.pushDisabledDesc'),
       });
     } catch (error) {
       logger.error({ error, message: 'Failed to update push notification preference' });
       toast({
-        title: 'Error',
-        description: 'No se pudo actualizar la preferencia de notificaciones push.',
+        title: t('common.error'),
+        description: t('settings.toast.pushUpdateError'),
         variant: 'destructive',
       });
       // Revertir el estado en caso de error
@@ -890,8 +895,8 @@ export default function SettingsPage() {
       if (type === 'inApp') setInAppCategoryPrefs((prev: Record<string, boolean>) => ({ ...prev, [category]: !checked }));
       else setPushCategoryPrefs((prev: Record<string, boolean>) => ({ ...prev, [category]: !checked }));
       toast({
-        title: 'Error',
-        description: 'No se pudo guardar la preferencia.',
+        title: t('common.error'),
+        description: t('settings.toast.categoryPrefError'),
         variant: 'destructive',
       });
     } finally {
@@ -963,75 +968,75 @@ export default function SettingsPage() {
   }> = [
     {
       key: 'observations',
-      label: 'Observaciones',
-      description: 'settings.cat.observations.description',
+      label: t('settings.cat.observations.label'),
+      description: t('settings.cat.observations.description'),
       page: '/observations',
-      inAppDetail: '1 vez a la semana',
-      pushDetail: '1 vez a la semana',
+      inAppDetail: t('settings.cat.detail.weekly'),
+      pushDetail: t('settings.cat.detail.weekly'),
     },
     {
       key: 'converts',
-      label: 'Conversos',
-      description: 'settings.cat.converts.description',
+      label: t('settings.cat.converts.label'),
+      description: t('settings.cat.converts.description'),
       page: '/converts',
-      inAppDetail: '1 vez a la semana',
-      pushDetail: '1 vez a la semana',
+      inAppDetail: t('settings.cat.detail.weekly'),
+      pushDetail: t('settings.cat.detail.weekly'),
     },
     {
       key: 'futureMembers',
-      label: 'Futuros Miembros',
-      description: 'settings.cat.futureMembers.description',
+      label: t('settings.cat.futureMembers.label'),
+      description: t('settings.cat.futureMembers.description'),
       page: '/future-members',
-      inAppDetail: '3 días antes del bautismo',
-      pushDetail: '3 días antes del bautismo',
+      inAppDetail: t('settings.cat.detail.baptism3days'),
+      pushDetail: t('settings.cat.detail.baptism3days'),
     },
     {
       key: 'birthdays',
-      label: 'Cumpleaños',
-      description: 'settings.cat.birthdays.description',
+      label: t('settings.cat.birthdays.label'),
+      description: t('settings.cat.birthdays.description'),
       page: '/birthdays',
-      inAppDetail: '14 días antes y el día del cumpleaños',
-      pushDetail: '14 días antes y el día del cumpleaños',
+      inAppDetail: t('settings.cat.detail.birthday'),
+      pushDetail: t('settings.cat.detail.birthday'),
     },
     {
       key: 'familySearch',
-      label: 'FamilySearch',
-      description: 'settings.cat.familySearch.description',
+      label: t('settings.cat.familySearch.label'),
+      description: t('settings.cat.familySearch.description'),
       page: '/family-search',
-      inAppDetail: '1 vez a la semana',
-      pushDetail: '1 vez a la semana',
+      inAppDetail: t('settings.cat.detail.weekly'),
+      pushDetail: t('settings.cat.detail.weekly'),
     },
     {
       key: 'missionaryWork',
-      label: 'Obra Misional',
-      description: 'Asignaciones misionales, investigadores y nuevos conversos',
+      label: t('settings.cat.missionaryWork.label'),
+      description: t('settings.cat.missionaryWork.description'),
       page: '/missionary-work',
-      inAppDetail: '1 vez a la semana',
-      pushDetail: '1 vez a la semana',
+      inAppDetail: t('settings.cat.detail.weekly'),
+      pushDetail: t('settings.cat.detail.weekly'),
     },
     {
       key: 'service',
-      label: 'Servicio',
-      description: 'Próximos servicios, actualizaciones y eliminaciones',
+      label: t('settings.cat.service.label'),
+      description: t('settings.cat.service.description'),
       page: '/service',
-      inAppDetail: '14 días antes, el día del servicio, al actualizar/eliminar',
-      pushDetail: '14 días antes, el día del servicio, al actualizar/eliminar',
+      inAppDetail: t('settings.cat.detail.service'),
+      pushDetail: t('settings.cat.detail.service'),
     },
     {
       key: 'council',
-      label: 'Consejo',
-      description: 'Necesidades urgentes de miembros y ministración, miembros menos activos',
+      label: t('settings.cat.council.label'),
+      description: t('settings.cat.council.description'),
       page: '/council',
-      inAppDetail: 'Martes y miércoles a las 6 pm',
-      pushDetail: 'Martes y miércoles a las 6 pm',
+      inAppDetail: t('settings.cat.detail.council'),
+      pushDetail: t('settings.cat.detail.council'),
     },
     {
       key: 'activities',
-      label: 'Actividades',
-      description: 'Próximas actividades, actualizaciones y eliminaciones',
+      label: t('settings.cat.activities.label'),
+      description: t('settings.cat.activities.description'),
       page: '/reports/activities',
-      inAppDetail: '14 días antes, el día de la actividad, al actualizar/eliminar',
-      pushDetail: '14 días antes, el día de la actividad, al actualizar/eliminar',
+      inAppDetail: t('settings.cat.detail.activity'),
+      pushDetail: t('settings.cat.detail.activity'),
     },
   ];
 
@@ -1052,17 +1057,15 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
             <AlertCircle className="h-5 w-5" />
-            Acceso restringido
+            {t('settings.access.restrictedTitle')}
           </CardTitle>
           <CardDescription className="text-amber-800 dark:text-amber-200">
-            Tu rol actual es {roleFriendlyNames[userRole]}. Solo la presidencia del cuórum
-            (secretario, presidente o consejeros) puede abrir y configurar esta sección.
+            {t('settings.access.restrictedDescription', { role: roleFriendlyNames[userRole] })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-amber-800 dark:text-amber-200">
-            Puedes navegar por el resto de la aplicación con normalidad. Para ajustes de
-            configuración, contacta al secretario del cuórum.
+            {t('settings.access.restrictedBody')}
           </p>
         </CardContent>
       </Card>
@@ -1204,7 +1207,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>{t('Profile')}</CardTitle>
             <CardDescription>
-              Actualiza tu información de perfil.
+              {t('settings.profile.cardDescription')}
             </CardDescription>
           </CardHeader>
           <Form {...form}>
@@ -1231,7 +1234,7 @@ export default function SettingsPage() {
                           {isSubmitting && (
                             <div className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center gap-1 z-10">
                               <Loader2 className="h-8 w-8 text-white animate-spin" />
-                              <span className="text-white text-[10px] font-medium">Subiendo…</span>
+                              <span className="text-white text-[10px] font-medium">{t('settings.profile.uploading')}</span>
                             </div>
                           )}
                           {/* Hover overlay (hidden during upload) */}
@@ -1270,7 +1273,7 @@ export default function SettingsPage() {
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nombre</FormLabel>
+                          <FormLabel>{t('settings.profile.name')}</FormLabel>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -1283,7 +1286,7 @@ export default function SettingsPage() {
                       name="birthDate"
                       render={({ field }) => (
                         <FormItem className="flex flex-col">
-                          <FormLabel>Fecha de Nacimiento</FormLabel>
+                          <FormLabel>{t('settings.profile.birthDate')}</FormLabel>
                           <Popover>
                             <PopoverTrigger asChild>
                               <FormControl>
@@ -1297,7 +1300,7 @@ export default function SettingsPage() {
                                   {field.value ? (
                                     format(field.value, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                                   ) : (
-                                    <span>Selecciona una fecha</span>
+                                    <span>{t('settings.profile.selectDate')}</span>
                                   )}
                                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
@@ -1328,9 +1331,9 @@ export default function SettingsPage() {
                       name="memberId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>ID o cédula de miembro (opcional)</FormLabel>
+                          <FormLabel>{t('settings.profile.memberId')}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Ej: 123456" />
+                            <Input {...field} placeholder={t('settings.profile.memberIdPlaceholder')} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1341,12 +1344,10 @@ export default function SettingsPage() {
                     <div className="space-y-2" ref={syncDropdownRef}>
                       <Label className="text-sm font-medium flex items-center gap-1.5">
                         <Link2 className="h-4 w-4 text-muted-foreground" />
-                        Sincronizar con miembro
+                        {t('settings.profile.syncLabel')}
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Selecciona un miembro para sincronizar tus datos de perfil bidireccionalmente.
-                        Los cambios que hagas aquí se reflejarán en el miembro, y los datos del miembro
-                        que no tengas se copiarán a tu perfil.
+                        {t('settings.profile.syncDescription')}
                       </p>
 
                       {syncedMemberId && syncedMemberName ? (
@@ -1364,7 +1365,7 @@ export default function SettingsPage() {
                               setSyncMemberSearch('');
                             }}
                           >
-                            Desvincular
+                            {t('settings.profile.unlink')}
                           </Button>
                         </div>
                       ) : (
@@ -1373,7 +1374,7 @@ export default function SettingsPage() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                               type="text"
-                              placeholder="Buscar miembro..."
+                              placeholder={t('settings.profile.searchMember')}
                               value={syncMemberSearch}
                               onChange={(e) => {
                                 setSyncMemberSearch(e.target.value);
@@ -1413,11 +1414,11 @@ export default function SettingsPage() {
                                 </ul>
                               ) : syncMemberSearch ? (
                                 <div className="p-4 text-center text-sm text-muted-foreground">
-                                  No se encontraron miembros
+                                  {t('settings.profile.noMembersFound')}
                                 </div>
                               ) : (
                                 <div className="p-4 text-center text-sm text-muted-foreground">
-                                  Escribe para buscar un miembro
+                                  {t('settings.profile.typeToSearch')}
                                 </div>
                               )}
                             </div>
@@ -1434,7 +1435,7 @@ export default function SettingsPage() {
                   disabled={isSubmitting || isProfileLoading}
                   className="w-full sm:w-auto"
                 >
-                  {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+                  {isSubmitting ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
                 </Button>
               </CardFooter>
             </form>
@@ -1443,22 +1444,22 @@ export default function SettingsPage() {
         {canManageSettings && (<>
         <Card className="h-full">
           <CardHeader>
-            <CardTitle>Página Principal</CardTitle>
+            <CardTitle>{t('settings.mainPage.title')}</CardTitle>
             <CardDescription>
-              Selecciona la página que se mostrará al iniciar sesión.
+              {t('settings.mainPage.description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-3">
               <Label htmlFor="main-page-select" className="text-sm font-medium">
-                Página de inicio
+                {t('settings.mainPage.label')}
               </Label>
               <select
                 id="main-page-select"
                 value={mainPage}
                 onChange={(e) => handleMainPageChange(e.target.value)}
                 disabled={isMainPageSaving || isProfileLoading}
-                aria-label="Seleccionar página de inicio"
+                aria-label={t('settings.mainPage.aria')}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
                 {navigationItems
@@ -1470,10 +1471,10 @@ export default function SettingsPage() {
                   ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                Esta será la primera página que verás al iniciar sesión.
+                {t('settings.mainPage.hint')}
               </p>
               {isMainPageSaving && (
-                <p className="text-xs text-muted-foreground">Guardando...</p>
+                <p className="text-xs text-muted-foreground">{t('settings.mainPage.saving')}</p>
               )}
             </div>
           </CardContent>
@@ -1490,7 +1491,7 @@ export default function SettingsPage() {
           <CardContent className="flex flex-col gap-4">
             <div className="flex flex-col gap-3">
               <Label className="text-sm font-medium">
-                Tema de la aplicación
+                {t('settings.theme.label')}
               </Label>
               <div className="grid grid-cols-3 gap-3">
                 <button
@@ -1525,7 +1526,7 @@ export default function SettingsPage() {
                     <path d="m6.34 17.66-1.41 1.41" />
                     <path d="m19.07 4.93-1.41 1.41" />
                   </svg>
-                  <span className="text-sm font-medium">Claro</span>
+                  <span className="text-sm font-medium">{t('settings.theme.light')}</span>
                   {theme === 'light' && (
                     <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                   )}
@@ -1555,7 +1556,7 @@ export default function SettingsPage() {
                   >
                     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
                   </svg>
-                  <span className="text-sm font-medium">Oscuro</span>
+                  <span className="text-sm font-medium">{t('settings.theme.dark')}</span>
                   {theme === 'dark' && (
                     <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                   )}
@@ -1587,7 +1588,7 @@ export default function SettingsPage() {
                     <line x1="8" x2="16" y1="21" y2="21" />
                     <line x1="12" x2="12" y1="17" y2="21" />
                   </svg>
-                  <span className="text-sm font-medium">Sistema</span>
+                  <span className="text-sm font-medium">{t('settings.theme.system')}</span>
                   {theme === 'system' && (
                     <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                   )}
@@ -1595,15 +1596,15 @@ export default function SettingsPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 {theme === 'system'
-                  ? 'El tema se ajustará automáticamente según la configuración de tu sistema operativo.'
+                  ? t('settings.theme.hintSystem')
                   : theme === 'dark'
-                    ? 'Modo oscuro activado para reducir la fatiga visual.'
-                    : 'Modo claro activado para mejor visibilidad en ambientes iluminados.'}
+                    ? t('settings.theme.hintDark')
+                    : t('settings.theme.hintLight')}
               </p>
               {isThemeSaving && (
                 <p className="text-xs text-muted-foreground flex items-center gap-2">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Guardando preferencia...
+                  {t('settings.theme.saving')}
                 </p>
               )}
             </div>
@@ -1615,7 +1616,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>{t('Notifications')}</CardTitle>
             <CardDescription>
-              {t('Configure how you receive notifications.')} Solo recibirás notificaciones de las páginas que tienes visibles.
+              {t('Configure how you receive notifications.')} {t('settings.notifications.visiblePagesOnly')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
@@ -1639,14 +1640,14 @@ export default function SettingsPage() {
               {inAppNotificationsEnabled && (
                 <div className="ml-2 space-y-2 border-l-2 border-muted pl-4">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                    Categorías de notificación (In-App)
+                    {t('settings.notifications.inAppCategories')}
                   </p>
                   {notificationCategories
                     .filter(cat => visiblePages.includes(cat.page))
                     .map(cat => (
                       <div key={`inapp-${cat.key}`} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between py-2">
                         <div className="flex flex-col space-y-0.5">
-                          <span className="text-sm font-medium">{t(cat.key)}</span>
+                          <span className="text-sm font-medium">{cat.label}</span>
                           <span className="text-xs text-muted-foreground">{cat.description}</span>
                           <span className="text-xs text-muted-foreground/70">{cat.inAppDetail}</span>
                         </div>
@@ -1661,7 +1662,7 @@ export default function SettingsPage() {
                     ))}
                   {notificationCategories.filter(cat => visiblePages.includes(cat.page)).length === 0 && (
                     <p className="text-xs text-muted-foreground italic">
-                      No tienes páginas visibles configuradas para notificaciones.
+                      {t('settings.notifications.noVisiblePages')}
                     </p>
                   )}
                 </div>
@@ -1690,14 +1691,14 @@ export default function SettingsPage() {
               {pushNotificationsEnabled && (
                 <div className="ml-2 space-y-2 border-l-2 border-muted pl-4">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                    Categorías de notificación (Push)
+                    {t('settings.notifications.pushCategories')}
                   </p>
                   {notificationCategories
                     .filter(cat => visiblePages.includes(cat.page))
                     .map(cat => (
                       <div key={`push-${cat.key}`} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between py-2">
                         <div className="flex flex-col space-y-0.5">
-                          <span className="text-sm font-medium">{t(cat.key)}</span>
+                          <span className="text-sm font-medium">{cat.label}</span>
                           <span className="text-xs text-muted-foreground">{cat.description}</span>
                           <span className="text-xs text-muted-foreground/70">{cat.pushDetail}</span>
                         </div>
@@ -1712,7 +1713,7 @@ export default function SettingsPage() {
                     ))}
                   {notificationCategories.filter(cat => visiblePages.includes(cat.page)).length === 0 && (
                     <p className="text-xs text-muted-foreground italic">
-                      No tienes páginas visibles configuradas para notificaciones.
+                      {t('settings.notifications.noVisiblePages')}
                     </p>
                   )}
                 </div>
@@ -1724,28 +1725,27 @@ export default function SettingsPage() {
         {canManageSettings && (<>
         <Card className="border-destructive xl:col-span-full">
           <CardHeader>
-            <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
+            <CardTitle className="text-destructive">{t('settings.danger.title')}</CardTitle>
             <CardDescription>
-              Estas acciones son permanentes y no se pueden deshacer.
+              {t('settings.danger.description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive">Eliminar mi cuenta</Button>
+                <Button variant="destructive">{t('settings.danger.deleteButton')}</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                  <AlertDialogTitle>{t('settings.danger.confirmTitle')}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Esto eliminará permanentemente tu cuenta y tu acceso a la aplicación.
-                    Sin embargo, los datos que hayas ingresado (como reportes, actividades, etc.) permanecerán en el sistema.
+                    {t('settings.danger.confirmDescription')}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                   <AlertDialogAction onClick={handleDeleteAccount} disabled={isDeleting}>
-                    {isDeleting ? "Eliminando..." : "Sí, eliminar mi cuenta"}
+                    {isDeleting ? t('settings.danger.deleting') : t('settings.danger.confirmDelete')}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

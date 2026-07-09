@@ -25,12 +25,14 @@ import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
 import { useAuth } from '@/contexts/auth-context';
 import { createNotificationsForAll } from '@/lib/notification-helpers';
+import { useI18n } from '@/contexts/i18n-context';
 
 type FamilyWithCompanions = Family & { companionshipId: string; companions: string[] };
 type UrgentFamily = Family & { companions: string[] };
 
 export function UrgentNeedsClient() {
   const { user, loading: authLoading, barrioOrg } = useAuth();
+  const { t } = useI18n();
   const [allFamilies, setAllFamilies] = useState<FamilyWithCompanions[]>([]);
   const [urgentFamilies, setUrgentFamilies] = useState<UrgentFamily[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,8 +80,8 @@ export function UrgentNeedsClient() {
     event.preventDefault();
     if (!selectedFamilyIdentifier || !observation) {
       toast({
-        title: 'Error de validación',
-        description: 'Por favor, selecciona una familia y añade una observación.',
+        title: t('ministering.urgent.validationTitle'),
+        description: t('ministering.urgent.validationDescription'),
         variant: 'destructive',
       });
       return;
@@ -115,8 +117,8 @@ export function UrgentNeedsClient() {
 
       // Send in-app notification to all users in the same barrioOrg about the urgent family need
       await createNotificationsForAll({
-        title: 'Necesidad Urgente de Familia',
-        body: `La familia ${familyName} tiene una necesidad urgente: ${observation}`,
+        title: t('ministering.urgent.notificationTitle'),
+        body: t('ministering.urgent.notificationBody', { familyName, observation }),
         contextType: 'urgent_family',
         actionUrl: '/ministering/urgent'
       }, barrioOrg);
@@ -129,8 +131,8 @@ export function UrgentNeedsClient() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            title: 'Necesidad Urgente de Familia',
-            body: `La familia ${familyName} requiere atención inmediata: ${observation}`,
+            title: t('ministering.urgent.notificationTitle'),
+            body: t('ministering.urgent.pushBody', { familyName, observation }),
             url: '/ministering/urgent'
           }),
         });
@@ -148,8 +150,8 @@ export function UrgentNeedsClient() {
       }
 
       toast({
-        title: 'Éxito',
-        description: 'La familia ha sido marcada como urgente y se han enviado las notificaciones.',
+        title: t('ministering.urgent.successTitle'),
+        description: t('ministering.urgent.successDescription'),
       });
 
       setSelectedFamilyIdentifier('');
@@ -159,8 +161,8 @@ export function UrgentNeedsClient() {
     } catch (error) {
       logger.error({ error, message: 'Error marking family as urgent', companionshipId, familyName, observation });
       toast({
-        title: 'Error',
-        description: 'No se pudo marcar la familia como urgente. Por favor, inténtalo de nuevo.',
+        title: t('ministering.error'),
+        description: t('ministering.urgent.errorDescription'),
         variant: 'destructive',
       });
     } finally {
@@ -172,9 +174,9 @@ export function UrgentNeedsClient() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Familias con Necesidad Urgente</CardTitle>
+          <CardTitle>{t('ministering.urgent.listTitle')}</CardTitle>
           <CardDescription>
-            Estas familias han sido marcadas para atención inmediata.
+            {t('ministering.urgent.listDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -197,9 +199,9 @@ export function UrgentNeedsClient() {
                     <TooltipContent>
                       <p className="font-semibold">{family.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        Asignados a: {family.companions.join(' y ')}
+                        {t('ministering.urgent.assignedTo', { names: family.companions.join(t('ministering.and')) })}
                       </p>
-                      <p className="text-sm text-amber-600">Obs: {family.observation}</p>
+                      <p className="text-sm text-amber-600">{t('ministering.urgent.observationPrefix', { observation: family.observation })}</p>
                     </TooltipContent>
                   </Tooltip>
                 ))}
@@ -207,7 +209,7 @@ export function UrgentNeedsClient() {
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground py-4">
-              No hay familias marcadas como urgentes actualmente.
+              {t('ministering.urgent.empty')}
             </p>
           )}
         </CardContent>
@@ -216,10 +218,9 @@ export function UrgentNeedsClient() {
       <form ref={formRef} onSubmit={handleSubmit}>
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>Marcar Nueva Necesidad Urgente</CardTitle>
+            <CardTitle>{t('ministering.urgent.formTitle')}</CardTitle>
             <CardDescription>
-              Selecciona una familia y describe la necesidad para notificar al consejo.
-              Las familias ya marcadas como urgentes no aparecerán en esta lista.
+              {t('ministering.urgent.formDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -233,7 +234,7 @@ export function UrgentNeedsClient() {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <Label>Familia</Label>
+                  <Label>{t('ministering.urgent.familyLabel')}</Label>
                   <RadioGroup
                     name="family"
                     className="mt-2 space-y-1"
@@ -248,7 +249,7 @@ export function UrgentNeedsClient() {
                           <Label htmlFor={identifier} className="ml-2 font-normal">
                             {family.name}{' '}
                             <span className="text-xs text-muted-foreground">
-                              (Asignada a: {family.companions.join(' y ')})
+                              {t('ministering.urgent.assignedToParen', { names: family.companions.join(t('ministering.and')) })}
                             </span>
                           </Label>
                         </div>
@@ -258,13 +259,13 @@ export function UrgentNeedsClient() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="observation">Observación</Label>
+                  <Label htmlFor="observation">{t('ministering.urgent.observationLabel')}</Label>
                   <Textarea
                     id="observation"
                     name="observation"
                     value={observation}
                     onChange={(e) => setObservation(e.target.value)}
-                    placeholder="Describe la situación o necesidad específica..."
+                    placeholder={t('ministering.urgent.observationPlaceholder')}
                     rows={3}
                     disabled={!selectedFamilyIdentifier}
                   />
@@ -274,10 +275,10 @@ export function UrgentNeedsClient() {
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button variant="outline" asChild>
-              <Link href="/ministering">Cancelar</Link>
+              <Link href="/ministering">{t('common.cancel')}</Link>
             </Button>
             <Button type="submit" disabled={!selectedFamilyIdentifier || isSubmitting}>
-              {isSubmitting ? 'Marcando...' : 'Marcar como Urgente'}
+              {isSubmitting ? t('ministering.urgent.submitting') : t('ministering.urgent.submit')}
             </Button>
           </CardFooter>
         </Card>

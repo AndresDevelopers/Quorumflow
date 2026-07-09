@@ -46,6 +46,7 @@ import { ArrowLeft, Edit, Save, Trash2 } from 'lucide-react';
 import { CompanionshipForm } from '../CompanionshipForm';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
+import { useI18n } from '@/contexts/i18n-context';
 
 export default function ManageCompanionshipPage() {
   const router = useRouter();
@@ -54,6 +55,7 @@ export default function ManageCompanionshipPage() {
   const { canWrite } = usePermission();
   const { id } = params;
   const { toast } = useToast();
+  const { t } = useI18n();
 
   const [companionship, setCompanionship] = useState<Companionship | null>(null);
   const [families, setFamilies] = useState<Family[]>([]);
@@ -78,11 +80,11 @@ export default function ManageCompanionshipPage() {
       setCompanionship(data);
       setFamilies(data.families);
     } else {
-      toast({ title: "Error", description: "Compañerismo no encontrado.", variant: "destructive" });
+      toast({ title: t('ministering.error'), description: t('ministering.companionshipNotFound'), variant: "destructive" });
       router.push('/ministering');
     }
     setLoading(false);
-  }, [companionshipId, router, toast]);
+  }, [companionshipId, router, toast, t]);
 
   useEffect(() => {
     fetchCompanionship();
@@ -99,10 +101,10 @@ export default function ManageCompanionshipPage() {
     try {
       const docRef = doc(ministeringCollection, companionshipId);
       await updateDoc(docRef, { families });
-      toast({ title: "Éxito", description: "Cambios guardados correctamente." });
+      toast({ title: t('ministering.success'), description: t('ministering.changesSaved') });
     } catch (error) {
       logger.error({ error, message: 'Error saving companionship changes' });
-      toast({ title: "Error", description: "No se pudieron guardar los cambios.", variant: "destructive" });
+      toast({ title: t('ministering.error'), description: t('ministering.saveChangesError'), variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -119,15 +121,15 @@ export default function ManageCompanionshipPage() {
       await deleteDoc(doc(ministeringCollection, companionshipId));
 
       toast({
-        title: 'Compañerismo Eliminado',
-        description: 'La asignación y los maestros ministrantes han sido eliminados exitosamente.',
+        title: t('ministering.companionshipDeletedTitle'),
+        description: t('ministering.companionshipDeletedDescription'),
       });
       router.push('/ministering');
     } catch (error) {
       logger.error({ error, message: 'Error deleting companionship' });
       toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el compañerismo.',
+        title: t('ministering.error'),
+        description: t('ministering.deleteCompanionshipError'),
         variant: 'destructive',
       });
     }
@@ -163,40 +165,40 @@ export default function ManageCompanionshipPage() {
       <Button variant="outline" asChild>
         <Link href="/ministering">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver a la Lista
+            {t('ministering.backToList')}
         </Link>
       </Button>
       <Card>
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle>Gestionar Compañerismo</CardTitle>
-              <CardDescription>{companionship.companions.join(' y ')}</CardDescription>
+              <CardTitle>{t('ministering.manageCompanionshipTitle')}</CardTitle>
+              <CardDescription>{companionship.companions.join(t('ministering.and'))}</CardDescription>
             </div>
              {canWrite && (
              <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setIsEditMode(true)}>
                     <Edit className="mr-2 h-4 w-4" />
-                    Editar
+                    {t('common.edit')}
                 </Button>
                 <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
                     <AlertDialogTrigger asChild>
                         <Button variant="destructive">
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Eliminar
+                            {t('common.delete')}
                         </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('ministering.deleteConfirmTitle')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                        Esta acción eliminará permanentemente este compañerismo.
+                        {t('ministering.deleteConfirmDescription')}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                        Eliminar
+                        {t('common.delete')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                     </AlertDialogContent>
@@ -210,9 +212,9 @@ export default function ManageCompanionshipPage() {
             <Table>
                 <TableHeader>
                 <TableRow>
-                    <TableHead>Familia</TableHead>
-                    <TableHead>Urgente</TableHead>
-                    <TableHead className="w-[40%]">Observación</TableHead>
+                    <TableHead>{t('ministering.family')}</TableHead>
+                    <TableHead>{t('ministering.urgent')}</TableHead>
+                    <TableHead className="w-[40%]">{t('ministering.observation')}</TableHead>
                 </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -223,14 +225,14 @@ export default function ManageCompanionshipPage() {
                          <Switch
                             checked={family.isUrgent}
                             onCheckedChange={(checked) => handleFamilyChange(index, 'isUrgent', checked)}
-                            aria-label="Marcar como urgente"
+                            aria-label={t('ministering.markAsUrgentAria')}
                          />
                     </TableCell>
                     <TableCell>
                         <Textarea
                         value={family.observation}
                         onChange={(e) => handleFamilyChange(index, 'observation', e.target.value)}
-                        placeholder="Añadir nota..."
+                        placeholder={t('ministering.addNotePlaceholder')}
                         rows={1}
                         />
                     </TableCell>
@@ -244,7 +246,7 @@ export default function ManageCompanionshipPage() {
             {canWrite && (
             <Button onClick={handleSaveChanges} disabled={isSaving}>
                 <Save className="mr-2 h-4 w-4" />
-                {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                {isSaving ? t('common.saving') : t('common.saveChanges')}
             </Button>
             )}
         </CardFooter>

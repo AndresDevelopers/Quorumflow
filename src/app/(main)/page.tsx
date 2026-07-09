@@ -237,12 +237,12 @@ function DashboardPage() {
   const handleDeleteAnnotation = async (id: string) => {
     try {
       await deleteDoc(doc(annotationsCollection, id));
-      toast({ title: 'Anotación Eliminada', description: 'La anotación ha sido eliminada permanentemente.' });
+      toast({ title: t('dashboard.toast.annotationDeletedTitle'), description: t('dashboard.toast.annotationDeletedDescription') });
       fetchAnnotations();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error({ error: errorMessage, message: 'Error deleting annotation', id });
-      toast({ title: 'Error al Eliminar', description: `Failed to delete annotation: ${errorMessage}`, variant: 'destructive' });
+      toast({ title: t('dashboard.toast.deleteErrorTitle'), description: t('dashboard.toast.deleteErrorDescription', { error: errorMessage }), variant: 'destructive' });
     }
   }
 
@@ -253,7 +253,7 @@ function DashboardPage() {
       const memberDoc = await getDocs(query(membersCollection, where('__name__', '==', memberId)));
       
       if (memberDoc.empty) {
-        toast({ title: 'Error', description: 'Miembro no encontrado', variant: 'destructive' });
+        toast({ title: t('common.error'), description: t('dashboard.toast.memberNotFound'), variant: 'destructive' });
         return;
       }
 
@@ -293,10 +293,10 @@ function DashboardPage() {
       await updateDoc(memberRef, updateData);
       
       toast({ 
-        title: checked ? 'Ordenanza Registrada' : 'Ordenanza Removida', 
+        title: checked ? t('dashboard.toast.ordinanceRegisteredTitle') : t('dashboard.toast.ordinanceRemovedTitle'), 
         description: checked 
-          ? `${TempleOrdinanceLabels[ordinance]} ha sido marcada como completada.`
-          : `${TempleOrdinanceLabels[ordinance]} ha sido desmarcada.`
+          ? t('dashboard.toast.ordinanceRegisteredDescription', { ordinance: TempleOrdinanceLabels[ordinance] })
+          : t('dashboard.toast.ordinanceRemovedDescription', { ordinance: TempleOrdinanceLabels[ordinance] })
       });
 
       // Reload deceased members
@@ -305,7 +305,7 @@ function DashboardPage() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error({ error: errorMessage, message: 'Error updating ordinance', memberId, ordinance });
-      toast({ title: 'Error al Actualizar', description: `No se pudo actualizar la ordenanza: ${errorMessage}`, variant: 'destructive' });
+      toast({ title: t('dashboard.toast.updateErrorTitle'), description: t('dashboard.toast.updateErrorDescription', { error: errorMessage }), variant: 'destructive' });
     }
   }
 
@@ -543,8 +543,8 @@ function DashboardPage() {
 
        <div className="grid gap-4">
           <VoiceAnnotations
-              title="Anotaciones"
-              description="Añade notas rápidas o recordatorios. Marca las que necesiten seguimiento en el consejo."
+              title={t('dashboard.annotations.title')}
+              description={t('dashboard.annotations.description')}
               source="dashboard"
               annotations={annotations}
               isLoading={loadingAnnotations}

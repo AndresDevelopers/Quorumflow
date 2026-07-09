@@ -7,7 +7,7 @@ import { getDocs, query, orderBy, where, Timestamp, doc, updateDoc, getDoc, dele
 
 
 import type { Member, FutureMember, Companionship, Family, Annotation, Service, Activity, NewConvertFriendship, Ordinance, TempleOrdinance } from '@/lib/types';
-import { OrdinanceLabels, TempleOrdinanceLabels } from '@/lib/types';
+
 import { getLessActiveMembers, getUrgentMembers, normalizeMemberStatus, updateMember, getDeceasedMembers, getInactiveMembers } from '@/lib/members-data';
 import { createNotificationsForAll } from '@/lib/notification-helpers';
 import { useCallback, useEffect, useState } from 'react';
@@ -46,6 +46,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { VoiceAnnotations } from '@/components/shared/voice-annotations';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
 import { ConvertInfoSheet, type ConvertWithInfo } from '@/app/(main)/converts/convert-info-sheet';
@@ -313,6 +314,11 @@ function memberToConvertWithInfo(member: Member): ConvertWithInfo {
 
 export default function CouncilPage() {
   const { user, loading: authLoading, barrioOrg } = useAuth();
+  const { t, language } = useI18n();
+  const dateFmtLong = language === 'en' ? 'EEEE, MMMM d' : "eeee, d 'de' LLLL";
+  const dateFmtMedium = language === 'en' ? 'MMMM d, yyyy' : "d 'de' LLLL, yyyy";
+  const dateFmtShort = language === 'en' ? 'MMM d, yyyy' : 'd LLLL yyyy';
+  const dateFmtTiny = language === 'en' ? 'MMM d, yyyy' : 'd LLL yyyy';
   const [councilConverts, setCouncilConverts] = useState<Member[]>([]);
   const [upcomingBaptisms, setUpcomingBaptisms] = useState<FutureMember[]>([]);
   const [urgentNeeds, setUrgentNeeds] = useState<UrgentFamily[]>([]);
@@ -363,12 +369,12 @@ export default function CouncilPage() {
 
       // Send daily notifications for urgent members (fire-and-forget)
       sendDailyUrgentNotifications(urgent).catch(() => { });
-    } catch (error) {
-      logger.error({ error, message: 'Error fetching council data' });
-      toast({ title: "Error", description: "No se pudieron cargar los datos del consejo.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+        } catch (error) {
+          logger.error({ error, message: 'Error fetching council data' });
+          toast({ title: t("council.error.fetchingTitle"), description: t("council.error.fetchingDescription"), variant: "destructive" });
+        } finally {
+          setLoading(false);
+        }
   }, [toast, barrioOrg]);
 
   useEffect(() => {
@@ -381,11 +387,11 @@ export default function CouncilPage() {
       const annotationRef = doc(annotationsCollection, id);
       const annotationSnap = await getDoc(annotationRef);
 
-      if (!annotationSnap.exists()) {
-        logger.warn({ annotationId: id, message: 'Attempted to resolve non-existent annotation' });
-        toast({ title: 'Error', description: 'Annotation not found.', variant: 'destructive' });
-        return;
-      }
+        if (!annotationSnap.exists()) {
+          logger.warn({ annotationId: id, message: 'Attempted to resolve non-existent annotation' });
+          toast({ title: t("council.error.annotationNotFoundTitle"), description: t("council.error.annotationNotFoundDescription"), variant: 'destructive' });
+          return;
+        }
 
       const annotationData = annotationSnap.data() as Annotation;
 
@@ -397,26 +403,26 @@ export default function CouncilPage() {
           isCouncilAction: false,
         });
       }
-      toast({ title: 'Anotación Resuelta', description: 'La anotación ha sido marcada como resuelta.' });
+        toast({ title: t("council.action.annotationResolvedTitle"), description: t("council.action.annotationResolvedDescription") });
       fetchAllData();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error({ error: errorMessage, message: 'Error resolving annotation', id });
-      toast({ title: 'Error al Resolver', description: `Failed to resolve annotation: ${errorMessage}`, variant: 'destructive' });
+      toast({ title: t("council.error.resolveFailedTitle"), description: t("council.error.resolveFailedDescription", { errorMessage }), variant: 'destructive' });
     }
   }
 
-  const handleDeleteAnnotation = async (id: string) => {
-    try {
-      await deleteDoc(doc(annotationsCollection, id));
-      toast({ title: 'Anotación Eliminada', description: 'La anotación ha sido eliminada permanentemente.' });
-      fetchAllData();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error({ error: errorMessage, message: 'Error deleting annotation', id });
-      toast({ title: 'Error al Eliminar', description: `Failed to delete annotation: ${errorMessage}`, variant: 'destructive' });
+    const handleDeleteAnnotation = async (id: string) => {
+      try {
+        await deleteDoc(doc(annotationsCollection, id));
+        toast({ title: t("council.action.annotationDeletedTitle"), description: t("council.action.annotationDeletedDescription") });
+        fetchAllData();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error({ error: errorMessage, message: 'Error deleting annotation', id });
+        toast({ title: t("council.error.deleteFailedTitle"), description: t("council.error.deleteFailedDescription", { errorMessage }), variant: 'destructive' });
+      }
     }
-  }
 
   // ── Convert Info Sheet handlers ────────────────────────────────────────
   const handleSaveConvertInfo = async (convertId: string, calling: string, notes: string, recommendationActive: boolean, selfRelianceCourse: boolean) => {
@@ -424,10 +430,10 @@ export default function CouncilPage() {
     try {
       const infoRef = convertInfoCollection(convertId);
       await setDoc(infoRef, { calling, notes, recommendationActive, selfRelianceCourse, barrioOrg, updatedAt: Timestamp.now() }, { merge: true });
-      toast({ title: '✅ Información guardada', description: 'Los datos del converso se actualizaron correctamente.' });
+      toast({ title: t("council.action.convertInfoSavedTitle"), description: t("council.action.convertInfoSavedDescription") });
     } catch (error) {
       logger.error({ error, convertId, message: 'Error saving convert info from council' });
-      toast({ title: 'Error', description: 'No se pudo guardar la información.', variant: 'destructive' });
+      toast({ title: t("council.error.saveFailedTitle"), description: t("council.error.saveFailedDescription"), variant: 'destructive' });
     }
     setSheetSaving(false);
   };
@@ -438,18 +444,18 @@ export default function CouncilPage() {
       if (friendshipId) {
         if (friends.length === 0) {
           await deleteDoc(doc(newConvertFriendsCollection, friendshipId));
-          toast({ title: '✅ Amigos eliminados', description: 'La asignación de amigos fue removida.' });
+          toast({ title: t("council.action.friendsRemovedTitle"), description: t("council.action.friendsRemovedDescription") });
         } else {
           await updateDoc(doc(newConvertFriendsCollection, friendshipId), { friends, updatedAt: Timestamp.now() });
-          toast({ title: '✅ Amigos guardados', description: 'La asignación de amigos se actualizó.' });
+          toast({ title: t("council.action.friendsUpdatedTitle"), description: t("council.action.friendsUpdatedDescription") });
         }
       } else if (friends.length > 0) {
         await addDoc(newConvertFriendsCollection, { convertId, convertName, friends, assignedAt: serverTimestamp() });
-        toast({ title: '✅ Amigos asignados', description: 'Se asignaron amigos al converso.' });
+        toast({ title: t("council.action.friendsAssignedTitle"), description: t("council.action.friendsAssignedDescription") });
       }
     } catch (error) {
       logger.error({ error, convertId, message: 'Error saving friends from council' });
-      toast({ title: 'Error', description: 'No se pudo guardar la asignación de amigos.', variant: 'destructive' });
+      toast({ title: t("council.error.saveFailedTitle"), description: t("council.error.saveFriendsErrorDescription"), variant: 'destructive' });
     }
     setSheetSaving(false);
   };
@@ -462,10 +468,10 @@ export default function CouncilPage() {
       if (member) {
         await syncMinisteringAssignments({ ...member, ministeringTeachers: teachers }, previousTeachers, barrioOrg);
       }
-      toast({ title: '✅ Maestros guardados', description: 'Los maestros ministrantes se actualizaron.' });
+      toast({ title: t("council.action.teachersSavedTitle"), description: t("council.action.teachersSavedDescription") });
     } catch (error) {
       logger.error({ error, memberId, message: 'Error saving teachers from council' });
-      toast({ title: 'Error', description: 'No se pudo guardar los maestros ministrantes.', variant: 'destructive' });
+      toast({ title: t("council.error.saveFailedTitle"), description: t("council.error.saveTeachersErrorDescription"), variant: 'destructive' });
     }
     setSheetSaving(false);
   };
@@ -514,7 +520,7 @@ export default function CouncilPage() {
       setIsSheetOpen(true);
     } catch (error) {
       logger.error({ error, memberId: member.id, message: 'Error loading convert info for council sheet' });
-      toast({ title: 'Error', description: 'No se pudo cargar la información del converso.', variant: 'destructive' });
+      toast({ title: t("common.error"), description: t("council.action.convertLoadErrorDescription"), variant: 'destructive' });
     } finally {
       setSheetLoading(null);
     }
@@ -528,11 +534,11 @@ export default function CouncilPage() {
         councilCompleted: true,
         councilCompletedAt: Timestamp.now()
       });
-      toast({ title: 'Éxito', description: 'Seguimiento de miembro marcado como completado.' });
+      toast({ title: t("council.action.memberCompletedTitle"), description: t("council.action.memberCompletedDescription") });
       fetchAllData();
     } catch (error) {
       logger.error({ error, memberId, message: 'Error marking council as completed' });
-      toast({ title: 'Error', description: 'No se pudo marcar como completado.', variant: 'destructive' });
+      toast({ title: t("council.error.markCompletedFailedTitle"), description: t("council.error.markCompletedFailedDescription"), variant: 'destructive' });
     }
   }
 
@@ -541,7 +547,7 @@ export default function CouncilPage() {
       const companionshipRef = doc(ministeringCollection, companionshipId);
       const companionshipSnap = await getDoc(companionshipRef);
 
-      if (!companionshipSnap.exists()) throw new Error("Companionship not found");
+      if (!companionshipSnap.exists())       throw new Error("Companionship not found");
 
       const companionship = companionshipSnap.data() as Companionship;
       const familyIndex = companionship.families.findIndex(f => f.name === familyName);
@@ -550,11 +556,11 @@ export default function CouncilPage() {
       const updatedFamilies = [...companionship.families];
       updatedFamilies[familyIndex] = { ...updatedFamilies[familyIndex], isUrgent: false, observation: '' };
       await updateDoc(companionshipRef, { families: updatedFamilies });
-      toast({ title: 'Éxito', description: 'La necesidad urgente ha sido marcada como resuelta.' });
+      toast({ title: t("council.action.urgentNeedResolvedTitle"), description: t("council.action.urgentNeedResolvedDescription") });
       fetchAllData();
     } catch (error) {
       logger.error({ error, companionshipId, familyName, message: 'Error resolving urgent need' });
-      toast({ title: 'Error', description: 'No se pudo resolver la necesidad urgente.', variant: 'destructive' });
+      toast({ title: t("council.error.resolveUrgentFailedTitle"), description: t("council.error.resolveUrgentFailedDescription"), variant: 'destructive' });
     }
   }
 
@@ -562,11 +568,11 @@ export default function CouncilPage() {
     try {
       const serviceRef = doc(servicesCollection, serviceId);
       await updateDoc(serviceRef, { councilNotified: true });
-      toast({ title: 'Éxito', description: 'El servicio ha sido marcado como avisado.' });
+      toast({ title: t("council.action.serviceNotifiedTitle"), description: t("council.action.serviceNotifiedDescription") });
       fetchAllData();
     } catch (error) {
       logger.error({ error, serviceId, message: 'Error marking service as notified' });
-      toast({ title: 'Error', description: 'No se pudo marcar el servicio como avisado.', variant: 'destructive' });
+      toast({ title: t("council.error.markNotifiedFailedTitle"), description: t("council.error.markNotifiedFailedDescription"), variant: 'destructive' });
     }
   };
 
@@ -577,11 +583,11 @@ export default function CouncilPage() {
         councilCompleted: true,
         councilCompletedAt: Timestamp.now()
       });
-      toast({ title: 'Éxito', description: 'Seguimiento de miembro menos activo marcado como completado.' });
+      toast({ title: t("council.action.memberCompletedTitle"), description: t("council.action.lessActiveCompletedDescription") });
       fetchAllData();
     } catch (error) {
       logger.error({ error, memberId, message: 'Error marking less active member as completed' });
-      toast({ title: 'Error', description: 'No se pudo marcar como completado.', variant: 'destructive' });
+      toast({ title: t("council.error.markCompletedFailedTitle"), description: t("council.error.markCompletedFailedDescription"), variant: 'destructive' });
     }
   };
 
@@ -593,9 +599,12 @@ export default function CouncilPage() {
 
       if (!lastNotified || lastNotified < twentyFourHoursAgo) {
         try {
+          const memberName = `${member.firstName} ${member.lastName}`;
           await createNotificationsForAll({
-            title: '⚠️ Recordatorio: Miembro Urgente',
-            body: `${member.firstName} ${member.lastName} sigue marcado como urgente${member.urgentReason ? `: ${member.urgentReason}` : ''}`,
+            title: t("council.notification.urgentMemberTitle"),
+            body: member.urgentReason
+              ? t("council.notification.urgentMemberBodyWithReason", { name: memberName, reason: member.urgentReason })
+              : t("council.notification.urgentMemberBody", { name: memberName }),
             contextType: 'member',
             contextId: member.id,
             actionUrl: '/council'
@@ -614,11 +623,11 @@ export default function CouncilPage() {
         isUrgent: false,
         urgentReason: '',
       });
-      toast({ title: 'Éxito', description: 'Miembro desmarcado como urgente.' });
+      toast({ title: t("council.action.memberCompletedTitle"), description: t("council.action.urgentMemberResolvedDescription") });
       fetchAllData();
     } catch (error) {
       logger.error({ error, memberId, message: 'Error resolving urgent member' });
-      toast({ title: 'Error', description: 'No se pudo resolver la urgencia del miembro.', variant: 'destructive' });
+      toast({ title: t("common.error"), description: t("council.error.urgentMemberResolveDescription"), variant: 'destructive' });
     }
   };
 
@@ -628,13 +637,13 @@ export default function CouncilPage() {
   const futureServices = services.filter(s => s.date.toDate() > sevenDaysFromNow);
 
 
-  return (
+      return (
     <div className="space-y-8">
       <Card>
         <CardContent className="pt-6">
           <VoiceAnnotations
-            title="Anotaciones para el Consejo"
-            description="Notas de tu organización y puntos marcados para seguimiento en el consejo."
+            title={t("council.voiceAnnotations.title")}
+            description={t("council.voiceAnnotations.description")}
             source="council"
             annotations={annotations}
             isLoading={loading}
@@ -653,42 +662,42 @@ export default function CouncilPage() {
           <div className="flex items-start gap-3">
             <Wrench className="h-8 w-8 text-primary" />
             <div>
-              <CardTitle>Servicios Próximos</CardTitle>
+              <CardTitle>{t("council.services.title")}</CardTitle>
               <CardDescription>
-                Proyectos de servicio para coordinar en el consejo.
+                {t("council.services.description")}
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <h3 className="mb-2 font-semibold">En los Próximos 7 Días</h3>
+            <h3 className="mb-2 font-semibold">{t("council.services.next7Days")}</h3>
             {loading ? <Skeleton className="h-24 w-full" /> : (
               <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Servicio</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead className="text-right">Acción</TableHead>
+                    <TableHead>{t("council.table.service")}</TableHead>
+                    <TableHead>{t("council.table.date")}</TableHead>
+                    <TableHead className="text-right">{t("council.table.action")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {servicesIn7Days.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={3} className="h-24 text-center">
-                        No hay servicios programados para esta semana.
+                        {t("council.services.emptyWeek")}
                       </TableCell>
                     </TableRow>
                   ) : (
                     servicesIn7Days.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.title}</TableCell>
-                        <TableCell>{format(item.date.toDate(), "eeee, d 'de' LLLL", { locale: getDateFnsLocale() })}</TableCell>
+                        <TableCell>{format(item.date.toDate(), dateFmtLong, { locale: getDateFnsLocale() })}</TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" variant="outline" onClick={() => handleMarkServiceNotified(item.id)}>
                             <BellRing className="mr-2 h-4 w-4" />
-                            Marcar como Avisado
+                            {t("council.services.markNotified")}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -700,28 +709,28 @@ export default function CouncilPage() {
             )}
           </div>
           <div>
-            <h3 className="mb-2 font-semibold">Servicios Futuros</h3>
+            <h3 className="mb-2 font-semibold">{t("council.services.future")}</h3>
             {loading ? <Skeleton className="h-24 w-full" /> : (
               <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Servicio</TableHead>
-                    <TableHead>Fecha</TableHead>
+                    <TableHead>{t("council.table.service")}</TableHead>
+                    <TableHead>{t("council.table.date")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {futureServices.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={2} className="h-24 text-center">
-                        No hay más servicios futuros programados.
+                        {t("council.services.emptyFuture")}
                       </TableCell>
                     </TableRow>
                   ) : (
                     futureServices.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.title}</TableCell>
-                        <TableCell>{format(item.date.toDate(), "d 'de' LLLL, yyyy", { locale: getDateFnsLocale() })}</TableCell>
+                        <TableCell>{format(item.date.toDate(), dateFmtMedium, { locale: getDateFnsLocale() })}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -738,9 +747,9 @@ export default function CouncilPage() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-8 w-8 text-orange-500" />
             <div>
-              <CardTitle>Necesidades Urgentes de Miembros</CardTitle>
+              <CardTitle>{t("council.urgentMembers.title")}</CardTitle>
               <CardDescription>
-                Miembros marcados como urgentes que requieren atención prioritaria del consejo.
+                {t("council.urgentMembers.description")}
               </CardDescription>
             </div>
           </div>
@@ -748,7 +757,7 @@ export default function CouncilPage() {
         <CardContent>
           {loading ? <Skeleton className="h-24 w-full" /> : urgentMembers.length === 0 ? (
             <p className="text-sm text-center text-muted-foreground h-24 flex items-center justify-center">
-              No hay miembros marcados como urgentes.
+              {t("council.urgentMembers.empty")}
             </p>
           ) : (
             <Accordion type="single" collapsible className="w-full">
@@ -772,7 +781,7 @@ export default function CouncilPage() {
                         )}
                         <span className="font-semibold truncate">{member.firstName} {member.lastName}</span>
                       </div>
-                      <Badge variant="destructive" className="shrink-0">Urgente</Badge>
+                      <Badge variant="destructive" className="shrink-0">{t("council.badge.urgent")}</Badge>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -780,17 +789,17 @@ export default function CouncilPage() {
                       <div className="flex items-start gap-2">
                         <Info className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
                         <p className="text-sm">
-                          <span className="font-semibold">Razón:</span> {member.urgentReason || 'No especificada'}
+                          <span className="font-semibold">{t("council.urgentMembers.reason")}</span> {member.urgentReason || t("council.urgentMembers.reasonNone")}
                         </p>
                       </div>
                       {member.phoneNumber && (
                         <p className="text-sm text-muted-foreground">
-                          Teléfono: {member.phoneNumber}
+                          {t("council.urgentMembers.phone", { phone: member.phoneNumber })}
                         </p>
                       )}
                       <Button size="sm" onClick={() => handleResolveUrgentMember(member.id)}>
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Marcar como Resuelto
+                        {t("council.markResolved")}
                       </Button>
                     </div>
                   </AccordionContent>
@@ -806,9 +815,9 @@ export default function CouncilPage() {
           <div className="flex items-start gap-3">
             <Users className="h-8 w-8 text-primary" />
             <div>
-              <CardTitle>Seguimiento de Conversos</CardTitle>
+              <CardTitle>{t("council.converts.title")}</CardTitle>
               <CardDescription>
-                Miembros recién bautizados para seguimiento en el consejo de barrio.
+                {t("council.converts.description")}
               </CardDescription>
             </div>
           </div>
@@ -816,7 +825,7 @@ export default function CouncilPage() {
         <CardContent>
           {loading ? <Skeleton className="h-24 w-full" /> : councilConverts.length === 0 ? (
             <p className="text-sm text-center text-muted-foreground h-24 flex items-center justify-center">
-              No hay conversos pendientes de seguimiento.
+              {t("council.converts.empty")}
             </p>
           ) : (
             <>
@@ -825,9 +834,9 @@ export default function CouncilPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Foto</TableHead>
-                      <TableHead>Bautismo</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
+                      <TableHead>{t("council.table.photo")}</TableHead>
+                      <TableHead>{t("council.table.baptism")}</TableHead>
+                      <TableHead className="text-right">{t("council.table.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -837,7 +846,7 @@ export default function CouncilPage() {
                           {item.photoURL ? (
                             <Image
                               src={item.photoURL}
-                              alt={`Foto de ${item.firstName} ${item.lastName}`}
+                              alt={t("council.photoAlt", { name: `${item.firstName} ${item.lastName}` })}
                               width={40}
                               height={40}
                               className="w-10 h-10 rounded-full object-cover"
@@ -851,7 +860,7 @@ export default function CouncilPage() {
                         <TableCell>
                           <div className="flex flex-col items-start gap-1">
                             <span className="text-xs font-medium text-foreground">{item.firstName} {item.lastName}</span>
-                            <span>{item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }) : 'N/A'}</span>
+                            <span>{item.baptismDate ? format(item.baptismDate.toDate(), dateFmtShort, { locale: getDateFnsLocale() }) : t("council.na")}</span>
                           </div>
                         </TableCell>
 
@@ -873,11 +882,11 @@ export default function CouncilPage() {
                                 : <Info className="h-4 w-4" />}
                             </Button>
                             {item.councilCompleted ? (
-                              <Badge variant="default">Completado</Badge>
+                              <Badge variant="default">{t("council.badge.completed")}</Badge>
                             ) : (
                               <Button variant="outline" size="sm" onClick={() => handleMarkCouncilCompleted(item.id)}>
                                 <UserCheck className="mr-2 h-4 w-4" />
-                                Marcar Completado
+                                {t("council.markCompleted")}
                               </Button>
                             )}
                           </div>
@@ -898,7 +907,7 @@ export default function CouncilPage() {
                           {item.photoURL ? (
                             <Image
                               src={item.photoURL}
-                              alt={`Foto de ${item.firstName} ${item.lastName}`}
+                              alt={t("council.photoAlt", { name: `${item.firstName} ${item.lastName}` })}
                               width={48}
                               height={48}
                               className="w-12 h-12 rounded-full object-cover"
@@ -911,7 +920,7 @@ export default function CouncilPage() {
                           <div>
                             <p className="font-bold text-foreground break-words">{item.firstName} {item.lastName}</p>
                             <p className="text-sm text-muted-foreground">
-                              Bautismo: {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLL yyyy', { locale: getDateFnsLocale() }) : 'N/A'}
+                              {t("council.baptismLabel", { date: item.baptismDate ? format(item.baptismDate.toDate(), dateFmtTiny, { locale: getDateFnsLocale() }) : t("council.na") })}
                             </p>
                           </div>
                         </div>
@@ -932,11 +941,11 @@ export default function CouncilPage() {
                               : <Info className="h-4 w-4" />}
                           </Button>
                           {item.councilCompleted ? (
-                            <Badge variant="default">Completado</Badge>
+                            <Badge variant="default">{t("council.badge.completed")}</Badge>
                           ) : (
                             <Button variant="outline" size="sm" onClick={() => handleMarkCouncilCompleted(item.id)}>
                               <UserCheck className="mr-2 h-4 w-4" />
-                              Completar
+                              {t("council.complete")}
                             </Button>
                           )}
                         </div>
@@ -969,9 +978,9 @@ export default function CouncilPage() {
           <div className="flex items-start gap-3">
             <CalendarClock className="h-8 w-8 text-primary" />
             <div>
-              <CardTitle>Bautismos en los Próximos 7 Días</CardTitle>
+              <CardTitle>{t("council.baptisms.title")}</CardTitle>
               <CardDescription>
-                Futuros miembros con bautismos programados para esta semana.
+                {t("council.baptisms.description")}
               </CardDescription>
             </div>
           </div>
@@ -982,15 +991,15 @@ export default function CouncilPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre del Futuro Miembro</TableHead>
-                  <TableHead>Fecha Programada</TableHead>
+                  <TableHead>{t("council.baptisms.futureMemberName")}</TableHead>
+                  <TableHead>{t("council.baptisms.scheduledDate")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {upcomingBaptisms.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={2} className="h-24 text-center">
-                      No hay bautismos programados para los próximos 7 días.
+                      {t("council.baptisms.empty")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -998,7 +1007,7 @@ export default function CouncilPage() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
-                        {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }) : 'N/A'}
+                        {item.baptismDate ? format(item.baptismDate.toDate(), dateFmtShort, { locale: getDateFnsLocale() }) : t("council.na")}
                       </TableCell>
                     </TableRow>
                   ))
@@ -1015,9 +1024,9 @@ export default function CouncilPage() {
           <div className="flex items-start gap-3">
             <Calendar className="h-8 w-8 text-blue-600" />
             <div>
-              <CardTitle>Actividades Registradas</CardTitle>
+              <CardTitle>{t("council.activities.title")}</CardTitle>
               <CardDescription>
-                Actividades próximas que requieren atención del consejo (próximas 14 días).
+                {t("council.activities.description")}
               </CardDescription>
             </div>
           </div>
@@ -1025,7 +1034,7 @@ export default function CouncilPage() {
         <CardContent>
           {loading ? <Skeleton className="h-24 w-full" /> : upcomingActivities.length === 0 ? (
             <p className="text-sm text-center text-muted-foreground h-24 flex items-center justify-center">
-              No hay actividades próximas registradas.
+              {t("council.activities.empty")}
             </p>
           ) : (
             <div className="space-y-4">
@@ -1036,7 +1045,7 @@ export default function CouncilPage() {
                       <h4 className="font-semibold text-lg break-words">{activity.title}</h4>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-1">
                         <CalendarClock className="h-4 w-4 shrink-0" />
-                        <span>{format(activity.date.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}</span>
+                        <span>{format(activity.date.toDate(), dateFmtShort, { locale: getDateFnsLocale() })}</span>
                         {activity.time && <span>• {activity.time}</span>}
                       </div>
                       {activity.location && (
@@ -1046,7 +1055,7 @@ export default function CouncilPage() {
                       )}
                     </div>
                     <Badge variant="outline" className="text-blue-600 border-blue-600 shrink-0">
-                      Próxima
+                      {t("council.activities.upcoming")}
                     </Badge>
                   </div>
                   {activity.description && (
@@ -1054,7 +1063,7 @@ export default function CouncilPage() {
                   )}
                   {activity.context && (
                     <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded break-words">
-                      <strong>Contexto:</strong> {activity.context}
+                      <strong>{t("council.activities.context")}</strong> {activity.context}
                     </div>
                   )}
                 </div>
@@ -1069,9 +1078,9 @@ export default function CouncilPage() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-8 w-8 text-destructive" />
             <div>
-              <CardTitle>Necesidades Urgentes de Ministración</CardTitle>
+              <CardTitle>{t("council.ministeringUrgent.title")}</CardTitle>
               <CardDescription>
-                Familias que requieren atención inmediata según lo reportado.
+                {t("council.ministeringUrgent.description")}
               </CardDescription>
             </div>
           </div>
@@ -1079,7 +1088,7 @@ export default function CouncilPage() {
         <CardContent>
           {loading ? <Skeleton className="h-24 w-full" /> : urgentNeeds.length === 0 ? (
             <p className="text-sm text-center text-muted-foreground h-24 flex items-center justify-center">
-              No hay necesidades urgentes reportadas.
+              {t("council.ministeringUrgent.empty")}
             </p>
           ) : (
             <Accordion type="single" collapsible className="w-full">
@@ -1089,19 +1098,19 @@ export default function CouncilPage() {
                     <div className='flex flex-wrap items-center justify-between w-full pr-4 gap-2'>
                       <div className="min-w-0">
                         <span className='font-semibold break-words'>{item.name}</span>
-                        <p className='text-sm text-muted-foreground font-normal break-words'>Asignados a: {item.companions.join(' y ')}</p>
+                        <p className='text-sm text-muted-foreground font-normal break-words'>{t("council.ministeringUrgent.assignedTo", { names: item.companions.join(t("council.and")) })}</p>
                       </div>
-                      <Badge variant="destructive" className="shrink-0">Urgente</Badge>
+                      <Badge variant="destructive" className="shrink-0">{t("council.badge.urgent")}</Badge>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="p-4 bg-muted/50 rounded-md space-y-4">
                       <p className="text-sm">
-                        <span className="font-semibold">Observación:</span> {item.observation}
+                        <span className="font-semibold">{t("council.observation")}</span> {item.observation}
                       </p>
                       <Button size="sm" onClick={() => handleResolveUrgentNeed(item.companionshipId, item.name)}>
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Marcar como Resuelto
+                        {t("council.markResolved")}
                       </Button>
                     </div>
                   </AccordionContent>
@@ -1117,9 +1126,9 @@ export default function CouncilPage() {
           <div className="flex items-start gap-3">
             <UserMinus className="h-8 w-8 text-orange-500" />
             <div>
-              <CardTitle>Miembros Menos Activos</CardTitle>
+              <CardTitle>{t("council.lessActive.title")}</CardTitle>
               <CardDescription>
-                Miembros que requieren seguimiento y apoyo del consejo de barrio.
+                {t("council.lessActive.description")}
               </CardDescription>
             </div>
           </div>
@@ -1127,7 +1136,7 @@ export default function CouncilPage() {
         <CardContent>
           {loading ? <Skeleton className="h-24 w-full" /> : lessActiveMembers.length === 0 ? (
             <p className="text-sm text-center text-muted-foreground h-24 flex items-center justify-center">
-              No hay miembros menos activos registrados.
+              {t("council.lessActive.empty")}
             </p>
           ) : (
             <>
@@ -1136,11 +1145,11 @@ export default function CouncilPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Menos Activo Desde</TableHead>
-                      <TableHead>Observación</TableHead>
-                      <TableHead className="text-right">Acción</TableHead>
+                      <TableHead>{t("council.table.name")}</TableHead>
+                      <TableHead>{t("council.table.status")}</TableHead>
+                      <TableHead>{t("council.lessActive.since")}</TableHead>
+                      <TableHead>{t("council.table.observation")}</TableHead>
+                      <TableHead className="text-right">{t("council.table.action")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1149,26 +1158,26 @@ export default function CouncilPage() {
                         <TableCell className="font-medium">{member.firstName} {member.lastName}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-orange-600 border-orange-600">
-                            Menos Activo
+                            {t("council.lessActive.badge")}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           {member.lessActiveSince
-                            ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLLL yyyy', { locale: getDateFnsLocale() })
+                            ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, dateFmtShort, { locale: getDateFnsLocale() })
                             : member.inactiveSince
-                              ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLLL yyyy', { locale: getDateFnsLocale() })
-                              : '—'}
+                              ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, dateFmtShort, { locale: getDateFnsLocale() })
+                              : t("council.dash")}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate" title={member.lessActiveObservation || (member as any).inactiveObservation || ''}>
-                          {member.lessActiveObservation || (member as any).inactiveObservation || '—'}
+                          {member.lessActiveObservation || (member as any).inactiveObservation || t("council.dash")}
                         </TableCell>
                         <TableCell className="text-right">
                           {member.councilCompleted ? (
-                            <Badge variant="default">Completado</Badge>
+                            <Badge variant="default">{t("council.badge.completed")}</Badge>
                           ) : (
                             <Button variant="outline" size="sm" onClick={() => handleMarkLessActiveMemberCompleted(member.id)}>
                               <UserCheck className="mr-2 h-4 w-4" />
-                              Marcar Completado
+                              {t("council.markCompleted")}
                             </Button>
                           )}
                         </TableCell>
@@ -1188,28 +1197,32 @@ export default function CouncilPage() {
                           <p className="font-bold">{member.firstName} {member.lastName}</p>
                           {(member.lessActiveSince || member.inactiveSince) && (
                             <p className="text-sm text-muted-foreground">
-                              Menos activo desde: {member.lessActiveSince
-                                ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLL yyyy', { locale: getDateFnsLocale() })
-                                : member.inactiveSince
-                                  ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: getDateFnsLocale() })
-                                  : null}
+                              {t("council.lessActive.sinceLabel", {
+                                date: member.lessActiveSince
+                                  ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, dateFmtTiny, { locale: getDateFnsLocale() })
+                                  : member.inactiveSince
+                                    ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, dateFmtTiny, { locale: getDateFnsLocale() })
+                                    : t("council.na"),
+                              })}
                             </p>
                           )}
                           {(member.lessActiveObservation || (member as any).inactiveObservation) && (
                             <p className="text-sm text-muted-foreground mt-1">
-                              Obs: {member.lessActiveObservation || (member as any).inactiveObservation}
+                              {t("council.obsShort", {
+                                text: member.lessActiveObservation || (member as any).inactiveObservation,
+                              })}
                             </p>
                           )}
                           <Badge variant="outline" className="text-orange-600 border-orange-600 mt-2">
-                            Menos Activo
+                            {t("council.lessActive.badge")}
                           </Badge>
                         </div>
                         {member.councilCompleted ? (
-                          <Badge variant="default">Completado</Badge>
+                          <Badge variant="default">{t("council.badge.completed")}</Badge>
                         ) : (
                           <Button variant="outline" size="sm" onClick={() => handleMarkLessActiveMemberCompleted(member.id)}>
                             <UserCheck className="mr-2 h-4 w-4" />
-                            Completar
+                            {t("council.complete")}
                           </Button>
                         )}
                       </div>
@@ -1228,9 +1241,9 @@ export default function CouncilPage() {
           <div className="flex items-start gap-3">
             <UserMinus className="h-8 w-8 text-red-500" />
             <div>
-              <CardTitle>Miembros Inactivos</CardTitle>
+              <CardTitle>{t("council.inactive.title")}</CardTitle>
               <CardDescription>
-                Miembros que no están asistiendo y requieren atención del consejo de barrio.
+                {t("council.inactive.description")}
               </CardDescription>
             </div>
           </div>
@@ -1238,7 +1251,7 @@ export default function CouncilPage() {
         <CardContent>
           {loading ? <Skeleton className="h-24 w-full" /> : inactiveMembers.length === 0 ? (
             <p className="text-sm text-center text-muted-foreground h-24 flex items-center justify-center">
-              No hay miembros inactivos registrados.
+              {t("council.inactive.empty")}
             </p>
           ) : (
             <>
@@ -1247,10 +1260,10 @@ export default function CouncilPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Inactivo Desde</TableHead>
-                      <TableHead>Observación</TableHead>
+                      <TableHead>{t("council.table.name")}</TableHead>
+                      <TableHead>{t("council.table.status")}</TableHead>
+                      <TableHead>{t("council.inactive.since")}</TableHead>
+                      <TableHead>{t("council.table.observation")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1259,16 +1272,16 @@ export default function CouncilPage() {
                         <TableCell className="font-medium">{member.firstName} {member.lastName}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-red-600 border-red-600">
-                            Inactivo
+                            {t("council.inactive.badge")}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           {member.inactiveSince
-                            ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLLL yyyy', { locale: getDateFnsLocale() })
-                            : 'N/A'}
+                            ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, dateFmtShort, { locale: getDateFnsLocale() })
+                            : t("council.na")}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate" title={member.inactiveObservation || ''}>
-                          {member.inactiveObservation || '—'}
+                          {member.inactiveObservation || t("council.dash")}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1284,17 +1297,19 @@ export default function CouncilPage() {
                       <div>
                         <p className="font-bold">{member.firstName} {member.lastName}</p>
                         <p className="text-sm text-muted-foreground">
-                          Inactivo desde: {member.inactiveSince
-                            ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: getDateFnsLocale() })
-                            : 'N/A'}
+                          {t("council.inactive.sinceLabel", {
+                            date: member.inactiveSince
+                              ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, dateFmtTiny, { locale: getDateFnsLocale() })
+                              : t("council.na"),
+                          })}
                         </p>
                         {member.inactiveObservation && (
                           <p className="text-sm text-muted-foreground mt-1">
-                            Obs: {member.inactiveObservation}
+                            {t("council.obsShort", { text: member.inactiveObservation })}
                           </p>
                         )}
                         <Badge variant="outline" className="text-red-600 border-red-600 mt-2">
-                          Inactivo
+                          {t("council.inactive.badge")}
                         </Badge>
                       </div>
                     </CardContent>
@@ -1312,9 +1327,9 @@ export default function CouncilPage() {
           <div className="flex items-start gap-3">
             <Users className="h-8 w-8 text-gray-600" />
             <div>
-              <CardTitle>Miembros Fallecidos</CardTitle>
+              <CardTitle>{t("council.deceased.title")}</CardTitle>
               <CardDescription>
-                Miembros que requieren obra vicaria del templo.
+                {t("council.deceased.description")}
               </CardDescription>
             </div>
           </div>
@@ -1322,7 +1337,7 @@ export default function CouncilPage() {
         <CardContent>
           {loading ? <Skeleton className="h-24 w-full" /> : deceasedMembers.length === 0 ? (
             <p className="text-sm text-center text-muted-foreground h-24 flex items-center justify-center">
-              No hay miembros fallecidos que requieran atención.
+              {t("council.deceased.empty")}
             </p>
           ) : (
             <Accordion type="single" collapsible className="w-full">
@@ -1339,7 +1354,7 @@ export default function CouncilPage() {
                           {member.photoURL ? (
                             <Image
                               src={member.photoURL}
-                              alt={`${member.firstName} ${member.lastName}`}
+                              alt={t("council.photoAlt", { name: `${member.firstName} ${member.lastName}` })}
                               width={36}
                               height={36}
                               className="w-9 h-9 rounded-full object-cover shrink-0"
@@ -1354,11 +1369,11 @@ export default function CouncilPage() {
                         <div className="flex items-center gap-2 shrink-0">
                           {allComplete ? (
                             <Badge variant="default" className="bg-green-500">
-                              Completado
+                              {t("council.badge.completed")}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-amber-600 border-amber-600">
-                              Necesita Obra Vicaria
+                              {t("council.deceased.needsWork")}
                             </Badge>
                           )}
                         </div>
@@ -1370,11 +1385,11 @@ export default function CouncilPage() {
                           <>
                             <div className="flex items-center gap-2 text-green-600">
                               <BadgeCheck className="w-5 h-5" />
-                              <span className="font-semibold">Todas las ordenanzas completadas</span>
+                              <span className="font-semibold">{t("council.deceased.allComplete")}</span>
                             </div>
                             {daysUntilRemoval !== null && daysUntilRemoval > 0 && (
                               <p className="text-sm text-muted-foreground">
-                                Desaparecerá de esta lista en {daysUntilRemoval} días.
+                                {t("council.deceased.willDisappear", { days: daysUntilRemoval })}
                               </p>
                             )}
                           </>
@@ -1382,12 +1397,12 @@ export default function CouncilPage() {
                           <>
                             <div className="flex items-center gap-2 text-amber-600">
                               <AlertCircle className="w-5 h-5" />
-                              <span className="font-semibold">Ordenanzas faltantes:</span>
+                              <span className="font-semibold">{t("council.deceased.missingOrdinances")}</span>
                             </div>
                             <div className="flex flex-wrap gap-2 mt-2">
                               {missingOrdinances.map((ordinance) => (
                                 <Badge key={ordinance} variant="outline" className="text-amber-600 border-amber-600">
-                                  {TempleOrdinanceLabels[ordinance]}
+                                  {t(`templeOrdinance.${ordinance}`)}
                                 </Badge>
                               ))}
                             </div>
@@ -1395,7 +1410,9 @@ export default function CouncilPage() {
                         )}
                         {member.deathDate && (
                           <p className="text-sm text-muted-foreground">
-                            Fecha de fallecimiento: {format(member.deathDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
+                            {t("council.deceased.deathDate", {
+                              date: format(member.deathDate.toDate(), dateFmtShort, { locale: getDateFnsLocale() }),
+                            })}
                           </p>
                         )}
                       </div>

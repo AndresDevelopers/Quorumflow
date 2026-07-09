@@ -95,30 +95,47 @@ const getOrgArticle = (org: string): { article: string; deArticle: string } => {
 
 type QuickOption = {
   key: string;
-  generateMessage: (org: string) => string;
+  generateMessage: (
+    org: string,
+    t: (key: string, params?: Record<string, string | number>) => string,
+  ) => string;
 };
 
 const QUICK_OPTIONS: QuickOption[] = [
   {
     key: 'presidente',
-    generateMessage: (org) => `¿Qué hace el presidente ${getOrgArticle(org).deArticle} ${org}?`,
+    generateMessage: (org, t) => {
+      const { deArticle } = getOrgArticle(org);
+      return t('churchChat.prompt.presidente', { deArticle, org });
+    },
   },
   {
     key: 'consejero',
-    generateMessage: (org) => `¿Qué hace el consejero ${getOrgArticle(org).deArticle} ${org}?`,
+    generateMessage: (org, t) => {
+      const { deArticle } = getOrgArticle(org);
+      return t('churchChat.prompt.consejero', { deArticle, org });
+    },
   },
   {
     key: 'secretario',
-    generateMessage: (org) => `¿Qué hace el secretario ${getOrgArticle(org).deArticle} ${org}?`,
+    generateMessage: (org, t) => {
+      const { deArticle } = getOrgArticle(org);
+      return t('churchChat.prompt.secretario', { deArticle, org });
+    },
   },
   {
     key: 'otrosCargos',
-    generateMessage: (org) => `¿Qué llamamientos están disponibles en ${getOrgArticle(org).article} ${org}?`,
+    generateMessage: (org, t) => {
+      const { article } = getOrgArticle(org);
+      return t('churchChat.prompt.otrosCargos', { article, org });
+    },
   },
   {
     key: 'novedades',
-    generateMessage: (org) =>
-      `¿Cuáles son las novedades oficiales recientes de la Iglesia y qué recursos o tareas puede realizar el secretario ${getOrgArticle(org).deArticle} ${org} usando el sitio web oficial de la Iglesia?`,
+    generateMessage: (org, t) => {
+      const { deArticle } = getOrgArticle(org);
+      return t('churchChat.prompt.novedades', { deArticle, org });
+    },
   },
 ];
 
@@ -559,7 +576,7 @@ export default function ChurchChatPage() {
   };
 
   const handleQuickOption = (option: QuickOption) => {
-    void sendMessage(option.generateMessage(organizacion));
+    void sendMessage(option.generateMessage(organizacion, t));
   };
 
 

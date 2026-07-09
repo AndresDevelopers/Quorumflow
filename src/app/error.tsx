@@ -10,9 +10,10 @@ import {
 } from '@/components/ui/card';
 import { useEffect } from 'react';
 import logger from '@/lib/logger';
+import { useI18n } from '@/contexts/i18n-context';
 
 
-function getErrorMessage(error: any): string {
+function getErrorMessage(error: any, unknownError: string): string {
   if (error) {
     if (typeof error.message === 'string' && error.message.trim().length > 0) {
       return error.message;
@@ -29,7 +30,7 @@ function getErrorMessage(error: any): string {
       logger.warn({ error: e, message: 'Failed to serialize error for display' });
     }
   }
-  return 'Ocurrió un error desconocido.';
+  return unknownError;
 }
 
 export default function Error({
@@ -39,32 +40,34 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useI18n();
+
   useEffect(() => {
     logger.error({ error, message: 'Caught by Error Boundary' });
   }, [error]);
 
-  const errorMessage = getErrorMessage(error);
+  const errorMessage = getErrorMessage(error, t('errorBoundary.unknownError'));
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl text-destructive">
-            ¡Ups! Algo salió mal
+            {t('errorBoundary.appErrorTitle')}
           </CardTitle>
           <CardDescription>
-            Se ha producido un error inesperado en la aplicación. Nuestro equipo ha sido notificado.
+            {t('errorBoundary.appErrorDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2 rounded-md bg-muted p-3 text-sm text-muted-foreground">
-            <p className="font-semibold">Detalles del Error:</p>
+            <p className="font-semibold">{t('errorBoundary.appErrorDetails')}</p>
             <pre className="whitespace-pre-wrap font-mono text-xs">
               {errorMessage}
             </pre>
           </div>
           <Button onClick={() => reset()} className="w-full">
-            Intentar de nuevo
+            {t('errorBoundary.retry')}
           </Button>
         </CardContent>
       </Card>

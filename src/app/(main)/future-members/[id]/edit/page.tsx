@@ -9,11 +9,13 @@ import type { FutureMember } from '@/lib/types';
 import { FutureMemberForm } from '../../FutureMemberForm';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function EditFutureMemberPage() {
   const params = useParams();
   const { user, loading: authLoading } = useAuth();
+  const { t } = useI18n();
   const { id } = params;
   const [futureMember, setFutureMember] = useState<FutureMember | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export default function EditFutureMemberPage() {
         <Dialog open={true}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle className="sr-only">Cargando</DialogTitle>
+                    <DialogTitle className="sr-only">{t('common.loadingShort')}</DialogTitle>
                 </DialogHeader>
                 <div className="max-w-2xl mx-auto space-y-4">
                     <Skeleton className="h-10 w-1/3" />

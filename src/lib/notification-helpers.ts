@@ -478,7 +478,7 @@ export async function createNewConvertCouncilNotification(
     body: `${convertName} ha sido ${action} desde el Consejo`,
     contextType: 'convert',
     contextId: convertId,
-    actionUrl: '/consejo',
+    actionUrl: '/council',
     inAppOnly: true,
     barrioOrg
   } satisfies CreateNotificationParams);

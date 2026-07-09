@@ -146,8 +146,8 @@ export default function ProfilePage() {
         : null;
 
     const displayName = isViewingOtherUser
-        ? profileData?.name ?? syncedFullName ?? 'Usuario'
-        : profileData?.name ?? user?.displayName ?? syncedFullName ?? 'Usuario';
+        ? profileData?.name ?? syncedFullName ?? t('profile.fallbackUser')
+        : profileData?.name ?? user?.displayName ?? syncedFullName ?? t('profile.fallbackUser');
 
     const displayEmail = isViewingOtherUser
         ? profileData?.email ?? syncedMember?.email ?? undefined
@@ -284,7 +284,7 @@ export default function ProfilePage() {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                aria-label="Editar perfil"
+                                aria-label={t('profile.editAria')}
                                 onClick={() => setIsEditing(true)}
                                 disabled={loading || isEditing}
                             >
@@ -314,7 +314,7 @@ export default function ProfilePage() {
                             {isSaving && isEditing && (
                                 <div className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center gap-1 z-10 mb-4">
                                     <Loader2 className="h-8 w-8 text-white animate-spin" />
-                                    <span className="text-white text-[10px] font-medium">Subiendo…</span>
+                                    <span className="text-white text-[10px] font-medium">{t('profile.uploading')}</span>
                                 </div>
                             )}
                             {isEditing && canEditProfile && !isSaving && (
@@ -356,12 +356,15 @@ export default function ProfilePage() {
                             {displayEmail && <CardDescription>{displayEmail}</CardDescription>}
                             {effectiveBirthDate && (
                                 <CardDescription>
-                                    Nacimiento: {format(effectiveBirthDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })} ({differenceInYears(new Date(), effectiveBirthDate.toDate())})
+                                    {t('profile.birthLabel', {
+                                      date: format(effectiveBirthDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }),
+                                      age: differenceInYears(new Date(), effectiveBirthDate.toDate()),
+                                    })}
                                 </CardDescription>
                             )}
                             {effectiveMemberId && (
                                 <CardDescription>
-                                    Cédula de miembro: {effectiveMemberId}
+                                    {t('profile.memberIdLabel', { id: effectiveMemberId })}
                                 </CardDescription>
                             )}
                         </>
@@ -382,7 +385,7 @@ export default function ProfilePage() {
                         <div className="rounded-lg border bg-primary/5 p-4 space-y-3">
                             <div className="flex items-center gap-2 text-sm font-medium text-primary">
                                 <Link2 className="h-4 w-4" />
-                                Sincronizado con: {syncedMember.firstName} {syncedMember.lastName}
+                                {t('profile.syncedWith', { name: `${syncedMember.firstName} ${syncedMember.lastName}` })}
                             </div>
 
                             <div className="grid gap-2 text-sm">
@@ -411,7 +414,10 @@ export default function ProfilePage() {
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                         <Church className="h-3.5 w-3.5 shrink-0" />
                                         <span>
-                                            Nacimiento: {format(syncedMember.birthDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })} ({differenceInYears(new Date(), syncedMember.birthDate.toDate())} años)
+                                            {t('profile.birthWithYears', {
+                                              date: format(syncedMember.birthDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }),
+                                              age: differenceInYears(new Date(), syncedMember.birthDate.toDate()),
+                                            })}
                                         </span>
                                     </div>
                                 )}
@@ -420,7 +426,9 @@ export default function ProfilePage() {
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                         <Droplets className="h-3.5 w-3.5 shrink-0" />
                                         <span>
-                                            Bautismo: {format(syncedMember.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
+                                            {t('profile.baptismLabel', {
+                                              date: format(syncedMember.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }),
+                                            })}
                                         </span>
                                     </div>
                                 )}
@@ -434,17 +442,17 @@ export default function ProfilePage() {
                                             syncedMember.status === 'inactive' && 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
                                             syncedMember.status === 'deceased' && 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
                                         )}>
-                                            {syncedMember.status === 'active' && 'Activo'}
-                                            {syncedMember.status === 'less_active' && 'Menos activo'}
-                                            {syncedMember.status === 'inactive' && 'Inactivo'}
-                                            {syncedMember.status === 'deceased' && 'Fallecido'}
+                                            {syncedMember.status === 'active' && t('member.status.active')}
+                                            {syncedMember.status === 'less_active' && t('member.status.less_active')}
+                                            {syncedMember.status === 'inactive' && t('member.status.inactive')}
+                                            {syncedMember.status === 'deceased' && t('member.status.deceased')}
                                         </span>
                                     </div>
                                 )}
 
                                 {syncedMember.ordinances && syncedMember.ordinances.length > 0 && (
                                     <div className="pt-1">
-                                        <p className="text-xs font-medium text-muted-foreground mb-1">Ordenanzas:</p>
+                                        <p className="text-xs font-medium text-muted-foreground mb-1">{t('profile.ordinancesLabel')}</p>
                                         <div className="flex flex-wrap gap-1">
                                             {syncedMember.ordinances.map((ord) => (
                                                 <span key={ord} className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -461,7 +469,7 @@ export default function ProfilePage() {
                     {!loadingSyncedMember && !syncedMember && profileData?.syncedMemberId && (
                         <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4 text-center text-sm text-muted-foreground">
                             <Link2 className="h-4 w-4 mx-auto mb-1" />
-                            Miembro sincronizado no encontrado
+                            {t('profile.syncedNotFound')}
                         </div>
                     )}
 
@@ -475,7 +483,7 @@ export default function ProfilePage() {
                                 onChange={handleImageChange}
                             />
                             <div className="space-y-2 text-left">
-                                <Label htmlFor="profile-name">Nombre</Label>
+                                <Label htmlFor="profile-name">{t('profile.name')}</Label>
                                 <Input
                                     id="profile-name"
                                     value={editValues.name}
@@ -488,7 +496,7 @@ export default function ProfilePage() {
                                 />
                             </div>
                             <div className="space-y-2 text-left">
-                                <Label htmlFor="profile-birthdate">Fecha de nacimiento</Label>
+                                <Label htmlFor="profile-birthdate">{t('profile.birthDate')}</Label>
                                 <Input
                                     id="profile-birthdate"
                                     type="date"
@@ -502,7 +510,7 @@ export default function ProfilePage() {
                                 />
                             </div>
                             <div className="space-y-2 text-left">
-                                <Label htmlFor="profile-member-id">Cédula de miembro</Label>
+                                <Label htmlFor="profile-member-id">{t('profile.memberId')}</Label>
                                 <Input
                                     id="profile-member-id"
                                     value={editValues.memberId}
@@ -512,7 +520,7 @@ export default function ProfilePage() {
                                             memberId: event.target.value,
                                         }))
                                     }
-                                    placeholder="Ej: 123456"
+                                    placeholder={t('profile.memberIdPlaceholder')}
                                 />
                             </div>
                             <div className="flex flex-wrap justify-end gap-2">
@@ -523,11 +531,11 @@ export default function ProfilePage() {
                                     disabled={isSaving}
                                 >
                                     <X className="mr-2 h-4 w-4" />
-                                    Cancelar
+                                    {t('common.cancel')}
                                 </Button>
                                 <Button type="button" onClick={handleSaveEdit} disabled={isSaving}>
                                     <Save className="mr-2 h-4 w-4" />
-                                    {isSaving ? 'Guardando...' : 'Guardar'}
+                                    {isSaving ? t('profile.saving') : t('common.save')}
                                 </Button>
                             </div>
                         </div>

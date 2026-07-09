@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, PlusCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
+import { useI18n } from '@/contexts/i18n-context';
 import { doc, getDoc } from 'firebase/firestore';
 import { usersCollection } from '@/lib/collections';
 
@@ -71,13 +72,16 @@ export function AnnotationManager({
     onToggle,
     onDelete,
     onResolve,
-    emptyMessage = 'No hay elementos.',
+    emptyMessage,
     currentUserId,
 }: AnnotationManagerProps) {
     const { toast } = useToast();
+    const { t } = useI18n();
     const { userRole } = useAuth();
     const { canWrite } = usePermission();
     const isSecretary = userRole === 'secretary';
+    const userFallback = t('annotationManager.userFallback');
+    const resolvedEmptyMessage = emptyMessage ?? t('voiceAnnotations.empty');
     const [isDialogOpen, setDialogOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [errors, setErrors] = useState<{ description?: string[] }>({});
@@ -114,10 +118,10 @@ export function AnnotationManager({
                         const userDocRef = doc(usersCollection, id);
                         const userDoc = await getDoc(userDocRef);
                         if (!userDoc.exists()) {
-                            return [id, 'Usuario'] as const;
+                            return [id, userFallback] as const;
                         }
                         const data = userDoc.data() as { name?: string; displayName?: string };
-                        return [id, data.name ?? data.displayName ?? 'Usuario'] as const;
+                        return [id, data.name ?? data.displayName ?? userFallback] as const;
                     })
                 );
 
@@ -134,28 +138,31 @@ export function AnnotationManager({
         return () => {
             isMounted = false;
         };
-    }, [items, userNames]);
+    }, [items, userNames, userFallback]);
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setErrors({});
 
         if (!inputValue.trim() || inputValue.trim().length < 5) {
-            setErrors({ description: ['La descripcion es requerida (minimo 5 caracteres).'] });
+            setErrors({ description: [t('annotationManager.descriptionRequired')] });
             return;
         }
 
         setIsPending(true);
         try {
             await onAdd(inputValue.trim());
-            toast({ title: 'Exito', description: `${buttonText} agregado.` });
+            toast({
+                title: t('annotationManager.toast.success'),
+                description: t('annotationManager.toast.added', { item: buttonText }),
+            });
             setDialogOpen(false);
             setInputValue('');
         } catch (error: unknown) {
             console.error('Error adding item:', error);
             toast({
-                title: 'Error',
-                description: `No se pudo agregar el ${buttonText.toLowerCase()}.`,
+                title: t('annotationManager.toast.error'),
+                description: t('annotationManager.toast.addError', { item: buttonText.toLowerCase() }),
                 variant: 'destructive',
             });
         } finally {
@@ -172,8 +179,8 @@ export function AnnotationManager({
         } catch (error) {
             console.error('Error toggling item:', error);
             toast({
-                title: 'Error',
-                description: 'No se pudo actualizar el elemento.',
+                title: t('annotationManager.toast.error'),
+                description: t('annotationManager.toast.updateError'),
                 variant: 'destructive',
             });
         } finally {
@@ -187,13 +194,16 @@ export function AnnotationManager({
         setIsPending(true);
         try {
             await onDelete(deleteItem.id);
-            toast({ title: 'Exito', description: 'Elemento eliminado.' });
+            toast({
+                title: t('annotationManager.toast.success'),
+                description: t('annotationManager.toast.deleted'),
+            });
             setDeleteItem(null);
         } catch (error) {
             console.error('Error deleting item:', error);
             toast({
-                title: 'Error',
-                description: 'No se pudo eliminar el elemento.',
+                title: t('annotationManager.toast.error'),
+                description: t('annotationManager.toast.deleteError'),
                 variant: 'destructive',
             });
         } finally {
@@ -222,7 +232,7 @@ export function AnnotationManager({
                                     <DialogTitle>{dialogTitle}</DialogTitle>
                                 </DialogHeader>
                                 <div className="py-4">
-                                    <Label htmlFor="description">Descripcion</Label>
+                                    <Label htmlFor="description">{t('annotationManager.descriptionLabel')}</Label>
                                     <Input
                                         id="description"
                                         name="description"
@@ -239,7 +249,7 @@ export function AnnotationManager({
                                 </div>
                                 <DialogFooter>
                                     <Button type="submit" disabled={isPending}>
-                                        {isPending ? 'Guardando...' : 'Guardar'}
+                                        {isPending ? t('annotationManager.saving') : t('annotationManager.save')}
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -255,7 +265,7 @@ export function AnnotationManager({
                     </div>
                 ) : items.length === 0 ? (
                     <p className="text-sm text-center py-4 text-muted-foreground">
-                        {emptyMessage}
+                        {resolvedEmptyMessage}
                     </p>
                 ) : (
                     <ul className="space-y-2">
@@ -282,7 +292,9 @@ export function AnnotationManager({
                                         </Label>
                                         {item.userId && (
                                             <p className="text-xs text-muted-foreground mt-1">
-                                                Por: {userNames[item.userId] ?? 'Usuario'}
+                                                {t('annotationManager.byUserLabel', {
+                                                    name: userNames[item.userId] ?? userFallback,
+                                                })}
                                             </p>
                                         )}
                                     </div>
@@ -294,10 +306,10 @@ export function AnnotationManager({
                                             size="sm"
                                             onClick={() => onResolve(item.id)}
                                             disabled={isPending}
-                                            title="Marcar como resuelta"
+                                            title={t('annotationManager.resolveTitle')}
                                         >
                                             <CheckCircle className="mr-2 h-4 w-4" />
-                                            Resuelta
+                                            {t('annotationManager.resolve')}
                                         </Button>
                                     )}
                                     {(canWrite && (isSecretary || (currentUserId && item.userId === currentUserId))) && (
@@ -320,19 +332,21 @@ export function AnnotationManager({
             <AlertDialog open={!!deleteItem} onOpenChange={() => setDeleteItem(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Estas seguro?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('annotationManager.deleteConfirmTitle')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta accion eliminara permanentemente: &quot;{deleteItem?.description}&quot;.
+                            {t('annotationManager.deleteConfirmWithItem', {
+                                item: deleteItem?.description ?? '',
+                            })}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel>{t('annotationManager.cancel')}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             className="bg-destructive hover:bg-destructive/90"
                             disabled={isPending}
                         >
-                            {isPending ? 'Eliminando...' : 'Eliminar'}
+                            {isPending ? t('annotationManager.deleting') : t('annotationManager.delete')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

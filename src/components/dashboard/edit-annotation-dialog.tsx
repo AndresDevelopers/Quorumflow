@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Pencil } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
 
 interface EditAnnotationDialogProps {
   annotation: Annotation | null;
@@ -30,6 +31,7 @@ export function EditAnnotationDialog({
   onOpenChange,
   onAnnotationUpdated,
 }: EditAnnotationDialogProps) {
+  const { t } = useI18n();
   const [editedText, setEditedText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -63,16 +65,16 @@ export function EditAnnotationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar Anotación</DialogTitle>
+          <DialogTitle>{t('dashboard.editAnnotation.title')}</DialogTitle>
           <DialogDescription>
-            Modifica el contenido de la anotación.
+            {t('dashboard.editAnnotation.description')}
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <Textarea
             value={editedText}
             onChange={(e) => setEditedText(e.target.value)}
-            placeholder="Escribe la anotación..."
+            placeholder={t('dashboard.editAnnotation.placeholder')}
             rows={4}
             className="resize-none"
           />
@@ -83,13 +85,13 @@ export function EditAnnotationDialog({
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
           >
-            Cancelar
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleSave}
             disabled={isLoading || !editedText.trim()}
           >
-            {isLoading ? 'Guardando...' : 'Guardar Cambios'}
+            {isLoading ? t('dashboard.editAnnotation.saving') : t('dashboard.editAnnotation.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -27,7 +27,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/service", priority: 0.7, changeFrequency: "weekly" as const },
     { path: "/birthdays", priority: 0.7, changeFrequency: "daily" as const },
     { path: "/church-chat", priority: 0.8, changeFrequency: "weekly" as const },
-    { path: "/consejo", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/council", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/donate", priority: 0.6, changeFrequency: "monthly" as const },
     { path: "/family-search", priority: 0.7, changeFrequency: "weekly" as const },

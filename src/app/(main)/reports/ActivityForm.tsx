@@ -256,9 +256,9 @@ export function ActivityForm({ activity }: ActivityFormProps) {
                 <AlertDescription>
                   <p>{t('reports.activityForm.uploadErrorDescription')}</p>
                   <pre className="mt-2 text-xs bg-red-50 p-2 rounded whitespace-pre-wrap">
-                    <strong>Código:</strong> {uploadError?.code || 'N/A'}
+                    <strong>{t('service.uploadCodeLabel')}</strong> {uploadError?.code || 'N/A'}
                     <br />
-                    <strong>Mensaje:</strong> {uploadError?.message || t('reports.unknownError')}
+                    <strong>{t('service.uploadMessageLabel')}</strong> {uploadError?.message || t('reports.unknownError')}
                   </pre>
                 </AlertDescription>
               </Alert>

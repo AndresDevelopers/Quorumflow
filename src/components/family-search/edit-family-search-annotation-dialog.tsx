@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { useI18n } from '@/contexts/i18n-context';
 
 interface EditFamilySearchAnnotationDialogProps {
   annotation: FamilySearchAnnotation | null;
@@ -29,6 +30,7 @@ export function EditFamilySearchAnnotationDialog({
   onOpenChange,
   onAnnotationUpdated,
 }: EditFamilySearchAnnotationDialogProps) {
+  const { t } = useI18n();
   const [editedNote, setEditedNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -62,16 +64,16 @@ export function EditFamilySearchAnnotationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar Anotación</DialogTitle>
+          <DialogTitle>{t('familySearch.editAnnotation.title')}</DialogTitle>
           <DialogDescription>
-            Modifica el contenido de la anotación de FamilySearch.
+            {t('familySearch.editAnnotation.description')}
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <Textarea
             value={editedNote}
             onChange={(e) => setEditedNote(e.target.value)}
-            placeholder="Escribe la anotación..."
+            placeholder={t('familySearch.editAnnotation.placeholder')}
             rows={4}
             className="resize-none"
           />
@@ -82,13 +84,13 @@ export function EditFamilySearchAnnotationDialog({
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
           >
-            Cancelar
+            {t('familySearch.editAnnotation.cancel')}
           </Button>
           <Button
             onClick={handleSave}
             disabled={isLoading || !editedNote.trim()}
           >
-            {isLoading ? 'Guardando...' : 'Guardar Cambios'}
+            {isLoading ? t('familySearch.editAnnotation.saving') : t('familySearch.editAnnotation.saveChanges')}
           </Button>
         </DialogFooter>
       </DialogContent>

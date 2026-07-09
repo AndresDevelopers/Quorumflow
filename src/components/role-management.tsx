@@ -118,8 +118,8 @@ export default function RoleManagement() {
     } catch (error) {
       logger.error({ error, message: 'Error saving user visibility', userId });
       toast({
-        title: 'Error',
-        description: 'No se pudo guardar la visibilidad del usuario.',
+        title: t('common.error'),
+        description: t('roleManagement.toast.visibilitySaveError'),
         variant: 'destructive',
       });
     } finally {
@@ -163,8 +163,8 @@ export default function RoleManagement() {
           const data = doc.data();
           usersList.push({
             uid: doc.id,
-            name: data.name || 'Sin nombre',
-            email: data.email || 'Sin email',
+            name: data.name || t('roleManagement.fallback.noName'),
+            email: data.email || t('roleManagement.fallback.noEmail'),
             role: normalizeRole(data.role),
             visiblePages: Array.isArray(data.visiblePages)
               ? data.visiblePages
@@ -184,8 +184,8 @@ export default function RoleManagement() {
       } catch (error) {
         logger.error({ error, message: 'Error loading users' });
         toast({
-          title: 'Error',
-          description: 'No se pudieron cargar los usuarios.',
+          title: t('common.error'),
+          description: t('roleManagement.toast.loadUsersError'),
           variant: 'destructive',
         });
       } finally {
@@ -232,8 +232,8 @@ export default function RoleManagement() {
       );
 
       toast({
-        title: 'Éxito',
-        description: 'El rol del usuario ha sido actualizado.',
+        title: t('common.success'),
+        description: t('roleManagement.toast.roleUpdated'),
       });
 
       logger.info({
@@ -245,8 +245,8 @@ export default function RoleManagement() {
     } catch (error) {
       logger.error({ error, message: 'Error updating user role', userId });
       toast({
-        title: 'Error',
-        description: 'No se pudo actualizar el rol del usuario.',
+        title: t('common.error'),
+        description: t('roleManagement.toast.roleUpdateError'),
         variant: 'destructive',
       });
     } finally {

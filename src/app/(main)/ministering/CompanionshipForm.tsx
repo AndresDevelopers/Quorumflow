@@ -30,19 +30,21 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Companionship, Member, MinisteringDistrict } from '@/lib/types';
 import { normalizeMemberStatus } from '@/lib/members-data';
 import { getAvailableCompanionMembers, getAvailableFamilyMembers, resolveSelectedDistrictId, validateCompanionshipData } from '@/lib/ministering-validations';
+import { useI18n } from '@/contexts/i18n-context';
 
-const companionshipSchema = z.object({
-   companions: z.array(z.object({
-     value: z.string().min(1, 'El nombre es requerido.'),
-     memberId: z.string().optional(),
-   })).min(2, { message: 'Se requieren al menos dos compañeros.' }),
-   families: z.array(z.object({
-     value: z.string().min(1, 'El nombre es requerido.'),
-     memberId: z.string().optional(),
-   })).min(1, { message: 'Se requiere al menos una familia.' }),
-});
+const createCompanionshipSchema = (t: (key: string, params?: Record<string, string | number>) => string) =>
+  z.object({
+    companions: z.array(z.object({
+      value: z.string().min(1, t('ministering.validation.nameRequired')),
+      memberId: z.string().optional(),
+    })).min(2, { message: t('ministering.validation.minCompanions') }),
+    families: z.array(z.object({
+      value: z.string().min(1, t('ministering.validation.nameRequired')),
+      memberId: z.string().optional(),
+    })).min(1, { message: t('ministering.validation.minFamilies') }),
+  });
 
-type FormValues = z.infer<typeof companionshipSchema>;
+type FormValues = z.infer<ReturnType<typeof createCompanionshipSchema>>;
 
 interface CompanionshipFormProps {
     companionship?: Companionship;
@@ -54,6 +56,7 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
    const router = useRouter();
    const { toast } = useToast();
    const { barrioOrg } = useAuth();
+   const { t } = useI18n();
    const [isSubmitting, setIsSubmitting] = useState(false);
 
    const isEditMode = !!companionship;
@@ -97,13 +100,13 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
     } catch (error) {
       console.error("Error loading members:", error);
       toast({
-        title: "Error",
-        description: "No se pudieron cargar los miembros.",
+        title: t('ministering.error'),
+        description: t('ministering.loadMembersError'),
         variant: "destructive",
       });
     }
     setLoadingMembers(false);
-  }, [toast, barrioOrg]);
+  }, [toast, barrioOrg, t]);
 
   useEffect(() => {
     loadMembers();
@@ -121,14 +124,14 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
       } catch (error) {
         logger.error({ error, message: 'Error loading companionships' });
         toast({
-          title: 'Error',
-          description: 'No se pudieron cargar los compañerismos.',
+          title: t('ministering.error'),
+          description: t('ministering.loadCompanionshipsError'),
           variant: 'destructive',
         });
       }
     };
     loadCompanionships();
-  }, [toast, barrioOrg]);
+  }, [toast, barrioOrg, t]);
 
   // Load districts
   useEffect(() => {
@@ -187,15 +190,15 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
       }
       
       setSelectedDistrictId(districtId);
-      toast({ title: 'Éxito', description: 'Distrito actualizado correctamente' });
+      toast({ title: t('ministering.success'), description: t('ministering.districtUpdatedDescription') });
     } catch (error) {
       logger.error({ error, message: "Failed to update district" });
-      toast({ title: 'Error', description: 'Error al actualizar el distrito', variant: "destructive" });
+      toast({ title: t('ministering.error'), description: t('ministering.districtUpdateErrorDescription'), variant: "destructive" });
     }
   };
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(companionshipSchema),
+    resolver: zodResolver(createCompanionshipSchema(t)),
     defaultValues,
   });
 
@@ -289,8 +292,8 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
     if (familyFields.length <= 1) {
       // No permitir eliminar la última familia
       toast({
-        title: "No se puede eliminar",
-        description: "Debe mantener al menos una familia en el compañerismo.",
+        title: t('ministering.cannotRemoveTitle'),
+        description: t('ministering.cannotRemoveLastFamily'),
         variant: "destructive",
       });
       return;
@@ -325,8 +328,8 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
 
         if (!validationResult.valid) {
           toast({
-            title: 'Error de Validación',
-            description: validationResult.error || 'Hay conflictos en la asignación',
+            title: t('ministering.validationErrorTitle'),
+            description: validationResult.error || t('ministering.validationConflictFallback'),
             variant: 'destructive',
           });
           setIsSubmitting(false);
@@ -395,8 +398,8 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
              });
 
              toast({
-                title: "Compañerismo Actualizado",
-                description: "Los cambios se han guardado correctamente.",
+                title: t('ministering.companionshipUpdatedTitle'),
+                description: t('ministering.companionshipUpdatedDescription'),
              });
              // Instead of router.push, we call a refresh or passed-in handler if available
              // For simplicity, we can let the parent page handle refresh logic.
@@ -431,16 +434,16 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
             }
 
             toast({
-                title: "Compañerismo Agregado",
-                description: "La asignación se ha guardado correctamente.",
+                title: t('ministering.companionshipAddedTitle'),
+                description: t('ministering.companionshipAddedDescription'),
             });
             router.push('/ministering');
         }
     } catch (error) {
       logger.error({ error, message: 'Error saving companionship' });
       toast({
-        title: 'Error',
-        description: 'No se pudo guardar la asignación.',
+        title: t('ministering.error'),
+        description: t('ministering.saveCompanionshipError'),
         variant: 'destructive',
       });
     } finally {
@@ -453,28 +456,28 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
-            <CardTitle>{isEditMode ? 'Editar Compañerismo' : 'Agregar Nuevo Compañerismo'}</CardTitle>
+            <CardTitle>{isEditMode ? t('ministering.editCompanionshipTitle') : t('ministering.addCompanionshipTitle')}</CardTitle>
             <CardDescription>
-              {isEditMode ? 'Actualiza los compañeros y las familias asignadas.' : 'Define los compañeros y las familias que ministrarán.'}
+              {isEditMode ? t('ministering.editCompanionshipDescription') : t('ministering.addCompanionshipDescription')}
               <br />
-              <span className="text-sm text-muted-foreground">Los campos marcados con * son obligatorios.</span>
+              <span className="text-sm text-muted-foreground">{t('ministering.requiredFieldsHint')}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Companion Entry Mode Selection */}
             <div className="space-y-4">
               <div>
-                <Label className="text-base font-medium">Método de Registro - Compañeros</Label>
-                <p className="text-sm text-muted-foreground">Selecciona los compañeros de la lista de miembros</p>
+                <Label className="text-base font-medium">{t('ministering.companionEntryMethod')}</Label>
+                <p className="text-sm text-muted-foreground">{t('ministering.companionEntryMethodHelp')}</p>
               </div>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <UserCheck className="h-4 w-4" />
-                <span>Automático - Seleccionar miembros existentes</span>
+                <span>{t('ministering.automaticSelectExisting')}</span>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Compañeros *</Label>
+              <Label>{t('ministering.companionsRequired')}</Label>
               {companionFields.map((field, index) => (
                 <FormField
                   key={field.id}
@@ -500,7 +503,7 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
                             >
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder={loadingMembers ? "Cargando..." : `Seleccionar compañero ${index + 1}`} />
+                                  <SelectValue placeholder={loadingMembers ? t('common.loading') : t('ministering.selectCompanionN', { n: index + 1 })} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -523,7 +526,7 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
                           </>
                         ) : (
                           <FormControl>
-                            <Input {...field} placeholder={`Compañero ${index + 1}`} />
+                            <Input {...field} placeholder={t('ministering.selectCompanionN', { n: index + 1 })} />
                           </FormControl>
                         )}
                         <Button type="button" variant="outline" size="icon" onClick={() => removeCompanion(index)} disabled={companionFields.length <= 2}>
@@ -538,24 +541,24 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
               ))}
               <Button type="button" variant="outline" size="sm" onClick={() => appendCompanion({ value: '', memberId: '' })}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Agregar Compañero
+                {t('ministering.addCompanion')}
               </Button>
             </div>
 
             {/* Family Entry Mode Selection */}
             <div className="space-y-4">
               <div>
-                <Label className="text-base font-medium">Método de Registro - Familias</Label>
-                <p className="text-sm text-muted-foreground">Selecciona las familias de la lista de miembros</p>
+                <Label className="text-base font-medium">{t('ministering.familyEntryMethod')}</Label>
+                <p className="text-sm text-muted-foreground">{t('ministering.familyEntryMethodHelp')}</p>
               </div>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <UserCheck className="h-4 w-4" />
-                <span>Automático - Seleccionar miembros existentes</span>
+                <span>{t('ministering.automaticSelectExisting')}</span>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Familias Asignadas *</Label>
+              <Label>{t('ministering.assignedFamiliesRequired')}</Label>
               {familyFields.map((field, index) => (
                  <FormField
                   key={field.id}
@@ -581,7 +584,7 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
                             >
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder={loadingMembers ? "Cargando..." : `Seleccionar familia ${index + 1}`} />
+                                  <SelectValue placeholder={loadingMembers ? t('common.loading') : t('ministering.selectFamilyN', { n: index + 1 })} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -594,7 +597,7 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
                                           {member.firstName.charAt(0)}{member.lastName.charAt(0)}
                                         </AvatarFallback>
                                       </Avatar>
-                                      Familia {member.lastName}
+                                      {t('ministering.familyOptionLabel', { lastName: member.lastName })}
                                     </div>
                                   </SelectItem>
                                 ))}
@@ -604,7 +607,7 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
                           </>
                         ) : (
                           <FormControl>
-                            <Input {...field} placeholder={`Familia ${index + 1}`} />
+                            <Input {...field} placeholder={t('ministering.selectFamilyN', { n: index + 1 })} />
                           </FormControl>
                         )}
                         <Button type="button" variant="outline" size="icon" onClick={() => handleRemoveFamily(index)} disabled={familyFields.length <= 1}>
@@ -619,15 +622,15 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
               ))}
               <Button type="button" variant="outline" size="sm" onClick={() => appendFamily({ value: '', memberId: '' })}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Agregar Familia
+                {t('ministering.addFamily')}
               </Button>
             </div>
 
             {/* District Selection */}
             <div className="space-y-4 pt-4 border-t">
               <div>
-                <Label className="text-base font-medium">Distrito de Ministración</Label>
-                <p className="text-sm text-muted-foreground">Selecciona el distrito al que pertenece este compañerismo</p>
+                <Label className="text-base font-medium">{t('ministering.districtSectionTitle')}</Label>
+                <p className="text-sm text-muted-foreground">{t('ministering.districtSectionHelp')}</p>
               </div>
               {isEditMode ? (
                 <Select
@@ -636,11 +639,11 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar distrito" />
+                      <SelectValue placeholder={t('ministering.selectDistrict')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="none">Sin distrito</SelectItem>
+                    <SelectItem value="none">{t('ministering.noDistrict')}</SelectItem>
                     {districts.map((district) => (
                       <SelectItem key={district.id} value={district.id}>
                         {district.name}
@@ -655,11 +658,11 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar distrito" />
+                      <SelectValue placeholder={t('ministering.selectDistrict')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="none">Sin distrito</SelectItem>
+                    <SelectItem value="none">{t('ministering.noDistrict')}</SelectItem>
                     {districts.map((district) => (
                       <SelectItem key={district.id} value={district.id}>
                         {district.name}
@@ -673,15 +676,15 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
           <CardFooter className="flex justify-end gap-2">
               {isEditMode ? (
                  <Button type="button" variant="outline" onClick={onCancel}>
-                    Cancelar
+                    {t('common.cancel')}
                  </Button>
               ) : (
                 <Button variant="outline" asChild>
-                    <Link href="/ministering">Cancelar</Link>
+                    <Link href="/ministering">{t('common.cancel')}</Link>
                 </Button>
               )}
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+                {isSubmitting ? t('common.saving') : t('common.saveChanges')}
               </Button>
           </CardFooter>
         </Card>

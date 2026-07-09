@@ -47,16 +47,18 @@ import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { FutureMember } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 
-const futureMemberSchema = z.object({
-  name: z.string().min(2, { message: 'El nombre es requerido.' }),
-  baptismDate: z.date({
-    required_error: 'La fecha de bautismo es requerida.',
-  }),
-  isBaptized: z.boolean(),
-});
+const createFutureMemberSchema = (t: (key: string, params?: Record<string, string | number>) => string) =>
+  z.object({
+    name: z.string().min(2, { message: t('futureMembers.validation.nameRequired') }),
+    baptismDate: z.date({
+      required_error: t('futureMembers.validation.baptismDateRequired'),
+    }),
+    isBaptized: z.boolean(),
+  });
 
-type FormValues = z.infer<typeof futureMemberSchema>;
+type FormValues = z.infer<ReturnType<typeof createFutureMemberSchema>>;
 
 interface FutureMemberFormProps {
   futureMember?: FutureMember;
@@ -68,6 +70,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, barrioOrg } = useAuth();
+  const { t } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baptismPhotosInputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +81,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
   const [baptismPhotos, setBaptismPhotos] = useState<(string | File)[]>([]);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(futureMemberSchema),
+    resolver: zodResolver(createFutureMemberSchema(t)),
     defaultValues: {
       name: '',
       isBaptized: false,
@@ -114,8 +117,8 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
 
     if (file.size > MAX_FILE_SIZE) {
       toast({
-        title: 'Archivo demasiado grande',
-        description: 'El tamaño máximo de la imagen es de 20MB.',
+        title: t('futureMembers.fileTooLargeTitle'),
+        description: t('futureMembers.fileTooLargeDescription'),
         variant: 'destructive',
       });
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -141,8 +144,8 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
     const newFiles = Array.from(files).filter(file => {
         if (file.size > MAX_FILE_SIZE) {
             toast({
-                title: 'Archivo demasiado grande',
-                description: `El archivo ${file.name} supera los 20MB.`,
+                title: t('futureMembers.fileTooLargeTitle'),
+                description: t('futureMembers.fileTooLargeNamed', { name: file.name }),
                 variant: 'destructive',
             });
             return false;
@@ -159,7 +162,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
 
   const onSubmit = async (values: FormValues) => {
     if (!user) {
-      toast({ title: 'Error', description: 'Debes iniciar sesión para guardar.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('futureMembers.mustSignIn'), variant: 'destructive' });
       return;
     }
     setIsSubmitting(true);
@@ -218,14 +221,14 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
         const docRef = doc(futureMembersCollection, futureMember.id);
         await updateDoc(docRef, dataToSave);
         toast({
-          title: 'Futuro Miembro Actualizado',
-          description: 'Los datos han sido actualizados exitosamente.',
+          title: t('futureMembers.updatedTitle'),
+          description: t('futureMembers.updatedDescription'),
         });
       } else {
         await addDoc(futureMembersCollection, dataToSave);
         toast({
-          title: 'Futuro Miembro Agregado',
-          description: 'La persona ha sido registrada exitosamente.',
+          title: t('futureMembers.addedTitle'),
+          description: t('futureMembers.addedDescription'),
         });
       }
       router.push('/future-members');
@@ -233,8 +236,8 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
     } catch (e) {
       logger.error({ error: e, message: `Error ${isEditMode ? 'updating' : 'adding'} future member`, data: values });
       toast({
-        title: 'Error',
-        description: 'Hubo un error al guardar los datos.',
+        title: t('common.error'),
+        description: t('futureMembers.saveError'),
         variant: 'destructive',
       });
     } finally {
@@ -247,20 +250,20 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>{isEditMode ? 'Editar Futuro Miembro' : 'Agregar Futuro Miembro'}</CardTitle>
+            <CardTitle>{isEditMode ? t('futureMembers.editTitle') : t('futureMembers.addTitle')}</CardTitle>
             <CardDescription>
-              {isEditMode ? 'Actualiza los detalles de la persona.' : 'Ingresa los detalles y la fecha de bautismo programada.'}
+              {isEditMode ? t('futureMembers.editDescription') : t('futureMembers.addDescription')}
               <br />
-              <span className="text-sm text-muted-foreground">Los campos marcados con <span className="text-red-600">*</span> son obligatorios.</span>
+              <span className="text-sm text-muted-foreground">{t('futureMembers.requiredFieldsHint')}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <FormItem className="flex flex-col items-center">
-              <FormLabel>Foto de Perfil</FormLabel>
+              <FormLabel>{t('futureMembers.profilePhoto')}</FormLabel>
               <FormControl>
                 <div className="relative">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={previewUrl ?? undefined} alt="Vista previa" data-ai-hint="profile picture" />
+                    <AvatarImage src={previewUrl ?? undefined} alt={t('futureMembers.previewAlt')} data-ai-hint="profile picture" />
                     <AvatarFallback>
                       {isSubmitting ? <Loader2 className="animate-spin" /> : <User className="h-10 w-10 text-muted-foreground" />}
                     </AvatarFallback>
@@ -280,7 +283,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
               </FormControl>
               <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting}>
                 <Upload className="mr-2 h-4 w-4" />
-                {previewUrl ? 'Cambiar Imagen' : 'Subir Imagen'}
+                {previewUrl ? t('futureMembers.changeImage') : t('futureMembers.uploadImage')}
               </Button>
               <Input
                 type="file"
@@ -297,9 +300,9 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre Completo <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('futureMembers.fullName')} <span className="text-red-600">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: Maria González" {...field} />
+                    <Input placeholder={t('futureMembers.namePlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -310,7 +313,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
               name="baptismDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Fecha de Bautismo <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('futureMembers.baptismDate')} <span className="text-red-600">*</span></FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -324,7 +327,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
                           {field.value ? (
                             format(field.value, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                           ) : (
-                            <span>Selecciona una fecha</span>
+                            <span>{t('futureMembers.selectDate')}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -353,7 +356,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
-                      ¿Ya está bautizado?
+                      {t('futureMembers.isBaptized')}
                     </FormLabel>
                   </div>
                   <FormControl>
@@ -366,13 +369,13 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
               )}
             />
              <FormItem className="flex flex-col items-center">
-                <FormLabel>Fotos del Bautismo</FormLabel>
+                <FormLabel>{t('futureMembers.baptismPhotos')}</FormLabel>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
                     {baptismPhotos.map((photo, index) => (
                         <div key={index} className="relative">
                         <Image 
                             src={typeof photo === 'string' ? photo : URL.createObjectURL(photo)} 
-                            alt={`Bautismo ${index + 1}`} 
+                            alt={t('futureMembers.baptismPhotoAlt', { n: index + 1 })} 
                             width={240}
                             height={96}
                             className="w-full h-24 object-cover rounded-md"
@@ -393,7 +396,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
                 </div>
                 <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => baptismPhotosInputRef.current?.click()} disabled={isSubmitting}>
                     <Upload className="mr-2 h-4 w-4" />
-                    Agregar Fotos
+                    {t('futureMembers.addPhotos')}
                 </Button>
                 <Input 
                     type="file" 
@@ -408,10 +411,10 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button variant="outline" asChild>
-              <Link href="/future-members">Cancelar</Link>
+              <Link href="/future-members">{t('futureMembers.cancel')}</Link>
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar'}
+              {isSubmitting ? t('futureMembers.saving') : t('futureMembers.save')}
             </Button>
           </CardFooter>
         </Card>

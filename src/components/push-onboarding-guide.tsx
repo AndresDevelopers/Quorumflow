@@ -27,12 +27,14 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { usersCollection } from '@/lib/collections';
 import { normalizeRole, leadershipRoles } from '@/lib/roles';
 import logger from '@/lib/logger';
+import { useI18n } from '@/contexts/i18n-context';
 
 const DISMISSAL_COOLDOWN_MS = 15 * 24 * 60 * 60 * 1000; // 15 días
 
 export function PushOnboardingGuide() {
   const { user, firebaseUser, userRole } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [showGuide, setShowGuide] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
@@ -171,8 +173,8 @@ export function PushOnboardingGuide() {
   const handleActivate = async () => {
     if (!user || !firebaseUser) {
       toast({
-        title: 'Error',
-        description: 'No se puede activar las notificaciones en este momento.',
+        title: t('common.error'),
+        description: t('push.onboarding.toast.cannotEnable'),
         variant: 'destructive',
       });
       return;
@@ -181,8 +183,8 @@ export function PushOnboardingGuide() {
     const target = getCurrentPushSubscriptionTarget(user.uid);
     if (!target) {
       toast({
-        title: 'Error',
-        description: 'No se pudo identificar este dispositivo.',
+        title: t('common.error'),
+        description: t('push.onboarding.toast.deviceIdError'),
         variant: 'destructive',
       });
       return;
@@ -193,9 +195,8 @@ export function PushOnboardingGuide() {
       const fcmToken = await requestNotificationPermission();
       if (!fcmToken) {
         toast({
-          title: 'Permiso Denegado',
-          description:
-            'No se otorgó permiso para enviar notificaciones. Puedes activarlo más tarde desde Ajustes.',
+          title: t('push.onboarding.toast.permissionDeniedTitle'),
+          description: t('push.onboarding.toast.permissionDeniedDescription'),
           variant: 'destructive',
         });
         await handleDismiss();
@@ -215,15 +216,14 @@ export function PushOnboardingGuide() {
       setShowGuide(false);
 
       toast({
-        title: 'Notificaciones Activadas',
-        description:
-          'A partir de ahora recibirás novedades importantes de tu organización en tu celular.',
+        title: t('push.onboarding.toast.enabledTitle'),
+        description: t('push.onboarding.toast.enabledDescription'),
       });
 
       // Notificación de bienvenida
       if (Notification.permission === 'granted') {
-        new Notification('¡Notificaciones activadas!', {
-          body: 'Ahora recibirás recordatorios y novedades importantes de tu organización.',
+        new Notification(t('push.onboarding.nativeTitle'), {
+          body: t('push.onboarding.nativeBody'),
           icon: '/icono-app.png',
           badge: '/icono-app.png',
         });
@@ -231,8 +231,8 @@ export function PushOnboardingGuide() {
     } catch (error) {
       logger.error({ error, message: 'Error activating push from onboarding guide' });
       toast({
-        title: 'Error',
-        description: 'No se pudo activar las notificaciones. Intenta de nuevo desde Ajustes.',
+        title: t('common.error'),
+        description: t('push.onboarding.toast.activateError'),
         variant: 'destructive',
       });
       await handleDismiss();
@@ -256,23 +256,21 @@ export function PushOnboardingGuide() {
             <BellRing className="h-7 w-7 text-primary" />
           </div>
           <AlertDialogTitle className="text-center text-lg">
-            Mantente al tanto de tu organización
+            {t('push.onboarding.title')}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-center space-y-3">
             <p>
-              Como parte del liderazgo, es importante que recibas las novedades
-              de tu organización al instante. Activa las notificaciones push en
-              tu celular para no perderte:
+              {t('push.onboarding.description')}
             </p>
             <ul className="text-left list-disc list-inside space-y-1 text-sm">
-              <li>Cumpleaños de miembros</li>
-              <li>Familias que necesitan atención urgente</li>
-              <li>Actividades y servicios próximos</li>
-              <li>Asignaciones de la obra misional</li>
-              <li>Recordatorios del consejo</li>
+              <li>{t('push.onboarding.item.birthdays')}</li>
+              <li>{t('push.onboarding.item.urgentFamilies')}</li>
+              <li>{t('push.onboarding.item.activities')}</li>
+              <li>{t('push.onboarding.item.missionary')}</li>
+              <li>{t('push.onboarding.item.council')}</li>
             </ul>
             <p className="text-xs text-muted-foreground">
-              Puedes omitir este paso y configurarlo más tarde desde Ajustes.
+              {t('push.onboarding.skipHint')}
             </p>
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -283,7 +281,7 @@ export function PushOnboardingGuide() {
             className="w-full"
           >
             <Bell className="mr-2 h-4 w-4" />
-            {isLoading ? 'Activando...' : 'Activar notificaciones'}
+            {isLoading ? t('push.onboarding.activating') : t('push.onboarding.activate')}
           </AlertDialogAction>
           <AlertDialogCancel
             onClick={handleDismiss}
@@ -291,7 +289,7 @@ export function PushOnboardingGuide() {
             className="w-full"
           >
             <X className="mr-2 h-4 w-4" />
-            Omitir por ahora
+            {t('push.onboarding.skip')}
           </AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>

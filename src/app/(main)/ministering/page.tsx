@@ -105,10 +105,10 @@ export default function MinisteringPage() {
         updatedAt: serverTimestamp()
       }, { merge: true });
       setDistricts(prev => prev.map(d => d.id === districtId ? { ...d, ...updates } : d));
-      toast({ title: 'Éxito', description: 'Distrito actualizado correctamente' });
+      toast({ title: t('ministering.success'), description: t('ministering.districtUpdatedDescription') });
     } catch (error) {
       logger.error({ error, message: "Failed to update district" });
-      toast({ title: 'Error', description: 'Error al actualizar el distrito', variant: "destructive" });
+      toast({ title: t('ministering.error'), description: t('ministering.districtUpdateErrorDescription'), variant: "destructive" });
     }
   };
 
@@ -211,7 +211,7 @@ export default function MinisteringPage() {
   }, []);
 
   const renderUrgentIndicator = (observation?: string) => {
-    const reason = observation?.trim() || 'Sin observación.';
+    const reason = observation?.trim() || t('ministering.noObservation');
 
     if (isCoarsePointer) {
       return (
@@ -306,7 +306,7 @@ export default function MinisteringPage() {
         </div>
         <Card>
           <CardHeader>
-              <CardTitle className="text-lg">Distritos de Ministración</CardTitle>
+              <CardTitle className="text-lg">{t('ministering.districtsTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
@@ -339,31 +339,31 @@ export default function MinisteringPage() {
                       {district.name}
                       {isSelected && (
                         <span className="ml-auto text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                          Filtrado
+                          {t('ministering.filtered')}
                         </span>
                       )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2" onClick={(e) => e.stopPropagation()}>
                     <div className="text-sm">
-                      <p className="font-medium">Compañerismos: {districtCompanionships.length}</p>
-                      <p className="font-medium">Miembros totales: {totalMembers}</p>
-                      <p className="font-medium">Líder: {district.leaderName || 'No asignado'}</p>
+                      <p className="font-medium">{t('ministering.companionshipsCount', { count: districtCompanionships.length })}</p>
+                      <p className="font-medium">{t('ministering.totalMembersCount', { count: totalMembers })}</p>
+                      <p className="font-medium">{t('ministering.leaderLabel', { name: district.leaderName || t('ministering.notAssigned') })}</p>
                     </div>
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm" className="w-full">
                           <Settings className="mr-2 h-4 w-4" />
-                          Gestionar
+                          {t('ministering.manageDistrict')}
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Gestionar {district.name}</DialogTitle>
+                          <DialogTitle>{t('ministering.manageDistrictTitle', { name: district.name })}</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4">
                           <div>
-                            <label className="text-sm font-medium">Seleccionar compañerismos</label>
+                            <label className="text-sm font-medium">{t('ministering.selectCompanionships')}</label>
                             <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
                               {companionships.map(comp => (
                                 <div key={comp.id} className="flex items-center space-x-2">
@@ -378,21 +378,21 @@ export default function MinisteringPage() {
                                 </div>
                               ))}
                               {companionships.length === 0 && (
-                                <p className="text-sm text-muted-foreground">No hay compañerismos disponibles</p>
+                                <p className="text-sm text-muted-foreground">{t('ministering.noCompanionshipsAvailable')}</p>
                               )}
                             </div>
                           </div>
                           <div>
-                            <label className="text-sm font-medium">Líder del distrito</label>
+                            <label className="text-sm font-medium">{t('ministering.districtLeader')}</label>
                             <Select
                               value={district.leaderId || 'none'}
                               onValueChange={(value) => assignLeaderToDistrict(district.id, value === 'none' ? null : value)}
                             >
                               <SelectTrigger className="mt-1">
-                                <SelectValue placeholder="Seleccionar líder" />
+                                <SelectValue placeholder={t('ministering.selectLeader')} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="none">No asignado</SelectItem>
+                                <SelectItem value="none">{t('ministering.notAssigned')}</SelectItem>
                                 {members.map(member => (
                                   <SelectItem key={member.id} value={member.id}>
                                     {member.firstName} {member.lastName}
@@ -423,7 +423,7 @@ export default function MinisteringPage() {
                     className="gap-1"
                   >
                     <X className="h-3 w-3" />
-                    Mostrar todos
+                    {t('ministering.showAll')}
                   </Button>
                 )}
               </div>
@@ -444,7 +444,7 @@ export default function MinisteringPage() {
                     <TableRow>
                     <TableHead>{t('ministering.companions')}</TableHead>
                     <TableHead>{t('ministering.assignedFamilies')}</TableHead>
-                    <TableHead>Distrito</TableHead>
+                    <TableHead>{t('ministering.district')}</TableHead>
                     <TableHead className="text-right">
                         {t('ministering.actions')}
                     </TableHead>
@@ -482,7 +482,7 @@ export default function MinisteringPage() {
                           ))}
                         </TableCell>
                         <TableCell>
-                          {companionshipDistrictMap.get(item.id)?.join(', ') || 'No asignado'}
+                          {companionshipDistrictMap.get(item.id)?.join(', ') || t('ministering.notAssigned')}
                         </TableCell>
                         <TableCell className="text-right">
                             <Button variant="outline" size="sm" asChild>
@@ -539,8 +539,8 @@ export default function MinisteringPage() {
                               ))}
                            </div>
                            <div>
-                               <p className="font-semibold text-muted-foreground">Distrito</p>
-                               <p>{companionshipDistrictMap.get(item.id)?.join(', ') || 'No asignado'}</p>
+                               <p className="font-semibold text-muted-foreground">{t('ministering.district')}</p>
+                               <p>{companionshipDistrictMap.get(item.id)?.join(', ') || t('ministering.notAssigned')}</p>
                            </div>
                         </CardContent>
                     </Card>
@@ -552,7 +552,7 @@ export default function MinisteringPage() {
             {!loading && filteredCompanionships.length === 0 && (
                 <div className="text-center p-8 text-muted-foreground">
                     {selectedDistrictId 
-                      ? 'No hay ministrantes en este distrito' 
+                      ? t('ministering.noCompanionshipsInDistrict')
                       : t('ministering.noCompanionships')
                     }
                 </div>

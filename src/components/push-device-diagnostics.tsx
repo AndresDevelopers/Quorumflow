@@ -11,13 +11,14 @@ import type { BrowserPushDiagnostics, PushDiagnosticsResponse, PushSubscriptionD
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useI18n } from '@/contexts/i18n-context';
 
-function formatIsoDate(value: string | null): string {
+function formatIsoDate(value: string | null, fallback: string, language: string): string {
   if (!value) {
-    return 'Sin datos';
+    return fallback;
   }
 
-  return new Intl.DateTimeFormat('es-EC', {
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'es-EC', {
     dateStyle: 'medium',
     timeStyle: 'medium',
     timeZone: 'America/Guayaquil',
@@ -39,6 +40,7 @@ function getResultVariant(result: PushSubscriptionDiagnostic['lastPushResult']) 
 export function PushDeviceDiagnostics() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t, language } = useI18n();
   const [browserDiagnostics, setBrowserDiagnostics] = useState<BrowserPushDiagnostics | null>(null);
   const [serverDiagnostics, setServerDiagnostics] = useState<PushDiagnosticsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +75,7 @@ export function PushDeviceDiagnostics() {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(payload?.details ?? payload?.error ?? 'No se pudo cargar el diagnostico push.');
+        throw new Error(payload?.details ?? payload?.error ?? t('push.diagnostics.loadError'));
       }
 
       const payload = await response.json() as PushDiagnosticsResponse;
@@ -83,15 +85,18 @@ export function PushDeviceDiagnostics() {
 
       if (runDryCheck) {
         toast({
-          title: 'Prueba de push completada',
-          description: `Tokens revisados: ${payload.dryRunSummary?.tokensChecked ?? 0}. Exitosos: ${payload.dryRunSummary?.successCount ?? 0}.`,
+          title: t('push.diagnostics.dryRunDoneTitle'),
+          description: t('push.diagnostics.dryRunDoneDescription', {
+            checked: payload.dryRunSummary?.tokensChecked ?? 0,
+            success: payload.dryRunSummary?.successCount ?? 0,
+          }),
         });
       }
     } catch (loadError) {
-      const message = loadError instanceof Error ? loadError.message : 'No se pudo cargar el diagnostico push.';
+      const message = loadError instanceof Error ? loadError.message : t('push.diagnostics.loadError');
       setError(message);
       toast({
-        title: 'Error de diagnostico',
+        title: t('push.diagnostics.toastErrorTitle'),
         description: message,
         variant: 'destructive',
       });
@@ -99,7 +104,7 @@ export function PushDeviceDiagnostics() {
       setIsLoading(false);
       setIsDryRunLoading(false);
     }
-  }, [toast, user]);
+  }, [toast, user, t]);
 
   useEffect(() => {
     if (!user) {
@@ -130,10 +135,10 @@ export function PushDeviceDiagnostics() {
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2">
               <Smartphone className="h-4 w-4" />
-              Push en este dispositivo
+              {t('push.diagnostics.title')}
             </CardTitle>
             <CardDescription>
-              Estado local del navegador, suscripcion guardada en Firestore y ultima validacion del servidor.
+              {t('push.diagnostics.description')}
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -145,7 +150,7 @@ export function PushDeviceDiagnostics() {
               disabled={isLoading || isDryRunLoading}
             >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-              Actualizar
+              {t('push.diagnostics.refresh')}
             </Button>
             <Button
               type="button"
@@ -169,41 +174,41 @@ export function PushDeviceDiagnostics() {
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-md border p-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Compatibilidad</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.compatibility')}</div>
             <div className="mt-2 flex items-center gap-2">
               <Badge variant={browserDiagnostics?.isSupported ? 'default' : 'secondary'}>
-                {browserDiagnostics?.isSupported ? 'Compatible' : 'No compatible'}
+                {browserDiagnostics?.isSupported ? t('push.diagnostics.compatible') : t('push.diagnostics.notCompatible')}
               </Badge>
-              <Badge variant="outline">{browserDiagnostics?.permission ?? 'Cargando'}</Badge>
+              <Badge variant="outline">{browserDiagnostics?.permission ?? t('push.diagnostics.loading')}</Badge>
             </div>
           </div>
 
           <div className="rounded-md border p-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Service Worker</div>
-            <div className="mt-2 font-medium">{browserDiagnostics?.serviceWorkerScriptUrl ?? 'No registrado'}</div>
-            <div className="text-xs text-muted-foreground">{browserDiagnostics?.serviceWorkerState ?? 'Sin estado'}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.serviceWorker')}</div>
+            <div className="mt-2 font-medium">{browserDiagnostics?.serviceWorkerScriptUrl ?? t('push.diagnostics.notRegistered')}</div>
+            <div className="text-xs text-muted-foreground">{browserDiagnostics?.serviceWorkerState ?? t('push.diagnostics.noState')}</div>
           </div>
 
           <div className="rounded-md border p-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Device ID</div>
-            <div className="mt-2 break-all font-mono text-xs">{browserDiagnostics?.deviceId ?? 'No disponible'}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.deviceId')}</div>
+            <div className="mt-2 break-all font-mono text-xs">{browserDiagnostics?.deviceId ?? t('push.diagnostics.notAvailable')}</div>
           </div>
 
           <div className="rounded-md border p-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Flag de usuario</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.userFlag')}</div>
             <div className="mt-2 flex items-center gap-2">
               <Badge variant={serverDiagnostics?.pushNotificationsEnabled ? 'default' : 'secondary'}>
-                {serverDiagnostics?.pushNotificationsEnabled ? 'Push activado' : 'Push desactivado'}
+                {serverDiagnostics?.pushNotificationsEnabled ? t('push.diagnostics.pushEnabled') : t('push.diagnostics.pushDisabled')}
               </Badge>
               <Badge variant={serverDiagnostics?.inAppNotificationsEnabled ? 'outline' : 'secondary'}>
-                {serverDiagnostics?.inAppNotificationsEnabled ? 'In-app activa' : 'In-app desactivada'}
+                {serverDiagnostics?.inAppNotificationsEnabled ? t('push.diagnostics.inAppEnabled') : t('push.diagnostics.inAppDisabled')}
               </Badge>
             </div>
           </div>
 
           <div className="rounded-md border p-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Servidor</div>
-            <div className="mt-2 text-sm">{serverDiagnostics?.serverTimeEcuador ?? 'Sin datos'}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.server')}</div>
+            <div className="mt-2 text-sm">{serverDiagnostics?.serverTimeEcuador ?? t('push.diagnostics.noData')}</div>
             <div className="text-xs text-muted-foreground">{serverDiagnostics?.serverTimeUtc ?? ''}</div>
           </div>
 
@@ -211,13 +216,16 @@ export function PushDeviceDiagnostics() {
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Dry-run</div>
             <div className="mt-2 text-sm">
               {serverDiagnostics?.dryRunSummary
-                ? `${serverDiagnostics.dryRunSummary.successCount}/${serverDiagnostics.dryRunSummary.tokensChecked} tokens validos`
-                : 'Aun no ejecutado'}
+                ? t('push.diagnostics.tokensValid', {
+                    success: serverDiagnostics.dryRunSummary.successCount,
+                    checked: serverDiagnostics.dryRunSummary.tokensChecked,
+                  })
+                : t('push.diagnostics.notRunYet')}
             </div>
             <div className="text-xs text-muted-foreground">
               {serverDiagnostics?.dryRunSummary
-                ? `${serverDiagnostics.dryRunSummary.failureCount} fallidos`
-                : 'Usa el boton Dry-run para validar FCM'}
+                ? t('push.diagnostics.failures', { count: serverDiagnostics.dryRunSummary.failureCount })
+                : t('push.diagnostics.dryRunHint')}
             </div>
           </div>
         </div>
@@ -225,39 +233,39 @@ export function PushDeviceDiagnostics() {
         <div className="rounded-md border p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <div className="font-medium">Suscripcion actual</div>
+              <div className="font-medium">{t('push.diagnostics.currentSubscription')}</div>
               <div className="text-xs text-muted-foreground">
-                Coincidencia entre el dispositivo local y el documento en `c_push_subscriptions`.
+                {t('push.diagnostics.currentSubscriptionHint')}
               </div>
             </div>
             <Badge variant={currentDeviceSubscription?.hasToken ? 'default' : 'secondary'}>
-              {currentDeviceSubscription?.hasToken ? 'Token presente' : 'Sin token'}
+              {currentDeviceSubscription?.hasToken ? t('push.diagnostics.tokenPresent') : t('push.diagnostics.noToken')}
             </Badge>
           </div>
 
           {currentDeviceSubscription ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Documento</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.document')}</div>
                 <div className="mt-1 break-all font-mono text-xs">{currentDeviceSubscription.docId}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Actualizado</div>
-                <div className="mt-1">{formatIsoDate(currentDeviceSubscription.updatedAt)}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.updated')}</div>
+                <div className="mt-1">{formatIsoDate(currentDeviceSubscription.updatedAt, t('push.diagnostics.noData'), language)}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Suscrito</div>
-                <div className="mt-1">{formatIsoDate(currentDeviceSubscription.subscribedAt)}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.subscribed')}</div>
+                <div className="mt-1">{formatIsoDate(currentDeviceSubscription.subscribedAt, t('push.diagnostics.noData'), language)}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Ultimo intento</div>
-                <div className="mt-1">{formatIsoDate(currentDeviceSubscription.lastPushAttemptAt)}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.lastAttempt')}</div>
+                <div className="mt-1">{formatIsoDate(currentDeviceSubscription.lastPushAttemptAt, t('push.diagnostics.noData'), language)}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Resultado</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.result')}</div>
                 <div className="mt-1 flex items-center gap-2">
                   <Badge variant={getResultVariant(currentDeviceSubscription.lastPushResult)}>
-                    {currentDeviceSubscription.lastPushResult ?? 'Sin intentos'}
+                    {currentDeviceSubscription.lastPushResult ?? t('push.diagnostics.noAttempts')}
                   </Badge>
                   {currentDeviceSubscription.lastPushAttemptMode && (
                     <Badge variant="outline">{currentDeviceSubscription.lastPushAttemptMode}</Badge>
@@ -265,21 +273,21 @@ export function PushDeviceDiagnostics() {
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Error</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('common.error')}</div>
                 <div className="mt-1 break-all text-xs">
                   {currentDeviceSubscription.dryRunErrorCode ??
                     currentDeviceSubscription.lastPushErrorCode ??
-                    'Sin error'}
+                    t('push.diagnostics.noError')}
                 </div>
               </div>
               <div className="md:col-span-2 xl:col-span-3">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Ultimo tag</div>
-                <div className="mt-1 break-all text-xs">{currentDeviceSubscription.lastNotificationTag ?? 'Sin tag'}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('push.diagnostics.lastTag')}</div>
+                <div className="mt-1 break-all text-xs">{currentDeviceSubscription.lastNotificationTag ?? t('push.diagnostics.noTag')}</div>
               </div>
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">
-              Este dispositivo aun no tiene un documento de suscripcion asociado en Firestore.
+              {t('push.diagnostics.noSubscriptionDoc')}
             </div>
           )}
         </div>

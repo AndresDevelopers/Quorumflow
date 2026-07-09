@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import logger from '@/lib/logger';
@@ -181,7 +181,7 @@ export default function BirthdaysPage() {
             </div>
         </TableCell>
         <TableCell>
-          {format(item.nextBirthday, "d 'de' LLLL", { locale: es })}
+          {format(item.nextBirthday, t("birthdays.dateLong"), { locale: getDateFnsLocale() })}
         </TableCell>
         <TableCell className="text-right flex gap-2 justify-end">
           {canWrite ? (
@@ -261,7 +261,7 @@ export default function BirthdaysPage() {
                     <TooltipContent>
                       <p className="font-semibold">{b.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {format((b as any).nextBirthday, `'${t('birthdays.birthsOn')}' d 'de' LLLL`, { locale: es })}
+                        {format((b as any).nextBirthday, `'${t('birthdays.birthsOn')}' ${t('birthdays.dateLong')}`, { locale: getDateFnsLocale() })}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -330,7 +330,7 @@ export default function BirthdaysPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(item.nextBirthday, "d 'de' LLLL", { locale: es })}
+                      {format(item.nextBirthday, t("birthdays.dateLong"), { locale: getDateFnsLocale() })}
                     </p>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">

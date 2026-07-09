@@ -43,7 +43,9 @@ export const metadata: Metadata = {
   description: appDescription,
   keywords: [
     "gestión de quórum",
+    "gestión de sociedad de socorro",
     "presidencia de quórum",
+    "presidencia de sociedad de socorro",
     "quorum de elderes",
     "sociedad de socorro",
     "relief society",

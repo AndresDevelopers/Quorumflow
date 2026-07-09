@@ -34,7 +34,8 @@ import { useAuth } from "@/contexts/auth-context";
 import logger from "@/lib/logger";
 import type { AuditAction } from "@/lib/audit-logger";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { useI18n } from "@/contexts/i18n-context";
+import { getDateFnsLocale } from "@/lib/i18n-date";
 
 interface AuditDoc {
   id: string;
@@ -50,45 +51,37 @@ interface AuditDoc {
 
 const ACTION_META: Record<
   AuditAction,
-  { label: string; icon: typeof UserCog; color: string }
+  { icon: typeof UserCog; color: string }
 > = {
   "user.role_changed": {
-    label: "Cambio de rol",
     icon: ShieldCheck,
     color: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
   },
   "user.visibility_changed": {
-    label: "Cambio de visibilidad",
     icon: Eye,
     color: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
   },
   "user.bulk_role_changed": {
-    label: "Cambio masivo de roles",
     icon: ShieldAlert,
     color: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
   },
   "member.status_changed": {
-    label: "Cambio de estado de miembro",
     icon: UserCog,
     color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   },
   "member.deleted": {
-    label: "Miembro eliminado",
     icon: Trash2,
     color: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
   },
   "user.permission_changed": {
-    label: "Cambio de permiso",
     icon: ShieldCheck,
     color: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
   },
   "user.bulk_permission_changed": {
-    label: "Permisos masivos",
     icon: ShieldAlert,
     color: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
   },
   "user.deleted": {
-    label: "Usuario eliminado",
     icon: Trash2,
     color: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
   },
@@ -97,6 +90,8 @@ const ACTION_META: Record<
 export default function AdminAuditPage() {
   const { toast } = useToast();
   const { barrioOrg } = useAuth();
+  const { t } = useI18n();
+  const dateLocale = getDateFnsLocale();
   const [entries, setEntries] = useState<AuditDoc[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<AuditAction | "all">("all");
@@ -126,8 +121,8 @@ export default function AdminAuditPage() {
       } catch (err) {
         logger.error({ error: err, message: "Error loading audit log" });
         toast({
-          title: "Aviso",
-          description: "No se pudo cargar la bitácora. La colección puede no existir todavía.",
+          title: t("admin.audit.toast.title"),
+          description: t("admin.audit.toast.description"),
           variant: "destructive",
         });
       } finally {
@@ -145,11 +140,11 @@ export default function AdminAuditPage() {
         <div className="flex items-center gap-2">
           <ScrollText className="h-6 w-6 text-primary" />
           <h1 className="text-balance text-fluid-title font-semibold">
-            Bitácora de auditoría
+            {t("admin.audit.title")}
           </h1>
         </div>
         <p className="text-balance text-fluid-subtitle text-muted-foreground">
-          Historial de cambios administrativos de tu barrio y organización.
+          {t("admin.audit.subtitle")}
         </p>
       </header>
 
@@ -157,10 +152,10 @@ export default function AdminAuditPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <History className="h-4 w-4" />
-            Eventos ({filtered.length})
+            {t("admin.audit.events", { count: filtered.length })}
           </CardTitle>
           <CardDescription>
-            Se muestran los últimos 200 eventos. Filtra por tipo para acotar.
+            {t("admin.audit.eventsDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -169,10 +164,10 @@ export default function AdminAuditPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los eventos</SelectItem>
+              <SelectItem value="all">{t("admin.audit.allEvents")}</SelectItem>
               {Object.entries(ACTION_META).map(([key, meta]) => (
                 <SelectItem key={key} value={key}>
-                  {meta.label}
+                  {t(`audit.action.${key}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -186,13 +181,12 @@ export default function AdminAuditPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              No hay eventos registrados con el filtro actual.
+              {t("admin.audit.empty")}
             </div>
           ) : (
             <div className="space-y-2">
               {filtered.map((entry) => {
                 const meta = ACTION_META[entry.action] || {
-                  label: entry.action,
                   icon: ScrollText,
                   color: "bg-muted text-foreground",
                 };
@@ -213,7 +207,7 @@ export default function AdminAuditPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="secondary" className={meta.color}>
-                          {meta.label}
+                          {t(`audit.action.${entry.action}`)}
                         </Badge>
                         {entry.targetName && (
                           <span className="text-sm font-medium truncate">
@@ -222,10 +216,10 @@ export default function AdminAuditPage() {
                         )}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Por {entry.actorName || entry.actorUid} ·{" "}
+                        {t("admin.audit.byPrefix", { actor: entry.actorName || entry.actorUid })}{" "}
                         {date
-                          ? format(date, "PPPp", { locale: es })
-                          : "Fecha desconocida"}
+                          ? format(date, "PPPp", { locale: dateLocale })
+                          : t("admin.audit.unknownDate")}
                       </p>
                       {(barrio || organizacion) && (
                         <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground/70">
@@ -238,7 +232,7 @@ export default function AdminAuditPage() {
                       {entry.details && Object.keys(entry.details).length > 0 && (
                         <details className="mt-1 text-xs">
                           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                            Ver detalles
+                            {t("admin.audit.viewDetails")}
                           </summary>
                           <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-[10px]">
                             {JSON.stringify(entry.details, null, 2)}

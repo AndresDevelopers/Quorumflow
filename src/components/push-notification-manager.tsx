@@ -223,7 +223,7 @@ export function PushNotificationManager() {
                 <li>Cumpleanos de miembros</li>
                 <li>Servicios proximos</li>
                 <li>Necesidades urgentes de ministracion</li>
-                <li>Actividades del quorum</li>
+                <li>Actividades de tu organización</li>
                 <li>Asignaciones de la obra misional</li>
               </ul>
             </AlertDialogDescription>

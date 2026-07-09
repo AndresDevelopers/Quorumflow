@@ -20,7 +20,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { usersCollection, storage, membersCollection } from '@/lib/collections';
 import type { Member } from '@/lib/types';
 import { format, differenceInYears } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -356,7 +356,7 @@ export default function ProfilePage() {
                             {displayEmail && <CardDescription>{displayEmail}</CardDescription>}
                             {effectiveBirthDate && (
                                 <CardDescription>
-                                    Nacimiento: {format(effectiveBirthDate.toDate(), 'd LLLL yyyy', { locale: es })} ({differenceInYears(new Date(), effectiveBirthDate.toDate())})
+                                    Nacimiento: {format(effectiveBirthDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })} ({differenceInYears(new Date(), effectiveBirthDate.toDate())})
                                 </CardDescription>
                             )}
                             {effectiveMemberId && (
@@ -411,7 +411,7 @@ export default function ProfilePage() {
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                         <Church className="h-3.5 w-3.5 shrink-0" />
                                         <span>
-                                            Nacimiento: {format(syncedMember.birthDate.toDate(), 'd LLLL yyyy', { locale: es })} ({differenceInYears(new Date(), syncedMember.birthDate.toDate())} años)
+                                            Nacimiento: {format(syncedMember.birthDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })} ({differenceInYears(new Date(), syncedMember.birthDate.toDate())} años)
                                         </span>
                                     </div>
                                 )}
@@ -420,7 +420,7 @@ export default function ProfilePage() {
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                         <Droplets className="h-3.5 w-3.5 shrink-0" />
                                         <span>
-                                            Bautismo: {format(syncedMember.baptismDate.toDate(), 'd LLLL yyyy', { locale: es })}
+                                            Bautismo: {format(syncedMember.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
                                         </span>
                                     </div>
                                 )}

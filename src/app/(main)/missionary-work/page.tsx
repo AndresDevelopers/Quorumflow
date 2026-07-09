@@ -128,31 +128,29 @@ import { FriendshipForm } from './FriendshipForm';
 import { analyzeImage } from '@/ai/flows/analyze-image-flow';
 import { VoiceAnnotations } from '@/components/shared/voice-annotations';
 import { AnnotationManager } from '@/components/shared/annotation-manager';
+import { useI18n } from '@/contexts/i18n-context';
 
 
-const faqData = [
-  {
-    question: '¿Cuál es el rol del Quórum de Élderes en la obra misional?',
-    answer:
-      'El Quórum de Élderes, bajo la dirección del obispo, lidera la obra misional en el barrio. Su responsabilidad principal es coordinar los esfuerzos de los miembros para encontrar, enseñar y bautizar a personas interesadas. Esto incluye trabajar de cerca con los misioneros de tiempo completo, organizar actividades misionales y asegurarse de que los nuevos conversos sean integrados y apoyados.',
-  },
-  {
-    question: '¿Cómo trabajamos con los misioneros de tiempo completo?',
-    answer:
-      'La colaboración es clave. La presidencia del quórum debe reunirse regularmente con los misioneros en las reuniones de correlación misional para coordinar planes. Los miembros del quórum pueden ayudar a los misioneros proveyendo referencias, participando en las lecciones, ofreciendo transporte y abriendo sus hogares para actividades.',
-  },
-  {
-    question:
-      '¿Qué significa "asignar amigos" a un nuevo converso y por qué es importante?',
-    answer:
-      'Asignar amigos (a menudo llamados "compañeros ministrantes" o simplemente amigos del quórum) es crucial para la retención de nuevos miembros. Un nuevo converso necesita apoyo, amistad y guía. Asignar a uno o dos hermanos del quórum para que se hagan amigos del nuevo miembro, lo visiten, lo inviten a actividades y respondan sus preguntas, le ayuda a sentirse parte de la comunidad y a fortalecer su testimonio.',
-  },
-  {
-    question: '¿Qué tipo de asignaciones misionales puede tener el quórum?',
-    answer:
-      'Las asignaciones pueden ser variadas: acompañar a los misioneros a dar una lección, invitar a un amigo a una actividad de la Iglesia, compartir un mensaje del Evangelio en redes sociales, ayudar a un investigador con una mudanza como acto de servicio, u organizar una noche de hogar abierta a amigos de la Iglesia.',
-  },
-];
+const getFaqData = (t: (key: string) => string) => {
+  return [
+    {
+      question: t('missionaryWork.faq.q1'),
+      answer: t('missionaryWork.faq.a1'),
+    },
+    {
+      question: t('missionaryWork.faq.q2'),
+      answer: t('missionaryWork.faq.a2'),
+    },
+    {
+      question: t('missionaryWork.faq.q3'),
+      answer: t('missionaryWork.faq.a3'),
+    },
+    {
+      question: t('missionaryWork.faq.q4'),
+      answer: t('missionaryWork.faq.a4'),
+    },
+  ];
+};
 
 // --- Client-side Data Fetching Functions ---
 
@@ -288,6 +286,7 @@ function AssignmentsTab({
   user: any;
   barrioOrg: string;
 }) {
+  const { t } = useI18n();
   const handleAddAssignment = async (description: string) => {
     if (!user) return;
 
@@ -316,11 +315,11 @@ function AssignmentsTab({
     <Card>
       <CardContent className="pt-6">
         <AnnotationManager
-          title="Asignaciones Misionales"
-          description="Tareas y responsabilidades para apoyar la obra en el barrio."
-          buttonText="Asignación"
-          dialogTitle="Nueva Asignación"
-          placeholder="Ej: Acompañar a los misioneros..."
+          title={t('missionaryWork.assignments.title')}
+          description={t('missionaryWork.assignments.description')}
+          buttonText={t('missionaryWork.assignments.addAssignment')}
+          dialogTitle={t('missionaryWork.assignments.newAssignmentTitle')}
+          placeholder={t('missionaryWork.assignments.descriptionPlaceholder')}
           items={assignments.map(assignment => ({
             id: assignment.id,
             description: assignment.description,
@@ -333,7 +332,7 @@ function AssignmentsTab({
           onAdd={handleAddAssignment}
           onToggle={handleToggleAssignment}
           onDelete={handleDeleteAssignment}
-          emptyMessage="No hay asignaciones."
+          emptyMessage={t('missionaryWork.assignments.noAssignments')}
           currentUserId={user?.uid}
         />
       </CardContent>
@@ -355,6 +354,7 @@ function InvestigatorsTab({
   barrioOrg: string;
 }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [isAddOpen, setAddOpen] = useState(false);
   const [isLinkOpen, setLinkOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -377,7 +377,7 @@ function InvestigatorsTab({
 
   const startRecordingName = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast({ title: 'Error', description: 'Reconocimiento de voz no soportado en este navegador.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceUnsupported'), variant: 'destructive' });
       return;
     }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -394,7 +394,7 @@ function InvestigatorsTab({
     recognition.onerror = (event: any) => {
       console.error('Error en reconocimiento de voz', event.error);
       setIsRecordingName(false);
-      toast({ title: 'Error', description: 'Error en el reconocimiento de voz.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceError'), variant: 'destructive' });
     };
     recognitionNameRef.current = recognition;
     recognition.start();
@@ -416,7 +416,7 @@ function InvestigatorsTab({
 
   const startRecordingMissionaries = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast({ title: 'Error', description: 'Reconocimiento de voz no soportado en este navegador.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceUnsupported'), variant: 'destructive' });
       return;
     }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -433,7 +433,7 @@ function InvestigatorsTab({
     recognition.onerror = (event: any) => {
       console.error('Error en reconocimiento de voz', event.error);
       setIsRecordingMissionaries(false);
-      toast({ title: 'Error', description: 'Error en el reconocimiento de voz.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceError'), variant: 'destructive' });
     };
     recognitionMissionariesRef.current = recognition;
     recognition.start();
@@ -467,14 +467,14 @@ function InvestigatorsTab({
   const [linkErrors, setLinkErrors] = useState<{ convertId?: string[] }>({});
 
   const investigatorSchema = z.object({
-    name: z.string().min(2, 'El nombre es requerido.'),
+    name: z.string().min(2, t('missionaryWork.investigators.validation.nameRequired')),
     missionaries: z
       .string()
-      .min(5, 'El nombre de los misioneros es requerido.'),
+      .min(5, t('missionaryWork.investigators.validation.missionariesRequired')),
   });
 
   const linkInvestigatorSchema = z.object({
-    convertId: z.string().min(1, 'Debe seleccionar un converso.'),
+    convertId: z.string().min(1, t('missionaryWork.investigators.validation.convertRequired')),
   });
 
   const handleAddSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -495,7 +495,7 @@ function InvestigatorsTab({
           createdAt: serverTimestamp(),
           barrioOrg,
         });
-        toast({ title: 'Éxito', description: 'Investigador agregado.' });
+        toast({ title: t('missionaryWork.success'), description: t('missionaryWork.investigators.successAdd') });
         setAddOpen(false);
         setName('');
         setMissionaries('');
@@ -503,8 +503,8 @@ function InvestigatorsTab({
       } catch (error) {
         logger.error({ error, message: 'Error adding investigator' });
         toast({
-          title: 'Error',
-          description: 'No se pudo agregar el investigador.',
+          title: t('common.error'),
+          description: t('missionaryWork.investigators.errorAdd'),
           variant: 'destructive',
         });
       }
@@ -542,8 +542,8 @@ function InvestigatorsTab({
         });
 
         toast({
-          title: 'Éxito',
-          description: 'Investigador vinculado a converso.',
+          title: t('missionaryWork.success'),
+          description: t('missionaryWork.investigators.successLink'),
         });
         setLinkOpen(false);
         setSelectedInvestigator(null);
@@ -555,8 +555,8 @@ function InvestigatorsTab({
           message: 'Error linking investigator to convert',
         });
         toast({
-          title: 'Error',
-          description: 'No se pudo vincular al investigador.',
+          title: t('common.error'),
+          description: t('missionaryWork.investigators.errorLink'),
           variant: 'destructive',
         });
       }
@@ -567,14 +567,14 @@ function InvestigatorsTab({
     startTransition(async () => {
         try {
             await deleteDoc(doc(investigatorsCollection, investigator.id));
-            toast({ title: 'Éxito', description: 'Investigador eliminado.' });
+             toast({ title: t('missionaryWork.success'), description: t('missionaryWork.investigators.successDelete') });
             onRefresh();
         } catch (error) {
             logger.error({ error, message: 'Error deleting investigator' });
             toast({
-                title: 'Error',
-                description: 'No se pudo eliminar al investigador.',
-                variant: 'destructive',
+                 title: t('common.error'),
+                 description: t('missionaryWork.investigators.errorDelete'),
+                 variant: 'destructive',
             });
         }
     });
@@ -585,33 +585,33 @@ function InvestigatorsTab({
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle>Investigadores</CardTitle>
+            <CardTitle>{t('missionaryWork.investigators.title')}</CardTitle>
             <CardDescription>
-              Personas que están aprendiendo sobre el evangelio.
+              {t('missionaryWork.investigators.description')}
             </CardDescription>
           </div>
           <Dialog open={isAddOpen} onOpenChange={handleAddOpenChange}>
             <DialogTrigger asChild>
               <Button size="sm">
                 <PlusCircle className="mr-2" />
-                Investigador
+                {t('missionaryWork.investigators.addInvestigator')}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <form onSubmit={handleAddSubmit}>
                 <DialogHeader>
-                  <DialogTitle>Agregar Investigador</DialogTitle>
+                  <DialogTitle>{t('missionaryWork.investigators.newInvestigatorTitle')}</DialogTitle>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                   <div>
-                    <Label htmlFor="name">Nombre</Label>
+                    <Label htmlFor="name">{t('missionaryWork.investigators.nameLabel')}</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="name"
                         name="name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Ej: Familia Pérez"
+                        placeholder={t('missionaryWork.investigators.namePlaceholder')}
                       />
                       <Button type="button" variant="outline" size="icon" onClick={toggleRecordingName}>
                         <Mic className={`h-4 w-4 ${isRecordingName ? 'text-red-500' : ''}`} />
@@ -624,14 +624,14 @@ function InvestigatorsTab({
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="missionaries">Misioneros Asignados</Label>
+                    <Label htmlFor="missionaries">{t('missionaryWork.investigators.missionariesLabel')}</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="missionaries"
                         name="missionaries"
                         value={missionaries}
                         onChange={(e) => setMissionaries(e.target.value)}
-                        placeholder="Ej: Elder Smith y Elder Jones"
+                        placeholder={t('missionaryWork.investigators.missionariesPlaceholder')}
                       />
                       <Button type="button" variant="outline" size="icon" onClick={toggleRecordingMissionaries}>
                         <Mic className={`h-4 w-4 ${isRecordingMissionaries ? 'text-red-500' : ''}`} />
@@ -646,7 +646,7 @@ function InvestigatorsTab({
                 </div>
                 <DialogFooter>
                   <Button type="submit" disabled={isPending}>
-                    {isPending ? 'Guardando...' : 'Guardar'}
+                    {isPending ? t('missionaryWork.investigators.savingButton') : t('missionaryWork.investigators.saveButton')}
                   </Button>
                 </DialogFooter>
               </form>
@@ -659,16 +659,16 @@ function InvestigatorsTab({
           <Skeleton className="h-40 w-full" />
         ) : investigators.length === 0 ? (
           <p className="text-sm text-center py-4 text-muted-foreground">
-            No hay investigadores activos.
+            {t('missionaryWork.investigators.noInvestigators')}
           </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Misioneros</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acción</TableHead>
+                <TableHead>{t('missionaryWork.investigators.nameLabel')}</TableHead>
+                <TableHead>{t('missionaryWork.investigators.missionariesHeader')}</TableHead>
+                <TableHead>{t('missionaryWork.investigators.statusHeader')}</TableHead>
+                <TableHead className="text-right">{t('missionaryWork.investigators.actionHeader')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -678,9 +678,9 @@ function InvestigatorsTab({
                   <TableCell>{item.assignedMissionaries}</TableCell>
                   <TableCell>
                     {item.status === 'baptized' ? (
-                      <Badge variant="default">Bautizado</Badge>
+                      <Badge variant="default">{t('missionaryWork.investigators.status.baptized')}</Badge>
                     ) : (
-                      <Badge variant="secondary">Activo</Badge>
+                      <Badge variant="secondary">{t('missionaryWork.investigators.status.active')}</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -709,28 +709,25 @@ function InvestigatorsTab({
                             }}
                           >
                             <LinkIcon className="mr-2 h-4 w-4" />
-                            Vincular
+                            {t('missionaryWork.investigators.linkButton')}
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <form onSubmit={handleLinkSubmit}>
                             <DialogHeader>
                               <DialogTitle>
-                                Vincular a Nuevo Converso
+                                {t('missionaryWork.investigators.linkDialogTitle')}
                               </DialogTitle>
                             </DialogHeader>
                             <div className="py-4 space-y-4">
-                              <p>
-                                Selecciona el registro del nuevo converso que
-                                corresponde a <strong>{item.name}</strong>.
-                              </p>
-                              <Label htmlFor="convertId">Nuevo Converso</Label>
+                              <p dangerouslySetInnerHTML={{ __html: t('missionaryWork.investigators.linkDialogDescription', { name: item.name }) }} />
+                              <Label htmlFor="convertId">{t('missionaryWork.investigators.linkDialog.convertLabel')}</Label>
                               <Select
                                 name="convertId"
                                 onValueChange={setSelectedConvertId}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Selecciona un converso..." />
+                                  <SelectValue placeholder={t('missionaryWork.investigators.linkDialog.selectPlaceholder')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {newConverts.map((c) => (
@@ -748,7 +745,7 @@ function InvestigatorsTab({
                             </div>
                             <DialogFooter>
                               <Button type="submit" disabled={isPending}>
-                                {isPending ? 'Vinculando...' : 'Vincular'}
+                                {isPending ? t('missionaryWork.investigators.linkingButton') : t('missionaryWork.investigators.linkButton')}
                               </Button>
                             </DialogFooter>
                           </form>
@@ -763,18 +760,16 @@ function InvestigatorsTab({
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Esta acción eliminará permanentemente el registro del investigador <strong>{item.name}</strong>.
-                            </AlertDialogDescription>
+                            <AlertDialogTitle>{t('missionaryWork.investigators.deleteDialogTitle')}</AlertDialogTitle>
+                            <AlertDialogDescription dangerouslySetInnerHTML={{ __html: t('missionaryWork.investigators.deleteDialogDescription', { name: item.name }) }} />
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogCancel>{t('missionaryWork.investigators.cancelButton')}</AlertDialogCancel>
                             <AlertDialogAction
                                 onClick={() => handleDelete(item)}
                                 className="bg-destructive hover:bg-destructive/90"
                             >
-                                Eliminar
+                                {t('missionaryWork.investigators.deleteButton')}
                             </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
@@ -803,6 +798,7 @@ function ImagesTab({
   barrioOrg: string;
 }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const { user } = useAuth();
   const [isPending, startTransition] = useTransition();
   const [uploadedFiles, setUploadedFiles] = useState<
@@ -855,7 +851,7 @@ function ImagesTab({
         },
         (error) => {
           console.error('Upload error:', error);
-          toast({ title: 'Error', description: 'Error al subir la imagen.', variant: 'destructive' });
+          toast({ title: t('common.error'), description: t('missionaryWork.images.uploadError'), variant: 'destructive' });
           setUploadedFiles((prev) =>
             prev.map((item) =>
               item.id === id
@@ -863,7 +859,7 @@ function ImagesTab({
                     ...item,
                     status: 'ready',
                     progress: 0,
-                    description: 'Error al subir la imagen.',
+                    description: t('missionaryWork.images.uploadError'),
                   }
                 : item
             )
@@ -896,8 +892,8 @@ function ImagesTab({
             } catch (error: any) {
               console.error('AI analysis error:', error);
               const errorMessage = error.message?.includes('API key') || error.message?.includes('DEEPSEEK_API_KEY')
-                ? 'API key de IA no configurada. Configure DEEPSEEK_API_KEY en su archivo .env.local'
-                : 'Error al generar descripción automática';
+                ? t('missionaryWork.images.apiKeyMissing')
+                : t('missionaryWork.images.autoDescError');
               setUploadedFiles((prev) =>
                 prev.map((item) =>
                   item.id === id
@@ -925,7 +921,7 @@ function ImagesTab({
     if (item.status !== 'ready') return;
     if (!item.url) return;
     if (!missionaryImagesCollection) {
-      toast({ title: 'Error', description: 'Colección no disponible.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('missionaryWork.images.collectionUnavailable'), variant: 'destructive' });
       return;
     }
 
@@ -938,7 +934,7 @@ function ImagesTab({
           createdBy: user?.uid || 'unknown',
           barrioOrg,
         });
-        toast({ title: 'Éxito', description: 'Imagen guardada.' });
+        toast({ title: t('missionaryWork.success'), description: t('missionaryWork.images.saved') });
         setUploadedFiles((prev) => {
           const toRemove = prev.find((i) => i.id === item.id);
           if (toRemove?.previewUrl) {
@@ -949,7 +945,7 @@ function ImagesTab({
         onRefresh();
       } catch (error) {
         logger.error({ error, message: 'Error saving missionary image' });
-        toast({ title: 'Error', description: 'No se pudo guardar la imagen.', variant: 'destructive' });
+        toast({ title: t('common.error'), description: t('missionaryWork.images.saveError'), variant: 'destructive' });
       }
     });
   };
@@ -966,35 +962,35 @@ function ImagesTab({
 
   const handleEdit = async (id: string, newDescription: string) => {
     if (!missionaryImagesCollection) {
-      toast({ title: 'Error', description: 'Colección no disponible.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('missionaryWork.images.collectionUnavailable'), variant: 'destructive' });
       return;
     }
     startTransition(async () => {
       try {
         const itemRef = doc(missionaryImagesCollection, id);
         await updateDoc(itemRef, { description: newDescription });
-        toast({ title: 'Éxito', description: 'Descripción actualizada.' });
+        toast({ title: t('missionaryWork.success'), description: t('missionaryWork.images.descriptionUpdated') });
         onRefresh();
       } catch (error) {
         logger.error({ error, message: 'Error updating image description' });
-        toast({ title: 'Error', description: 'No se pudo actualizar la descripción.', variant: 'destructive' });
+        toast({ title: t('common.error'), description: t('missionaryWork.images.descriptionUpdateError'), variant: 'destructive' });
       }
     });
   };
 
   const handleDelete = async (id: string) => {
     if (!missionaryImagesCollection) {
-      toast({ title: 'Error', description: 'Colección no disponible.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('missionaryWork.images.collectionUnavailable'), variant: 'destructive' });
       return;
     }
     startTransition(async () => {
       try {
         await deleteDoc(doc(missionaryImagesCollection, id));
-        toast({ title: 'Éxito', description: 'Imagen eliminada.' });
+        toast({ title: t('missionaryWork.success'), description: t('missionaryWork.images.deleted') });
         onRefresh();
       } catch (error) {
         logger.error({ error, message: 'Error deleting missionary image' });
-        toast({ title: 'Error', description: 'No se pudo eliminar la imagen.', variant: 'destructive' });
+        toast({ title: t('common.error'), description: t('missionaryWork.images.deleteError'), variant: 'destructive' });
       }
     });
   };
@@ -1004,9 +1000,9 @@ function ImagesTab({
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle>Imágenes Misionales</CardTitle>
+            <CardTitle>{t('missionaryWork.images.title')}</CardTitle>
             <CardDescription>
-              Sube imágenes y la IA generará descripciones automáticamente.
+              {t('missionaryWork.images.description')}
             </CardDescription>
           </div>
           <div>
@@ -1024,17 +1020,17 @@ function ImagesTab({
                   {uploadedFiles.some((file) => file.status === 'uploading') ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Subiendo...
+                      {t('missionaryWork.images.uploading')}
                     </>
                   ) : uploadedFiles.some((file) => file.status === 'processing') ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Procesando...
+                      {t('missionaryWork.images.processing')}
                     </>
                   ) : (
                     <>
                       <PlusCircle className="mr-2" />
-                      Subir Imágenes
+                      {t('missionaryWork.images.uploadButton')}
                     </>
                   )}
                 </span>
@@ -1050,8 +1046,8 @@ function ImagesTab({
           <div className="space-y-6">
             {/* Pending uploads */}
             {uploadedFiles.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Imágenes Pendientes</h3>
+                <div>
+                 <h3 className="text-lg font-semibold mb-4">{t('missionaryWork.images.pendingTitle')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {uploadedFiles.map((item) => (
                     <Card key={item.id}>
@@ -1064,41 +1060,41 @@ function ImagesTab({
                           className="w-full h-32 object-cover rounded mb-2"
                           unoptimized
                         />
-                        {item.status === 'uploading' && (
-                          <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Subiendo imagen... {item.progress}%
-                          </div>
-                        )}
-                        {item.status === 'processing' && (
-                          <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Procesando el texto de la imagen...
-                          </div>
-                        )}
-                        <Textarea
-                          value={item.description}
-                          onChange={(e) => setUploadedFiles(prev =>
-                            prev.map(i => i.id === item.id ? { ...i, description: e.target.value } : i)
-                          )}
-                          placeholder={
-                            item.status === 'uploading'
-                              ? 'Subiendo imagen...'
-                              : item.status === 'processing'
-                                ? 'Procesando el texto de la imagen...'
-                                : 'Descripción'
-                          }
-                          disabled={item.status !== 'ready'}
-                          className="mb-2"
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSave(item)}
-                            disabled={item.status !== 'ready' || !item.url || isPending}
-                          >
-                            Guardar
-                          </Button>
+                         {item.status === 'uploading' && (
+                           <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                             {t('missionaryWork.images.uploadingImageProgress', { progress: item.progress })}
+                           </div>
+                         )}
+                         {item.status === 'processing' && (
+                           <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                             {t('missionaryWork.images.processingText')}
+                           </div>
+                         )}
+                         <Textarea
+                           value={item.description}
+                           onChange={(e) => setUploadedFiles(prev =>
+                             prev.map(i => i.id === item.id ? { ...i, description: e.target.value } : i)
+                           )}
+                           placeholder={
+                             item.status === 'uploading'
+                               ? t('missionaryWork.images.uploadingImage')
+                               : item.status === 'processing'
+                                 ? t('missionaryWork.images.processingText')
+                                 : t('missionaryWork.images.descriptionPlaceholder')
+                           }
+                           disabled={item.status !== 'ready'}
+                           className="mb-2"
+                         />
+                         <div className="flex gap-2">
+                           <Button
+                             size="sm"
+                             onClick={() => handleSave(item)}
+                             disabled={item.status !== 'ready' || !item.url || isPending}
+                           >
+                             {t('missionaryWork.images.saveButton')}
+                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
@@ -1116,8 +1112,8 @@ function ImagesTab({
 
             {/* Saved images */}
             {images.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Imágenes Guardadas</h3>
+                 <div>
+                 <h3 className="text-lg font-semibold mb-4">{t('missionaryWork.images.savedTitle')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {images.map((item) => (
                     <Card key={item.id}>
@@ -1134,15 +1130,15 @@ function ImagesTab({
                           onChange={(e) => handleEdit(item.id, e.target.value)}
                           className="mb-2"
                         />
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDelete(item.id)}
-                          disabled={isPending}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Eliminar
-                        </Button>
+                           <Button
+                           size="sm"
+                           variant="destructive"
+                           onClick={() => handleDelete(item.id)}
+                           disabled={isPending}
+                         >
+                           <Trash2 className="h-4 w-4 mr-2" />
+                           {t('missionaryWork.images.deleteButton')}
+                         </Button>
                       </CardContent>
                     </Card>
                   ))}
@@ -1152,7 +1148,7 @@ function ImagesTab({
 
             {uploadedFiles.length === 0 && images.length === 0 && (
               <p className="text-sm text-center py-4 text-muted-foreground">
-                No hay imágenes. Sube algunas para comenzar.
+                {t('missionaryWork.images.noImages')}
               </p>
             )}
           </div>
@@ -1177,6 +1173,7 @@ function NewConvertsTab({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useI18n();
   const { canWrite } = usePermission();
   const [isFormOpen, setFormOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -1232,9 +1229,9 @@ function NewConvertsTab({
     <>
     <Card>
       <CardHeader>
-        <CardTitle>Nuevos Conversos</CardTitle>
+        <CardTitle>{t('missionaryWork.tabs.new_converts')}</CardTitle>
         <CardDescription>
-          Lista de nuevos conversos y sus amigos asignados del quórum.
+          {t('missionaryWork.newConverts.listDescription')}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -1242,15 +1239,15 @@ function NewConvertsTab({
           <Skeleton className="h-40 w-full" />
         ) : newConverts.length === 0 ? (
           <p className="text-sm text-center py-4 text-muted-foreground">
-            No hay nuevos conversos.
+            {t('missionaryWork.newConverts.empty')}
           </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nuevo Converso</TableHead>
-                <TableHead>Amigo(s) del Quórum</TableHead>
-                <TableHead className="text-right">Acción</TableHead>
+                <TableHead>{t('missionaryWork.newConverts.table.convertHeader')}</TableHead>
+                <TableHead>{t('missionaryWork.newConverts.table.friendsHeader')}</TableHead>
+                <TableHead className="text-right">{t('missionaryWork.newConverts.table.actionHeader')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1260,7 +1257,7 @@ function NewConvertsTab({
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
-                      {friendship ? friendship.friends.map(getMemberName).join(', ') : <span className="text-muted-foreground italic">Pendiente</span>}
+                      {friendship ? friendship.friends.map(getMemberName).join(', ') : <span className="text-muted-foreground italic">{t('missionaryWork.newConverts.status.pending')}</span>}
                     </TableCell>
                     <TableCell className="text-right">
                       {canWrite && (
@@ -1272,7 +1269,7 @@ function NewConvertsTab({
                             onClick={() => handleOpenForm(friendship)}
                           >
                             <UserPlus className="mr-2 h-4 w-4" />
-                            Editar Amigos
+                            {t('missionaryWork.newConverts.editFriendsButton')}
                           </Button>
                         ) : (
                           <Button
@@ -1281,7 +1278,7 @@ function NewConvertsTab({
                             onClick={() => handleOpenForm(item)}
                           >
                             <UserPlus className="mr-2 h-4 w-4" />
-                            Asignar Amigo
+                            {t('missionaryWork.newConverts.assignFriendButton')}
                           </Button>
                         )}
                       </div>
@@ -1319,11 +1316,12 @@ export default function MissionaryWorkPage() {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingAnnotations, setLoadingAnnotations] = useState(true);
-  const { user, loading: authLoading, barrioOrg } = useAuth();
-  const { canWrite } = usePermission();
-  const { toast } = useToast();
+   const { user, loading: authLoading, barrioOrg } = useAuth();
+   const { canWrite } = usePermission();
+   const { toast } = useToast();
+   const { t } = useI18n();
 
-  const fetchData = useCallback(async () => {
+   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [
@@ -1383,11 +1381,11 @@ export default function MissionaryWorkPage() {
   const handleDeleteAnnotation = async (id: string) => {
     try {
       await deleteDoc(doc(annotationsCollection, id));
-      toast({ title: 'Éxito', description: 'Anotación eliminada.' });
+      toast({ title: t('missionaryWork.success'), description: t('missionaryWork.annotations.deleted') });
       fetchAnnotations();
     } catch (error) {
       console.error('Error deleting annotation:', error);
-      toast({ title: 'Error', description: 'No se pudo eliminar la anotación.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('missionaryWork.annotations.deleteError'), variant: 'destructive' });
     }
   };
 
@@ -1406,19 +1404,19 @@ export default function MissionaryWorkPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <HandHeart className="h-8 w-8 text-primary" />
         <div className="flex flex-col gap-1">
-          <h1 className="text-balance text-fluid-title font-semibold">Obra Misional</h1>
+          <h1 className="text-balance text-fluid-title font-semibold">{t('missionaryWork.title')}</h1>
           <p className="text-balance text-fluid-subtitle text-muted-foreground">
-            Coordina y da seguimiento a los esfuerzos misionales del quórum.
+            {t('missionaryWork.description')}
           </p>
         </div>
       </div>
 
       <Tabs defaultValue="assignments">
         <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 h-auto sm:h-10">
-          <TabsTrigger value="assignments">Asignaciones</TabsTrigger>
-          <TabsTrigger value="investigators">Investigadores</TabsTrigger>
-          <TabsTrigger value="images">Imágenes</TabsTrigger>
-          <TabsTrigger value="new_converts">Nuevos Conversos</TabsTrigger>
+          <TabsTrigger value="assignments">{t('missionaryWork.tabs.assignments')}</TabsTrigger>
+          <TabsTrigger value="investigators">{t('missionaryWork.tabs.investigators')}</TabsTrigger>
+          <TabsTrigger value="images">{t('missionaryWork.tabs.images')}</TabsTrigger>
+          <TabsTrigger value="new_converts">{t('missionaryWork.tabs.new_converts')}</TabsTrigger>
         </TabsList>
         <TabsContent value="assignments">
           <AssignmentsTab
@@ -1458,8 +1456,8 @@ export default function MissionaryWorkPage() {
       </Tabs>
 
       <VoiceAnnotations
-        title="Anotaciones de Obra Misional"
-        description="Notas y recordatorios sobre los esfuerzos misionales del quórum."
+        title={t('missionaryWork.annotations.title')}
+        description={t('missionaryWork.annotations.description')}
         source="missionary-work"
         annotations={annotations}
         isLoading={loadingAnnotations}
@@ -1471,15 +1469,14 @@ export default function MissionaryWorkPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Preguntas Frecuentes</CardTitle>
+          <CardTitle>{t('missionaryWork.faq.title')}</CardTitle>
           <CardDescription>
-            Respuestas a dudas comunes sobre el rol del quórum en la obra
-            misional.
+            {t('missionaryWork.faq.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Accordion type="single" collapsible className="w-full">
-            {faqData.map((faq, index) => (
+            {getFaqData(t).map((faq, index) => (
               <AccordionItem value={`item-${index}`} key={index}>
                 <AccordionTrigger className="text-xl">{faq.question}</AccordionTrigger>
                 <AccordionContent>

@@ -83,7 +83,7 @@ Mantiene consistencia bidireccional entre compañerismos y maestros ministrantes
 - Prevención de duplicados
 
 ### IA y Genkit
-- **Resumen del dashboard**: Análisis del estado actual del quórum vía DeepSeek
+- **Resumen del dashboard**: Análisis del estado actual de tu organización vía DeepSeek
 - **Sugerencias**: Recomendaciones de actividades y servicio basadas en datos
 - **Chat Iglesia**: Chat conversacional con contexto eclesiástico
 - **Genkit**: Tooling de desarrollo para prototipar flujos de IA

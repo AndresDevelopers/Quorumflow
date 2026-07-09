@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/popover";
 import type { AppNotification } from "@/lib/types";
 import { formatRelative } from "date-fns";
-import { es } from "date-fns/locale";
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Skeleton } from "./ui/skeleton";
 
 function deduplicateNotifications(items: AppNotification[]): AppNotification[] {
@@ -235,7 +235,7 @@ export function NotificationBell() {
                                     </p>
                                     <p className="text-muted-foreground text-xs">{notif.body}</p>
                                     <p className="text-muted-foreground text-xs mt-1">
-                                        {formatRelative(notif.createdAt.toDate(), new Date(), { locale: es })}
+                                        {formatRelative(notif.createdAt.toDate(), new Date(), { locale: getDateFnsLocale() })}
                                     </p>
                                 </div>
                                 {isClickable && (

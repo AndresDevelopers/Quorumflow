@@ -23,26 +23,22 @@ import { OrdinanceLabels, TempleOrdinanceLabels } from '@/lib/types';
 import { getMemberById } from '@/lib/members-data';
 import { buildMemberEditUrl } from '@/lib/navigation';
 import { format, differenceInYears } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 
 const statusConfig = {
   active: {
-    label: 'Activo',
     variant: 'default' as const,
     color: 'text-green-600'
   },
   less_active: {
-    label: 'Menos Activo',
     variant: 'secondary' as const,
     color: 'text-yellow-600'
   },
   inactive: {
-    label: 'Inactivo',
     variant: 'destructive' as const,
     color: 'text-red-600'
   },
   deceased: {
-    label: 'Fallecido',
     variant: 'secondary' as const,
     color: 'text-muted-foreground'
   }
@@ -165,7 +161,8 @@ export default function MemberProfilePage() {
     );
   }
 
-  const statusInfo = statusConfig[normalizeMemberStatus(member.status)];
+  const memberStatusKey = normalizeMemberStatus(member.status);
+  const statusInfo = statusConfig[memberStatusKey];
   const isDeceased = normalizeMemberStatus(member.status) === 'deceased';
 
   return (
@@ -202,7 +199,7 @@ export default function MemberProfilePage() {
               <div>
                 <h2 className="text-xl font-semibold sm:text-2xl">{member.firstName} {member.lastName}</h2>
                 <Badge variant={statusInfo.variant} className="mt-2">
-                  {statusInfo.label}
+                  t(`member.status.${memberStatusKey}`)
                 </Badge>
               </div>
 
@@ -217,7 +214,7 @@ export default function MemberProfilePage() {
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Calendar className="h-4 w-4" />
                   <span>
-                    {format(member.birthDate.toDate(), 'd MMMM yyyy', { locale: es })} ({differenceInYears(new Date(), member.birthDate.toDate())})
+                    {format(member.birthDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })} ({differenceInYears(new Date(), member.birthDate.toDate())})
                   </span>
                 </div>
               )}
@@ -257,7 +254,7 @@ export default function MemberProfilePage() {
                   {t('memberProfile.birthDate')}
                 </label>
                 <p className="text-sm">
-                  {format(member.birthDate.toDate(), 'd MMMM yyyy', { locale: es })} ({differenceInYears(new Date(), member.birthDate.toDate())})
+                  {format(member.birthDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })} ({differenceInYears(new Date(), member.birthDate.toDate())})
                 </p>
               </div>
             )}
@@ -268,7 +265,7 @@ export default function MemberProfilePage() {
                   Fecha de Fallecimiento
                 </label>
                 <p className="text-sm">
-                  {format(member.deathDate.toDate(), 'd MMMM yyyy', { locale: es })}
+                  {format(member.deathDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })}
                 </p>
               </div>
             )}
@@ -279,7 +276,7 @@ export default function MemberProfilePage() {
               </label>
               <div className="mt-1">
                 <Badge variant={statusInfo.variant}>
-                  {statusInfo.label}
+                  t(`member.status.${memberStatusKey}`)
                 </Badge>
               </div>
             </div>
@@ -344,7 +341,7 @@ export default function MemberProfilePage() {
                     {t('memberProfile.baptismDate')}
                   </label>
                   <p className="text-sm">
-                    {format(member.baptismDate.toDate(), 'd MMMM yyyy', { locale: es })}
+                    {format(member.baptismDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })}
                   </p>
                 </div>
               )}
@@ -425,7 +422,7 @@ export default function MemberProfilePage() {
                     ✓ Todas las ordenanzas del templo completadas
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Fecha de completado: {format(member.templeWorkCompletedAt.toDate(), 'd MMMM yyyy', { locale: es })}
+                    Fecha de completado: {format(member.templeWorkCompletedAt.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })}
                   </p>
                 </div>
               )}

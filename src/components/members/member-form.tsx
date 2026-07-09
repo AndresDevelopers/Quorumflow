@@ -7,7 +7,7 @@ import * as z from 'zod';
 import Image from 'next/image';
 import { Upload, X, CalendarIcon, MapPin, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { cn } from '@/lib/utils';
 import { getAppName } from "@/lib/app-config";
 import { Button } from '@/components/ui/button';
@@ -1271,7 +1271,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                         >
                           {field.value ? (
                             <span className="capitalize">
-                              {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                              {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: getDateFnsLocale() })}
                             </span>
                           ) : (
                             <span>Selecciona una fecha</span>
@@ -1289,7 +1289,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                         disabled={(date) =>
                           date > new Date() || date < new Date('1900-01-01')
                         }
-                        locale={es}
+                        locale={getDateFnsLocale()}
                       />
                     </PopoverContent>
                   </Popover>
@@ -1330,7 +1330,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                         >
                           {field.value ? (
                             <span className="capitalize">
-                              {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                              {format(field.value, "d 'de' LLLL 'de' yyyy", { locale: getDateFnsLocale() })}
                             </span>
                           ) : (
                             <span>Selecciona una fecha</span>
@@ -1346,7 +1346,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                         onSelect={field.onChange}
                         defaultMonth={field.value}
                         disabled={(date) => date < new Date('1900-01-01')}
-                        locale={es}
+                        locale={getDateFnsLocale()}
                       />
                     </PopoverContent>
                   </Popover>
@@ -1679,7 +1679,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                             >
                               {form.watch('inactiveSince') ? (
                                 <span className="capitalize">
-                                  {format(form.watch('inactiveSince')!, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                                  {format(form.watch('inactiveSince')!, "d 'de' LLLL 'de' yyyy", { locale: getDateFnsLocale() })}
                                 </span>
                               ) : (
                                 <span>Selecciona una fecha</span>
@@ -1697,7 +1697,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                             disabled={(date) =>
                               date > new Date() || date < new Date('1900-01-01')
                             }
-                            locale={es}
+                            locale={getDateFnsLocale()}
                           />
                         </PopoverContent>
                       </Popover>
@@ -1770,7 +1770,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                             >
                               {form.watch('lessActiveSince') ? (
                                 <span className="capitalize">
-                                  {format(form.watch('lessActiveSince')!, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                                  {format(form.watch('lessActiveSince')!, "d 'de' LLLL 'de' yyyy", { locale: getDateFnsLocale() })}
                                 </span>
                               ) : (
                                 <span>Selecciona una fecha</span>
@@ -1788,7 +1788,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                             disabled={(date) =>
                               date > new Date() || date < new Date('1900-01-01')
                             }
-                            locale={es}
+                            locale={getDateFnsLocale()}
                           />
                         </PopoverContent>
                       </Popover>

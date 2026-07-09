@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -213,7 +213,7 @@ export function ConvertInfoSheet({
             <div className="text-left">
               <SheetTitle className="text-lg">{convert.name}</SheetTitle>
               <SheetDescription>
-                Bautizado: {format(convert.baptismDate.toDate(), 'd MMMM yyyy', { locale: es })}
+                Bautizado: {format(convert.baptismDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })}
               </SheetDescription>
             </div>
           </div>

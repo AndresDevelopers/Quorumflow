@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { CalendarIcon, Upload } from 'lucide-react';
 import { addDoc, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -44,23 +44,26 @@ import { cn } from '@/lib/utils';
 import React from 'react';
 import { MemberSelector } from '@/components/members/member-selector';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
-
-const baptismSchema = z.object({
-  name: z.string().min(2, { message: 'El nombre es requerido.' }),
-  date: z.date({
-    required_error: 'La fecha del bautismo es requerida.',
-  }),
-  photos: z.array(z.instanceof(File)).optional(),
-});
-
-type FormValues = z.infer<typeof baptismSchema>;
 
 export default function AddBaptismPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { user, barrioOrg } = useAuth();
+  const { t } = useI18n();
+
+  const baptismSchema = z.object({
+    name: z.string().min(2, { message: t('reports.baptismForm.nameRequired') }),
+    date: z.date({
+      required_error: t('reports.baptismForm.dateRequired'),
+    }),
+    photos: z.array(z.instanceof(File)).optional(),
+  });
+
+  type FormValues = z.infer<typeof baptismSchema>;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -74,7 +77,7 @@ export default function AddBaptismPage() {
 
   const onSubmit = async (values: FormValues) => {
     if (!user) {
-      toast({ title: 'Error', description: 'Debes iniciar sesión para subir imágenes.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('reports.baptismForm.loginRequiredUpload'), variant: 'destructive' });
       return;
     }
 
@@ -85,10 +88,10 @@ export default function AddBaptismPage() {
         const storage = getStorage();
         for (const photo of values.photos) {
           if (photo.size > MAX_FILE_SIZE) {
-            throw new Error(`El archivo ${photo.name} supera los 20MB.`);
+            throw new Error(t('reports.baptismForm.fileTooLarge', { name: photo.name }));
           }
           if (!photo.type || !photo.type.startsWith('image/')) {
-            throw new Error(`El archivo ${photo.name} no es una imagen válida.`);
+            throw new Error(t('reports.baptismForm.fileInvalid', { name: photo.name }));
           }
 
           const safeName = photo.name.replace(/[^\w.\-]+/g, '_');
@@ -108,15 +111,15 @@ export default function AddBaptismPage() {
       });
 
       toast({
-        title: 'Bautismo Agregado',
-        description: 'El bautismo ha sido registrado exitosamente para el reporte anual.',
+        title: t('reports.baptismForm.addedTitle'),
+        description: t('reports.baptismForm.addedDescription'),
       });
       router.push('/reports');
     } catch (e) {
       logger.error({ error: e, message: 'Error adding manual baptism', data: values });
       toast({
-        title: 'Error',
-        description: e instanceof Error ? e.message : 'Hubo un error al agregar el bautismo.',
+        title: t('common.error'),
+        description: e instanceof Error ? e.message : t('reports.baptismForm.addError'),
         variant: 'destructive',
       });
     } finally {
@@ -130,16 +133,16 @@ export default function AddBaptismPage() {
       const acceptedFiles = files.filter(file => {
         if (file.size > MAX_FILE_SIZE) {
           toast({
-            title: 'Archivo demasiado grande',
-            description: `El archivo ${file.name} supera los 20MB.`,
+            title: t('settings.toast.fileTooLargeTitle'),
+            description: t('reports.baptismForm.fileTooLarge', { name: file.name }),
             variant: 'destructive',
           });
           return false;
         }
         if (!file.type || !file.type.startsWith('image/')) {
           toast({
-            title: 'Archivo inválido',
-            description: `El archivo ${file.name} no es una imagen válida.`,
+            title: t('reports.fileInvalidTitle'),
+            description: t('reports.baptismForm.fileInvalid', { name: file.name }),
             variant: 'destructive',
           });
           return false;
@@ -157,11 +160,11 @@ export default function AddBaptismPage() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>Agregar Bautismo Manualmente</CardTitle>
+            <CardTitle>{t('reports.baptismForm.pageTitle')}</CardTitle>
             <CardDescription>
-              Ingresa los detalles de un bautismo realizado en el año actual para incluirlo en el reporte.
+              {t('reports.baptismForm.pageDescription')}
               <br />
-              <span className="text-sm text-muted-foreground">Los campos marcados con <span className="text-red-600">*</span> son obligatorios.</span>
+              <span className="text-sm text-muted-foreground">{t('reports.form.requiredFields')}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -170,12 +173,12 @@ export default function AddBaptismPage() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Miembro Bautizado <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('reports.baptismForm.memberLabel')} <span className="text-red-600">*</span></FormLabel>
                   <FormControl>
                     <MemberSelector
                       value={field.value}
                       onValueChange={(memberId) => field.onChange(memberId)}
-                      placeholder="Seleccionar miembro bautizado"
+                      placeholder={t('reports.baptismForm.memberPlaceholder')}
 
                     />
                   </FormControl>
@@ -188,7 +191,7 @@ export default function AddBaptismPage() {
               name="date"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Fecha del Bautismo <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('reports.baptismForm.dateLabel')} <span className="text-red-600">*</span></FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -200,9 +203,9 @@ export default function AddBaptismPage() {
                           )}
                         >
                           {field.value ? (
-                            format(field.value, 'd LLLL yyyy', { locale: es })
+                            format(field.value, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                           ) : (
-                            <span>Selecciona una fecha</span>
+                            <span>{t('reports.baptismForm.selectDate')}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -214,7 +217,7 @@ export default function AddBaptismPage() {
                         selected={field.value}
                         onSelect={field.onChange}
                         autoFocus
-                        locale={es}
+                        locale={getDateFnsLocale()}
                         defaultMonth={new Date()}
                         startMonth={new Date(new Date().getFullYear(), 0)}
                         endMonth={new Date(new Date().getFullYear(), 11)}
@@ -231,7 +234,7 @@ export default function AddBaptismPage() {
               name="photos"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fotos del Bautismo</FormLabel>
+                  <FormLabel>{t('reports.baptismForm.photosLabel')}</FormLabel>
                   <FormControl>
                     <div className="flex items-center gap-2">
                       <Input
@@ -245,20 +248,20 @@ export default function AddBaptismPage() {
                       <label htmlFor="file-upload" className="cursor-pointer">
                         <Button variant="outline" asChild>
                           <div>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Seleccionar Archivos
+                             <Upload className="mr-2 h-4 w-4" />
+                            {t('reports.baptismForm.selectFiles')}
                           </div>
                         </Button>
                       </label>
                       {selectedFiles.length > 0 && (
-                        <div className="text-sm text-muted-foreground">
-                          {selectedFiles.length} archivo(s) seleccionado(s)
+                         <div className="text-sm text-muted-foreground">
+                          {t('reports.baptismForm.filesSelected', { count: selectedFiles.length })}
                         </div>
                       )}
                     </div>
                   </FormControl>
                   <FormDescription>
-                    Puedes subir una o varias fotos del bautismo.
+                    {t('reports.baptismForm.photosDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -267,10 +270,10 @@ export default function AddBaptismPage() {
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button variant="outline" asChild>
-              <Link href="/reports">Cancelar</Link>
+              <Link href="/reports">{t('reports.cancel')}</Link>
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar Bautismo'}
+              {isSubmitting ? t('reports.saving') : t('reports.baptismForm.save')}
             </Button>
           </CardFooter>
         </Card>

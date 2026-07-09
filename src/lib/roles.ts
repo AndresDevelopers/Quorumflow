@@ -15,9 +15,9 @@ export const canWrite = (permission: UserPermission | null | undefined): boolean
 export const getDefaultPermission = (role: UserRole): UserPermission =>
   role === 'user' || role === 'other' ? 'read' : 'all';
 
-export const PERMISSION_META: Record<UserPermission, { label: string; description: string }> = {
-  read: { label: 'Lectura', description: 'Solo puede ver datos.' },
-  all:  { label: 'Todo',   description: 'Puede crear, editar y eliminar.' },
+export const PERMISSION_META: Record<UserPermission, { i18nKey: string }> = {
+  read: { i18nKey: 'permission.read' },
+  all:  { i18nKey: 'permission.all' },
 };
 
 export const normalizeRole = (role?: unknown): UserRole => {

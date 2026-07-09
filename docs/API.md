@@ -85,7 +85,7 @@ GET /api/suggestions/dashboard-summary
 Authorization: Bearer <token>
 ```
 
-Genera un resumen del estado actual del quórum usando DeepSeek.
+Genera un resumen del estado actual de tu organización usando DeepSeek.
 
 ### Sugerencias de actividades
 
@@ -94,7 +94,7 @@ GET /api/suggestions/activities
 Authorization: Bearer <token>
 ```
 
-Sugerencias de actividades basadas en datos del quórum.
+Sugerencias de actividades basadas en datos de tu organización.
 
 ---
 

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { doc, getDoc } from "firebase/firestore";
 import { usersCollection } from "@/lib/collections";
+import { useI18n } from "@/contexts/i18n-context";
 import { isAdmin, normalizeRole, type UserRole } from "@/lib/roles";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, ShieldAlert } from "lucide-react";
@@ -22,6 +23,7 @@ import Link from "next/link";
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, loading, userRole } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [checkingRole, setCheckingRole] = useState(true);
   const [role, setRole] = useState<UserRole | null>(null);
 
@@ -85,23 +87,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-rose-900 dark:text-rose-100">
               <ShieldAlert className="h-5 w-5" />
-              Acceso restringido al panel de administración
+              {t("admin.layout.restrictedTitle")}
             </CardTitle>
             <CardDescription className="text-rose-800 dark:text-rose-200">
-              Esta sección está reservada para el secretario del quórum.
+              {t("admin.layout.restrictedDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <p className="text-sm text-rose-800 dark:text-rose-200">
-              Tu rol actual no tiene permisos para administrar usuarios, miembros o
-              configuraciones avanzadas. Si necesitas acceso, contacta al secretario.
+              {t("admin.layout.restrictedText")}
             </p>
             <div className="flex gap-2">
               <Button asChild variant="outline">
-                <Link href="/">Volver al inicio</Link>
+                <Link href="/">{t("admin.layout.backHome")}</Link>
               </Button>
               <Button asChild variant="ghost">
-                <Link href="/settings">Ir a Ajustes</Link>
+                <Link href="/settings">{t("admin.layout.goSettings")}</Link>
               </Button>
             </div>
           </CardContent>

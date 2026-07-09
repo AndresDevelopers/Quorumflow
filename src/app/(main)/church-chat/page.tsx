@@ -2,7 +2,7 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Copy, History, Loader2, MessageCircle, Mic, Plus, Trash2, Volume2 } from 'lucide-react';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
+import { useI18n } from '@/contexts/i18n-context';
 import { firestore } from '@/lib/firebase';
 import logger from '@/lib/logger';
 
@@ -93,47 +94,46 @@ const getOrgArticle = (org: string): { article: string; deArticle: string } => {
 };
 
 type QuickOption = {
-  label: string;
+  key: string;
   generateMessage: (org: string) => string;
 };
 
 const QUICK_OPTIONS: QuickOption[] = [
   {
-    label: 'Presidente',
+    key: 'presidente',
     generateMessage: (org) => `¿Qué hace el presidente ${getOrgArticle(org).deArticle} ${org}?`,
   },
   {
-    label: 'Consejero',
+    key: 'consejero',
     generateMessage: (org) => `¿Qué hace el consejero ${getOrgArticle(org).deArticle} ${org}?`,
   },
   {
-    label: 'Secretario',
+    key: 'secretario',
     generateMessage: (org) => `¿Qué hace el secretario ${getOrgArticle(org).deArticle} ${org}?`,
   },
   {
-    label: 'Otros cargos',
+    key: 'otrosCargos',
     generateMessage: (org) => `¿Qué llamamientos están disponibles en ${getOrgArticle(org).article} ${org}?`,
   },
   {
-    label: 'Novedades',
+    key: 'novedades',
     generateMessage: (org) =>
       `¿Cuáles son las novedades oficiales recientes de la Iglesia y qué recursos o tareas puede realizar el secretario ${getOrgArticle(org).deArticle} ${org} usando el sitio web oficial de la Iglesia?`,
   },
 ];
 
-const makeInitialAssistantMessage = (): ChatMessage => ({
+const makeInitialAssistantMessage = (t: (key: string) => string): ChatMessage => ({
   id: crypto.randomUUID(),
   role: 'assistant',
-  content:
-    '¡Hola! Este chat está dedicado exclusivamente a temas oficiales de La Iglesia de Jesucristo de los Santos de los Últimos Días. ¿Qué te gustaría estudiar hoy?',
+  content: t('churchChat.welcome'),
   createdAt: new Date().toISOString(),
 });
 
-const makeSession = (): ChatSession => ({
+const makeSession = (t: (key: string) => string): ChatSession => ({
   id: crypto.randomUUID(),
-  title: 'Nuevo chat',
+  title: t('churchChat.nuevoChat'),
   createdAt: new Date().toISOString(),
-  messages: [makeInitialAssistantMessage()],
+  messages: [makeInitialAssistantMessage(t)],
 });
 
 const boundSessionMessages = (session: ChatSession): ChatSession => {
@@ -149,17 +149,17 @@ const toBoundedSessions = (sessions: ChatSession[]): ChatSession[] =>
 
 const getStorageKey = (userId?: string) => `church-chat-sessions-v1-${userId ?? 'guest'}`;
 
-const loadSessionsFromLocal = (storageKey: string): ChatSession[] => {
-  if (typeof window === 'undefined') return [makeSession()];
+const loadSessionsFromLocal = (storageKey: string, t: (key: string) => string): ChatSession[] => {
+  if (typeof window === 'undefined') return [makeSession(t)];
 
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return [makeSession()];
+    if (!raw) return [makeSession(t)];
 
     const parsed = JSON.parse(raw) as ChatSession[];
-    return parsed.length > 0 ? toBoundedSessions(parsed) : [makeSession()];
+    return parsed.length > 0 ? toBoundedSessions(parsed) : [makeSession(t)];
   } catch {
-    return [makeSession()];
+    return [makeSession(t)];
   }
 };
 
@@ -233,7 +233,8 @@ function FormattedMessage({ content }: { content: string }) {
 export default function ChurchChatPage() {
   const { toast } = useToast();
   const { user, organizacion } = useAuth();
-  const [sessions, setSessions] = useState<ChatSession[]>(() => [makeSession()]);
+  const { t } = useI18n();
+  const [sessions, setSessions] = useState<ChatSession[]>(() => [makeSession(t)]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -282,7 +283,7 @@ export default function ChurchChatPage() {
 
   useEffect(() => {
     const bootstrap = async () => {
-      const localSessions = loadSessionsFromLocal(storageKey);
+      const localSessions = loadSessionsFromLocal(storageKey, t);
       setSessions(localSessions);
 
       if (!user?.uid) {
@@ -360,8 +361,8 @@ export default function ChurchChatPage() {
     const SpeechRecognition = getSpeechRecognitionConstructor();
     if (!SpeechRecognition) {
       toast({
-        title: 'Dictado no disponible',
-        description: 'Tu navegador no admite reconocimiento de voz. Prueba con Chrome, Edge o Safari.',
+        title: t('churchChat.dictadoTitle'),
+        description: t('churchChat.dictadoDescription'),
         variant: 'destructive',
       });
       return;
@@ -386,8 +387,8 @@ export default function ChurchChatPage() {
     recognition.onerror = (event) => {
       if (event.error !== 'no-speech' && event.error !== 'aborted') {
         toast({
-          title: 'No se pudo escuchar',
-          description: 'Revisa el permiso del micrófono e inténtalo de nuevo.',
+          title: t('churchChat.listenErrorTitle'),
+          description: t('churchChat.listenErrorDescription'),
           variant: 'destructive',
         });
       }
@@ -406,8 +407,8 @@ export default function ChurchChatPage() {
       recognitionRef.current = null;
       setIsListening(false);
       toast({
-        title: 'No se pudo iniciar el micrófono',
-        description: 'Revisa los permisos del navegador e inténtalo nuevamente.',
+        title: t('churchChat.micError'),
+        description: t('churchChat.micErrorDescription'),
         variant: 'destructive',
       });
     }
@@ -416,11 +417,11 @@ export default function ChurchChatPage() {
   const handleCopyMessage = useCallback(async (content: string) => {
     try {
       await navigator.clipboard.writeText(content);
-      toast({ title: 'Texto copiado', description: 'La respuesta de la IA se copió al portapapeles.' });
+      toast({ title: t('churchChat.copiedTitle'), description: t('churchChat.copiedDescription') });
     } catch {
       toast({
-        title: 'No se pudo copiar',
-        description: 'Tu navegador no permitió acceder al portapapeles.',
+        title: t('churchChat.copyErrorTitle'),
+        description: t('churchChat.copyErrorDescription'),
         variant: 'destructive',
       });
     }
@@ -429,8 +430,8 @@ export default function ChurchChatPage() {
   const handleSpeakMessage = useCallback((message: ChatMessage) => {
     if (!canUseSpeechSynthesis()) {
       toast({
-        title: 'Lectura no disponible',
-        description: 'Tu navegador no admite lectura de texto en voz alta.',
+        title: t('churchChat.speakUnavailableTitle'),
+        description: t('churchChat.speakUnavailableDescription'),
         variant: 'destructive',
       });
       return;
@@ -452,7 +453,7 @@ export default function ChurchChatPage() {
   }, [speakingMessageId, toast]);
 
   const handleNewChat = () => {
-    const next = makeSession();
+    const next = makeSession(t);
     updateSessions((current) => [next, ...current]);
     setActiveSessionId(next.id);
     setInput('');
@@ -463,7 +464,7 @@ export default function ChurchChatPage() {
     updateSessions((current) => {
       const filtered = current.filter((session) => session.id !== sessionId);
       if (filtered.length === 0) {
-        const replacement = makeSession();
+        const replacement = makeSession(t);
         setActiveSessionId(replacement.id);
         return [replacement];
       }
@@ -543,8 +544,8 @@ export default function ChurchChatPage() {
       return true;
     } catch (error) {
       toast({
-        title: 'No se pudo enviar el mensaje',
-        description: error instanceof Error ? error.message : 'Error inesperado.',
+        title: t('churchChat.sendErrorTitle'),
+        description: error instanceof Error ? error.message : t('churchChat.sendErrorDefault'),
         variant: 'destructive',
       });
       return false;
@@ -568,16 +569,16 @@ export default function ChurchChatPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <History className="h-5 w-5" /> Historial
+            <History className="h-5 w-5" /> {t('churchChat.historyTitle')}
           </CardTitle>
-          <CardDescription>Accede a conversaciones anteriores o inicia una nueva.</CardDescription>
+          <CardDescription>{t('churchChat.historyDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Button className="w-full" onClick={handleNewChat}>
-            <Plus className="mr-2 h-4 w-4" /> Nuevo chat
+            <Plus className="mr-2 h-4 w-4" /> {t('churchChat.nuevoChat')}
           </Button>
           <p className="text-xs text-muted-foreground text-center">
-            {sessions.length} de {MAX_SESSIONS} conversaciones
+            {t('churchChat.conversationsCount', { count: sessions.length, max: MAX_SESSIONS })}
           </p>
           <ScrollArea className="h-[420px] rounded-md border p-2">
             <div className="space-y-2">
@@ -598,7 +599,7 @@ export default function ChurchChatPage() {
                   >
                     <p className="line-clamp-1 font-medium text-sm">{session.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(session.createdAt), 'd MMM yyyy, HH:mm', { locale: es })}
+                      {format(new Date(session.createdAt), 'd MMM yyyy, HH:mm', { locale: getDateFnsLocale() })}
                     </p>
                   </button>
                   <Button
@@ -607,7 +608,7 @@ export default function ChurchChatPage() {
                     size="icon"
                     className="h-11 w-11 shrink-0 opacity-100"
                     onClick={() => handleDeleteSession(session.id)}
-                    aria-label={`Eliminar conversación ${session.title}`}
+                    aria-label={t('churchChat.deleteConversationAria', { title: session.title })}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -621,10 +622,10 @@ export default function ChurchChatPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <MessageCircle className="h-5 w-5" /> Chat del Evangelio (Oficial)
+            <MessageCircle className="h-5 w-5" /> {t('churchChat.chatTitle')}
           </CardTitle>
           <CardDescription>
-            Este asistente responde únicamente temas de la Iglesia con base en fuentes oficiales.
+            {t('churchChat.chatDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -634,14 +635,14 @@ export default function ChurchChatPage() {
                 <div className="flex flex-wrap gap-2 pb-2">
                   {QUICK_OPTIONS.map((option) => (
                     <Button
-                      key={option.label}
+                      key={option.key}
                       type="button"
                       variant="secondary"
                       size="sm"
                       disabled={loading}
                       onClick={() => handleQuickOption(option)}
                     >
-                      {option.label}
+                      {t(`churchChat.option.${option.key}`)}
                     </Button>
                   ))}
                 </div>
@@ -664,8 +665,8 @@ export default function ChurchChatPage() {
                         size="icon"
                         className="h-11 w-11"
                         onClick={() => void handleCopyMessage(message.content)}
-                        aria-label="Copiar toda la respuesta de la IA"
-                        title="Copiar respuesta"
+                        aria-label={t('churchChat.copyResponseAria')}
+                        title={t('churchChat.copyResponseTitle')}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -675,8 +676,8 @@ export default function ChurchChatPage() {
                         size="icon"
                         className="h-11 w-11"
                         onClick={() => handleSpeakMessage(message)}
-                        aria-label={speakingMessageId === message.id ? 'Detener lectura de la respuesta' : 'Escuchar respuesta de la IA'}
-                        title={speakingMessageId === message.id ? 'Detener lectura' : 'Escuchar respuesta'}
+                        aria-label={speakingMessageId === message.id ? t('churchChat.stopReadingAria') : t('churchChat.readResponseAria')}
+                        title={speakingMessageId === message.id ? t('churchChat.stopReadingTitle') : t('churchChat.readResponseTitle')}
                       >
                         <Volume2 className={`h-4 w-4 ${speakingMessageId === message.id ? 'text-primary' : ''}`} />
                       </Button>
@@ -688,7 +689,7 @@ export default function ChurchChatPage() {
                 <article className="max-w-[90%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>La IA está escribiendo...</span>
+                    <span>{t('churchChat.writing')}</span>
                   </div>
                 </article>
               )}
@@ -696,7 +697,7 @@ export default function ChurchChatPage() {
           </div>
 
           <p className="text-xs text-muted-foreground text-center">
-            {activeSession?.messages.length ?? 0} de {MAX_MESSAGES_PER_SESSION} mensajes en esta sesión
+            {t('churchChat.messagesCount', { count: activeSession?.messages.length ?? 0, max: MAX_MESSAGES_PER_SESSION })}
           </p>
 
           <div className="flex gap-2">
@@ -704,7 +705,7 @@ export default function ChurchChatPage() {
               className="flex-1"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Escribe una pregunta sobre el evangelio, doctrina, manuales o noticias oficiales..."
+              placeholder={t('churchChat.inputPlaceholder')}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault();
@@ -714,7 +715,7 @@ export default function ChurchChatPage() {
               disabled={loading}
             />
             <Button onClick={handleSend} disabled={loading || input.trim().length === 0}>
-              Enviar
+              {t('churchChat.send')}
             </Button>
             <Button
               type="button"
@@ -723,8 +724,8 @@ export default function ChurchChatPage() {
               className="h-11 w-11 shrink-0"
               onClick={handleVoiceInput}
               disabled={loading}
-              aria-label={isListening ? 'Detener dictado por micrófono' : 'Dictar mensaje por micrófono'}
-              title={isListening ? 'Detener dictado' : 'Dictar con micrófono'}
+              aria-label={isListening ? t('churchChat.stopDictadoAria') : t('churchChat.dictarAria')}
+              title={isListening ? t('churchChat.stopDictadoTitle') : t('churchChat.dictarTitle')}
             >
               {isListening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
             </Button>

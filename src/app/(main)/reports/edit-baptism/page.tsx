@@ -15,13 +15,14 @@ import logger from "@/lib/logger";
 import { baptismsCollection, storage } from '@/lib/collections';
 import { Baptism } from '@/lib/types';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { formatDateForInput } from '@/lib/utils/date';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Camera, Trash2, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
@@ -29,6 +30,14 @@ export default function EditBaptismPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useI18n();
+
+  const sourceLabels: Record<string, string> = {
+    'Automático': t('reports.source.auto'),
+    'Manual': t('reports.source.manual'),
+    'Nuevo Converso': t('reports.source.newConvert'),
+    'Futuro Miembro': t('reports.source.futureMember'),
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -43,7 +52,7 @@ export default function EditBaptismPage() {
     const idParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null;
     if (!idParam) {
       setLoading(false);
-      toast({ title: 'Error', description: 'ID de bautismo no proporcionado.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('reports.editBaptism.idMissing'), variant: 'destructive' });
       router.push('/reports');
       return;
     }
@@ -58,8 +67,8 @@ export default function EditBaptismPage() {
           setDate(data.date?.toDate());
         } else {
           toast({
-            title: 'Error',
-            description: 'No se encontró el registro de bautismo.',
+            title: t('common.error'),
+            description: t('reports.editBaptism.notFound'),
             variant: 'destructive',
           });
           router.push('/reports');
@@ -67,8 +76,8 @@ export default function EditBaptismPage() {
       } catch (error) {
         console.error('Error fetching baptism:', error);
         toast({
-          title: 'Error',
-          description: 'No se pudo cargar el registro de bautismo.',
+          title: t('common.error'),
+          description: t('reports.editBaptism.loadError'),
           variant: 'destructive',
         });
         router.push('/reports');
@@ -106,10 +115,10 @@ export default function EditBaptismPage() {
 
   const uploadPhoto = async (file: File, path: string): Promise<string> => {
     if (file.size > MAX_FILE_SIZE) {
-      throw new Error(`El archivo ${file.name} supera los 20MB.`);
+      throw new Error(t('reports.editBaptism.fileTooLarge', { name: file.name }));
     }
     if (!file.type || !file.type.startsWith('image/')) {
-      throw new Error(`El archivo ${file.name} no es una imagen válida.`);
+      throw new Error(t('reports.editBaptism.fileInvalid', { name: file.name }));
     }
 
     const storageRef = ref(storage, `${path}/${uuidv4()}_${file.name}`);
@@ -120,14 +129,14 @@ export default function EditBaptismPage() {
   const handleUploadPhoto = async () => {
     if (!photoFile || !baptism) return;
     if (!user) {
-      toast({ title: 'Error', description: 'Debes iniciar sesión para subir imágenes.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('reports.editBaptism.loginRequiredUpload'), variant: 'destructive' });
       return;
     }
-    
+
     try {
       setUploading(true);
       const photoURL = await uploadPhoto(photoFile, `baptisms/${baptism.id}/profile`);
-      
+
       // Delete old photo if exists
       if (baptism.photoURL) {
         try {
@@ -137,19 +146,19 @@ export default function EditBaptismPage() {
           console.warn('Could not delete old photo:', error);
         }
       }
-      
+
       setBaptism(prev => (prev ? { ...prev, photoURL } : null));
       setPhotoFile(null);
-      
+
       toast({
-        title: 'Éxito',
-        description: 'Foto de perfil actualizada correctamente.',
+        title: t('settings.toast.profileUpdatedTitle'),
+        description: t('reports.editBaptism.profilePhotoUpdated'),
       });
     } catch (error) {
       console.error('Error uploading photo:', error);
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'No se pudo subir la foto de perfil.',
+        title: t('common.error'),
+        description: error instanceof Error ? error.message : t('reports.editBaptism.profilePhotoError'),
         variant: 'destructive',
       });
     } finally {
@@ -160,31 +169,31 @@ export default function EditBaptismPage() {
   const handleUploadBaptismPhotos = async () => {
     if (baptismPhotoFiles.length === 0 || !baptism) return;
     if (!user) {
-      toast({ title: 'Error', description: 'Debes iniciar sesión para subir imágenes.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('reports.editBaptism.loginRequiredUpload'), variant: 'destructive' });
       return;
     }
-    
+
     try {
       setUploadingBaptismPhotos(true);
-      const uploadPromises = baptismPhotoFiles.map(file => 
+      const uploadPromises = baptismPhotoFiles.map(file =>
         uploadPhoto(file, `baptisms/${baptism.id}/baptism`)
       );
-      
+
       const newPhotoURLs = await Promise.all(uploadPromises);
       const updatedBaptismPhotos = [...(baptism.baptismPhotos || []), ...newPhotoURLs];
-      
+
       setBaptism(prev => (prev ? { ...prev, baptismPhotos: updatedBaptismPhotos } : null));
       setBaptismPhotoFiles([]);
-      
+
       toast({
-        title: 'Éxito',
-        description: 'Fotos del bautismo subidas correctamente.',
+        title: t('settings.toast.profileUpdatedTitle'),
+        description: t('reports.editBaptism.baptismPhotosUploaded'),
       });
     } catch (error) {
       console.error('Error uploading baptism photos:', error);
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'No se pudieron subir las fotos del bautismo.',
+        title: t('common.error'),
+        description: error instanceof Error ? error.message : t('reports.editBaptism.baptismPhotosError'),
         variant: 'destructive',
       });
     } finally {
@@ -205,14 +214,14 @@ export default function EditBaptismPage() {
       setBaptism(prev => (prev ? { ...prev, baptismPhotos: updatedPhotos } : null));
       
       toast({
-        title: 'Éxito',
-        description: 'Foto eliminada correctamente.',
+        title: t('settings.toast.profileUpdatedTitle'),
+        description: t('reports.editBaptism.photoDeleted'),
       });
     } catch (error) {
       console.error('Error deleting photo:', error);
       toast({
-        title: 'Error',
-        description: 'No se pudo eliminar la foto.',
+        title: t('common.error'),
+        description: t('reports.editBaptism.photoDeleteError'),
         variant: 'destructive',
       });
     }
@@ -222,7 +231,7 @@ export default function EditBaptismPage() {
     e.preventDefault();
     if (!baptism) return;
     if (!user) {
-      toast({ title: 'Error', description: 'Debes iniciar sesión para guardar cambios.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('reports.editBaptism.loginRequiredSave'), variant: 'destructive' });
       return;
     }
     
@@ -271,16 +280,16 @@ export default function EditBaptismPage() {
       setBaptismPhotoFiles([]);
       
       toast({
-        title: 'Éxito',
-        description: 'Registro de bautismo actualizado correctamente.',
+        title: t('settings.toast.profileUpdatedTitle'),
+        description: t('reports.editBaptism.recordUpdated'),
       });
-      
+
       router.push('/reports');
     } catch (error) {
       console.error('Error updating baptism:', error);
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'No se pudo actualizar el registro de bautismo.',
+        title: t('common.error'),
+        description: error instanceof Error ? error.message : t('reports.editBaptism.recordUpdateError'),
         variant: 'destructive',
       });
     } finally {
@@ -312,16 +321,16 @@ export default function EditBaptismPage() {
       await deleteDoc(doc(baptismsCollection, baptism.id));
       
       toast({
-        title: 'Éxito',
-        description: 'Registro de bautismo eliminado correctamente.',
+        title: t('settings.toast.profileUpdatedTitle'),
+        description: t('reports.editBaptism.recordDeleted'),
       });
-      
+
       router.push('/reports');
     } catch (error) {
       console.error('Error deleting baptism:', error);
       toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el registro de bautismo.',
+        title: t('common.error'),
+        description: t('reports.editBaptism.recordDeleteError'),
         variant: 'destructive',
       });
     } finally {
@@ -332,7 +341,7 @@ export default function EditBaptismPage() {
   if (loading) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <h1 className="text-2xl font-bold mb-6">Cargando registro de bautismo...</h1>
+        <h1 className="text-2xl font-bold mb-6">{t('reports.editBaptism.loading')}</h1>
       </div>
     );
   }
@@ -340,8 +349,8 @@ export default function EditBaptismPage() {
   if (!baptism) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <h1 className="text-2xl font-bold mb-6">Registro no encontrado</h1>
-        <p>El registro de bautismo solicitado no pudo ser cargado.</p>
+        <h1 className="text-2xl font-bold mb-6">{t('reports.editBaptism.recordNotFound')}</h1>
+        <p>{t('reports.editBaptism.recordNotFoundDesc')}</p>
       </div>
     );
   }
@@ -349,12 +358,12 @@ export default function EditBaptismPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-4xl">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Editar Bautismo</h1>
-        <Button 
-          variant="outline" 
+        <h1 className="text-2xl font-bold">{t('reports.editBaptism.title')}</h1>
+        <Button
+          variant="outline"
           onClick={() => router.push('/reports')}
         >
-          Volver a Reportes
+          {t('reports.editBaptism.backToReports')}
         </Button>
       </div>
 
@@ -363,7 +372,7 @@ export default function EditBaptismPage() {
           {/* Left Column */}
           <div className="space-y-6">
             <div>
-              <Label htmlFor="name">Nombre Completo</Label>
+              <Label htmlFor="name">{t('reports.editBaptism.fullNameLabel')}</Label>
               <Input
                 id="name"
                 name="name"
@@ -375,7 +384,7 @@ export default function EditBaptismPage() {
             </div>
 
             <div>
-              <Label>Fecha de Bautismo</Label>
+              <Label>{t('reports.editBaptism.dateLabel')}</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -386,7 +395,7 @@ export default function EditBaptismPage() {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP", { locale: es }) : <span>Seleccione una fecha</span>}
+                    {date ? format(date, "PPP", { locale: getDateFnsLocale() }) : <span>{t('reports.editBaptism.selectDate')}</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -395,21 +404,21 @@ export default function EditBaptismPage() {
                     selected={date}
                     onSelect={handleDateSelect}
                     autoFocus
-                    locale={es}
+                    locale={getDateFnsLocale()}
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
             <div>
-              <Label>Origen</Label>
+              <Label>{t('reports.editBaptism.sourceLabel')}</Label>
               <div className="mt-1 p-2 border rounded-md bg-muted/50">
-                {baptism.source}
+                {sourceLabels[baptism.source] || baptism.source}
               </div>
             </div>
 
             <div>
-              <Label htmlFor="observation">Observaciones</Label>
+              <Label htmlFor="observation">{t('reports.editBaptism.observationsLabel')}</Label>
               <Textarea
                 id="observation"
                 name="observation"
@@ -424,14 +433,14 @@ export default function EditBaptismPage() {
           {/* Right Column - Photo Upload */}
           <div className="space-y-6">
             <div>
-              <Label>Foto de Perfil</Label>
+              <Label>{t('reports.editBaptism.profilePhotoLabel')}</Label>
               <div className="mt-1 flex items-center space-x-4">
                 <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-dashed border-muted-foreground/25 flex items-center justify-center">
                   {baptism.photoURL ? (
                     <>
                       <Image
                         src={baptism.photoURL}
-                        alt={`${baptism.name} foto`}
+                        alt={t('reports.editBaptism.photoAlt', { name: baptism.name })}
                         fill
                         className="object-cover"
                       />
@@ -439,8 +448,8 @@ export default function EditBaptismPage() {
                         type="button"
                         onClick={() => setBaptism(prev => (prev ? { ...prev, photoURL: '' } : null))}
                         className="absolute top-0 right-0 bg-destructive text-white rounded-full p-1 -m-2 hover:bg-destructive/90"
-                        title="Eliminar foto de perfil"
-                        aria-label="Eliminar foto de perfil"
+                        title={t('reports.editBaptism.removeProfilePhoto')}
+                        aria-label={t('reports.editBaptism.removeProfilePhoto')}
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -448,7 +457,7 @@ export default function EditBaptismPage() {
                   ) : photoFile ? (
                     <Image
                       src={URL.createObjectURL(photoFile)}
-                      alt="Vista previa"
+                        alt={t('reports.editBaptism.previewAlt')}
                       fill
                       className="object-cover"
                       unoptimized
@@ -474,7 +483,7 @@ export default function EditBaptismPage() {
                       className="w-full"
                     >
                       <Upload className="h-4 w-4 mr-2" />
-                      {photoFile ? 'Cambiar foto' : 'Seleccionar foto'}
+                      {photoFile ? t('reports.editBaptism.changePhoto') : t('reports.editBaptism.selectPhoto')}
                     </Button>
                     {photoFile && (
                       <Button
@@ -484,7 +493,7 @@ export default function EditBaptismPage() {
                         disabled={uploading}
                         className="w-full"
                       >
-                        {uploading ? 'Subiendo...' : 'Guardar foto'}
+                        {uploading ? t('reports.uploading') : t('reports.editBaptism.savePhoto')}
                       </Button>
                     )}
                   </div>
@@ -493,7 +502,7 @@ export default function EditBaptismPage() {
             </div>
 
             <div>
-              <Label>Fotos del Bautismo</Label>
+              <Label>{t('reports.editBaptism.baptismPhotosLabel')}</Label>
               <div className="mt-2">
                 <Input
                   id="baptism-photos"
@@ -511,7 +520,7 @@ export default function EditBaptismPage() {
                   className="w-full mb-4"
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  Seleccionar fotos del bautismo
+                  {t('reports.editBaptism.selectBaptismPhotos')}
                 </Button>
 
                 {baptismPhotoFiles.length > 0 && (
@@ -521,7 +530,7 @@ export default function EditBaptismPage() {
                     disabled={uploadingBaptismPhotos}
                     className="w-full mb-4"
                   >
-                    {uploadingBaptismPhotos ? 'Subiendo...' : `Subir ${baptismPhotoFiles.length} fotos`}
+                    {uploadingBaptismPhotos ? t('reports.uploading') : t('reports.editBaptism.uploadPhotos', { count: baptismPhotoFiles.length })}
                   </Button>
                 )}
 
@@ -531,7 +540,7 @@ export default function EditBaptismPage() {
                       <div className="relative w-full h-32 rounded-md overflow-hidden">
                         <Image
                           src={photoUrl}
-                          alt={`Bautismo ${index + 1}`}
+                          alt={t('reports.editBaptism.baptismPhotoAlt', { index: index + 1 })}
                           fill
                           className="object-cover"
                         />
@@ -540,8 +549,8 @@ export default function EditBaptismPage() {
                         type="button"
                         onClick={() => handleDeleteBaptismPhoto(photoUrl)}
                         className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Eliminar foto de bautismo"
-                        aria-label={`Eliminar foto de bautismo ${index + 1}`}
+                        title={t('reports.editBaptism.removeBaptismPhoto')}
+                        aria-label={t('reports.editBaptism.removeBaptismPhotoAlt', { index: index + 1 })}
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -560,7 +569,7 @@ export default function EditBaptismPage() {
             onClick={handleDelete}
             disabled={deleting}
           >
-            {deleting ? 'Eliminando...' : 'Eliminar Registro'}
+            {deleting ? t('reports.deleting') : t('reports.editBaptism.deleteRecord')}
           </Button>
           
           <div className="space-x-4">
@@ -570,10 +579,10 @@ export default function EditBaptismPage() {
               onClick={() => router.push('/reports')}
               disabled={saving}
             >
-              Cancelar
+              {t('reports.cancel')}
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? 'Guardando...' : 'Guardar Cambios'}
+              {saving ? t('reports.saving') : t('reports.editBaptism.saveChanges')}
             </Button>
           </div>
         </div>

@@ -62,7 +62,7 @@ import { MemberForm } from '@/components/members/member-form';
 import { deleteMember, updateMember } from '@/lib/members-data';
 import { NotificationCreators, createNotificationsForAll } from '@/lib/notification-helpers';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { safeGetDate, safeFormatDate } from '@/lib/date-utils';
 
 const resolveOrdinanceLabel = (ordinance: string) =>
@@ -70,25 +70,21 @@ const resolveOrdinanceLabel = (ordinance: string) =>
 
 const statusConfig = {
   active: {
-    label: 'Activo',
     variant: 'default' as const,
     icon: UserCheck,
     color: 'text-green-600'
   },
   less_active: {
-    label: 'Menos Activo',
     variant: 'secondary' as const,
     icon: UserX,
     color: 'text-yellow-600'
   },
   inactive: {
-    label: 'Inactivo',
     variant: 'destructive' as const,
     icon: UserX,
     color: 'text-red-600'
   },
   deceased: {
-    label: 'Fallecido',
     variant: 'secondary' as const,
     icon: UserX,
     color: 'text-muted-foreground'
@@ -527,11 +523,11 @@ export default function MembersPage() {
                         </TableCell>
                         <TableCell>{member.phoneNumber || 'No especificado'}</TableCell>
                         <TableCell>
-                          {safeFormatDate(member.birthDate, 'd MMM yyyy', { locale: es })}
+                          {safeFormatDate(member.birthDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}
                         </TableCell>
                         <TableCell>
                           {member.deathDate
-                            ? safeFormatDate(member.deathDate, 'd MMM yyyy', { locale: es })
+                            ? safeFormatDate(member.deathDate, 'd MMM yyyy', { locale: getDateFnsLocale() })
                             : '-'}
                         </TableCell>
                         <TableCell>
@@ -539,9 +535,9 @@ export default function MembersPage() {
                             const isBaptized = member.ordinances?.includes('baptism') ?? false;
                             const baptismDate = safeGetDate(member.baptismDate);
                             if (isBaptized && baptismDate) {
-                              return safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: es });
+                              return safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() });
                             } else if (!isBaptized && baptismDate) {
-                              return `Programado: ${safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: es })}`;
+                              return `Programado: ${safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}`;
                             } else {
                               return 'No especificada';
                             }
@@ -576,7 +572,7 @@ export default function MembersPage() {
                         <TableCell>
                           <Badge variant={statusInfo.variant} className="gap-1">
                             <StatusIcon className="h-3 w-3" />
-                            {statusInfo.label}
+                            t(`member.status.${member.status}`)
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
@@ -700,19 +696,19 @@ export default function MembersPage() {
                         </div>
                         <Badge variant={statusInfo.variant} className="gap-1">
                           <StatusIcon className="h-3 w-3" />
-                          {statusInfo.label}
+                          t(`member.status.${member.status}`)
                         </Badge>
                       </div>
 
                       {safeGetDate(member.birthDate) && (
                         <p className="text-sm text-muted-foreground mb-3">
-                          Nacimiento: {safeFormatDate(member.birthDate, 'd MMM yyyy', { locale: es })}
+                          Nacimiento: {safeFormatDate(member.birthDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}
                         </p>
                       )}
 
                       {member.deathDate && (
                         <p className="text-sm text-muted-foreground mb-3">
-                          Fallecimiento: {safeFormatDate(member.deathDate, 'd MMM yyyy', { locale: es })}
+                          Fallecimiento: {safeFormatDate(member.deathDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}
                         </p>
                       )}
 
@@ -722,7 +718,7 @@ export default function MembersPage() {
                         if (baptismDate) {
                           return (
                             <p className="text-sm text-muted-foreground mb-3">
-                              Bautismo: {isBaptized ? safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: es }) : `Programado: ${safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: es })}`}
+                              Bautismo: {isBaptized ? safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() }) : `Programado: ${safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() })}`}
                             </p>
                           );
                         }
@@ -905,7 +901,7 @@ export default function MembersPage() {
                     </div>
                     <Badge variant={statusInfo.variant} className="gap-1 flex-shrink-0">
                       <StatusIcon className="h-3 w-3" />
-                      {statusInfo.label}
+                      t(`member.status.${member.status}`)
                     </Badge>
                   </div>
                 );

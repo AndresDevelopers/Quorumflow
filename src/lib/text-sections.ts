@@ -8,49 +8,49 @@ export interface TextSection {
 export const textSections: TextSection[] = [
   {
     id: 'personal-info',
-    label: 'Información Personal',
+    label: 'textSections.personalInfo',
     description: 'Nombre, fecha de nacimiento, foto de perfil',
     category: 'Perfil'
   },
   {
     id: 'contact-info',
-    label: 'Información de Contacto',
+    label: 'textSections.contactInfo',
     description: 'Email, teléfono, dirección',
     category: 'Perfil'
   },
   {
     id: 'attendance',
-    label: 'Registro de Asistencia',
+    label: 'textSections.attendance',
     description: 'Asistencia a reuniones y actividades',
     category: 'Actividades'
   },
   {
     id: 'assignments',
-    label: 'Asignaciones',
+    label: 'textSections.assignments',
     description: 'Responsabilidades y asignaciones asignadas',
     category: 'Actividades'
   },
   {
     id: 'reports',
-    label: 'Reportes',
+    label: 'textSections.reports',
     description: 'Reportes de visitas y enseñanzas',
     category: 'Reportes'
   },
   {
     id: 'teaching-record',
-    label: 'Registro de Enseñanzas',
+    label: 'textSections.teachingRecord',
     description: 'Historial de enseñanzas dadas',
     category: 'Reportes'
   },
   {
     id: 'statistics',
-    label: 'Estadísticas',
+    label: 'textSections.statistics',
     description: 'Estadísticas de progreso y rendimiento',
     category: 'Análisis'
   },
   {
     id: 'notifications',
-    label: 'Notificaciones',
+    label: 'textSections.notifications',
     description: 'Alertas y recordatorios',
     category: 'Sistema'
   }

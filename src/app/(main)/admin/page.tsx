@@ -48,7 +48,8 @@ import { getAppName } from "@/lib/app-config";
 import logger from "@/lib/logger";
 import type { AuditAction } from "@/lib/audit-logger";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { useI18n } from "@/contexts/i18n-context";
+import { getDateFnsLocale } from "@/lib/i18n-date";
 
 interface SystemStats {
   totalUsers: number;
@@ -74,23 +75,15 @@ interface AuditEntry {
   createdAt?: Timestamp;
 }
 
-const AUDIT_META: Record<AuditAction, { label: string; icon: typeof ScrollText; color: string }> = {
-  "user.role_changed": { label: "Cambio de rol", icon: ShieldCheck, color: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
-  "user.visibility_changed": { label: "Visibilidad", icon: Eye, color: "bg-purple-500/10 text-purple-700 dark:text-purple-300" },
-  "user.bulk_role_changed": { label: "Roles masivos", icon: ShieldAlert, color: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
-  "member.status_changed": { label: "Estado miembro", icon: UserCog, color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
-  "member.deleted": { label: "Miembro eliminado", icon: Trash2, color: "bg-rose-500/10 text-rose-700 dark:text-rose-300" },
-  "user.permission_changed": { label: "Cambio de permiso", icon: ShieldCheck, color: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" },
-  "user.bulk_permission_changed": { label: "Permisos masivos", icon: ShieldAlert, color: "bg-violet-500/10 text-violet-700 dark:text-violet-300" },
-  "user.deleted": { label: "Usuario eliminado", icon: Trash2, color: "bg-rose-500/10 text-rose-700 dark:text-rose-300" },
-};
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  user: "Miembro",
-  counselor: "Consejero",
-  president: "Presidente",
-  secretary: "Secretario",
-  other: "Otro",
+const AUDIT_META: Record<AuditAction, { icon: typeof ScrollText; color: string }> = {
+  "user.role_changed": { icon: ShieldCheck, color: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
+  "user.visibility_changed": { icon: Eye, color: "bg-purple-500/10 text-purple-700 dark:text-purple-300" },
+  "user.bulk_role_changed": { icon: ShieldAlert, color: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+  "member.status_changed": { icon: UserCog, color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+  "member.deleted": { icon: Trash2, color: "bg-rose-500/10 text-rose-700 dark:text-rose-300" },
+  "user.permission_changed": { icon: ShieldCheck, color: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" },
+  "user.bulk_permission_changed": { icon: ShieldAlert, color: "bg-violet-500/10 text-violet-700 dark:text-violet-300" },
+  "user.deleted": { icon: Trash2, color: "bg-rose-500/10 text-rose-700 dark:text-rose-300" },
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
@@ -103,6 +96,8 @@ const ROLE_COLORS: Record<UserRole, string> = {
 
 export default function AdminHomePage() {
   const { barrioOrg, barrio, organizacion } = useAuth();
+  const { t } = useI18n();
+  const dateLocale = getDateFnsLocale();
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
@@ -210,82 +205,82 @@ export default function AdminHomePage() {
         <div className="flex items-center gap-2">
           <Shield className="h-7 w-7 text-primary" />
           <h1 className="text-balance text-fluid-title font-semibold">
-            Panel de Administración
+            {t("admin.title")}
           </h1>
         </div>
         <p className="text-balance text-fluid-subtitle text-muted-foreground">
-          Control total del sistema. Gestiona usuarios, miembros y configuraciones avanzadas.
+          {t("admin.subtitle")}
         </p>
       </header>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <AdminStatCard
           icon={Users}
-          label="Usuarios registrados"
+          label={t("admin.stat.registeredUsers")}
           value={stats?.totalUsers}
           isLoading={isLoading}
           href="/admin/users"
-          description={`Cuentas con acceso a ${getAppName()}`}
+          description={t("admin.stat.registeredUsers.description", { appName: getAppName() })}
         />
         <AdminStatCard
           icon={UserCog}
-          label="Miembros"
+          label={t("admin.stat.members")}
           value={stats?.totalMembers}
           isLoading={isLoading}
-          description="En la base de datos"
+          description={t("admin.stat.members.description")}
         />
         <AdminStatCard
           icon={TrendingUp}
-          label="Nuevos esta semana"
+          label={t("admin.stat.newThisWeek")}
           value={stats?.recentMembers}
           isLoading={isLoading}
-          description="Miembros agregados en los últimos 7 días"
+          description={t("admin.stat.newThisWeek.description")}
         />
         <AdminStatCard
           icon={Activity}
-          label="Actividades"
+          label={t("admin.stat.activities")}
           value={stats?.totalActivities}
           isLoading={isLoading}
-          description="Actividades registradas"
+          description={t("admin.stat.activities.description")}
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <AdminStatCard
           icon={HeartHandshake}
-          label="Conversos"
+          label={t("admin.stat.converts")}
           value={stats?.totalConverts}
           isLoading={isLoading}
-          description="Conversos recientes"
+          description={t("admin.stat.converts.description")}
         />
         <AdminStatCard
           icon={BookUser}
-          label="Futuros miembros"
+          label={t("admin.stat.futureMembers")}
           value={stats?.totalFutureMembers}
           isLoading={isLoading}
-          description="En proceso"
+          description={t("admin.stat.futureMembers.description")}
         />
         <AdminStatCard
           icon={Cake}
-          label="Cumpleaños"
+          label={t("admin.stat.birthdays")}
           value={stats?.totalBirthdays}
           isLoading={isLoading}
-          description="Registrados"
+          description={t("admin.stat.birthdays.description")}
         />
         <AdminStatCard
           icon={Wrench}
-          label="Servicios"
+          label={t("admin.stat.services")}
           value={stats?.totalServices}
           isLoading={isLoading}
-          description="Proyectos de servicio"
+          description={t("admin.stat.services.description")}
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Distribución de roles</CardTitle>
-            <CardDescription>Cuentas activas por nivel de acceso</CardDescription>
+            <CardTitle className="text-base">{t("admin.roles.title")}</CardTitle>
+            <CardDescription>{t("admin.roles.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {isLoading ? (
@@ -295,14 +290,14 @@ export default function AdminHomePage() {
                 ))}
               </div>
             ) : (
-              (Object.keys(ROLE_LABELS) as UserRole[]).map((r) => {
+              (Object.keys(ROLE_COLORS) as UserRole[]).map((r) => {
                 const count = stats?.usersByRole[r] ?? 0;
                 const total = stats?.totalUsers ?? 1;
                 const pct = Math.round((count / total) * 100);
                 return (
                   <div key={r} className="flex items-center gap-3">
                     <Badge className={ROLE_COLORS[r]} variant="secondary">
-                      {ROLE_LABELS[r]}
+                      {t(`role.${r}`)}
                     </Badge>
                     <div className="flex-1">
                       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -326,10 +321,10 @@ export default function AdminHomePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <History className="h-4 w-4" />
-              Última actividad
+              {t("admin.activity.title")}
             </CardTitle>
             <CardDescription>
-              Cambios recientes en {barrio} · {organizacion}
+              {t("admin.activity.description", { barrio, organizacion })}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -341,13 +336,12 @@ export default function AdminHomePage() {
               </div>
             ) : auditEntries.length === 0 ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                No hay actividad registrada en tu barrio aún.
+                {t("admin.activity.empty")}
               </div>
             ) : (
               <div className="space-y-2">
                 {auditEntries.slice(0, 5).map((entry) => {
                   const meta = AUDIT_META[entry.action as AuditAction] || {
-                    label: entry.action,
                     icon: ScrollText,
                     color: "bg-muted text-foreground",
                   };
@@ -367,7 +361,7 @@ export default function AdminHomePage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-xs font-medium">{meta.label}</span>
+                          <span className="text-xs font-medium">{t(`audit.action.${entry.action}`)}</span>
                           {entry.targetName && (
                             <span className="truncate text-xs text-muted-foreground">
                               {entry.targetName}
@@ -375,9 +369,9 @@ export default function AdminHomePage() {
                           )}
                         </div>
                         <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          Por {entry.actorName || entry.actorUid} ·{" "}
+                          {t("admin.audit.byPrefix", { actor: entry.actorName || entry.actorUid })}{" "}
                           {date
-                            ? format(date, "d MMM, HH:mm", { locale: es })
+                            ? format(date, "d MMM, HH:mm", { locale: dateLocale })
                             : "—"}
                         </p>
                         {(barrio || organizacion) && (
@@ -393,9 +387,9 @@ export default function AdminHomePage() {
                   );
                 })}
                 <Button asChild variant="ghost" size="sm" className="w-full text-xs">
-                  <Link href="/admin/audit">
+                     <Link href="/admin/audit">
                     <ScrollText className="mr-1 h-3.5 w-3.5" />
-                    Ver bitácora completa
+                    {t("admin.activity.viewFull")}
                   </Link>
                 </Button>
               </div>
@@ -408,13 +402,11 @@ export default function AdminHomePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
             <AlertTriangle className="h-5 w-5" />
-            Aviso de administrador
+            {t("admin.warning.title")}
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-amber-800 dark:text-amber-200">
-          Los cambios realizados aquí afectan a todos los usuarios y datos del sistema.
-          Procede con responsabilidad y coordina con la presidencia del quórum antes
-          de realizar cambios importantes.
+          {t("admin.warning.text")}
         </CardContent>
       </Card>
     </section>

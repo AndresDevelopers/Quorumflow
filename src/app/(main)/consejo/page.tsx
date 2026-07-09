@@ -321,7 +321,7 @@ const ConsejoPage: React.FC = () => {
 
       <AnnotationManager
         title="Anotaciones"
-        description="Notas y recordatorios para el consejo del quórum."
+        description="Notas y recordatorios para el consejo de tu organización."
         buttonText="Anotación"
         dialogTitle="Nueva Anotación"
         placeholder="Ej: Revisar situación de la familia Pérez..."

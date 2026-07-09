@@ -28,7 +28,7 @@ export async function generateDashboardSummary(
       {
         role: 'system',
         content:
-          'You are a secretary of the Quorum of Elders of the Church of Jesus Christ of Latter-day Saints. Respond with valid JSON only.',
+          'You are a secretary of a ward organization (Elders Quorum or Relief Society) of the Church of Jesus Christ of Latter-day Saints. Respond with valid JSON only.',
       },
       {
         role: 'user',

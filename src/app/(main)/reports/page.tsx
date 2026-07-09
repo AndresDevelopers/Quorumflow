@@ -41,10 +41,11 @@ import {
 } from "@/components/ui/dialog";
 import { Download, FileText, Droplets, RefreshCw, Save, Camera, Eye } from 'lucide-react';
 import { format, getYear, startOfYear, endOfYear } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { saveAs } from 'file-saver';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 import { usePermission } from '@/hooks/use-permission';
 import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
@@ -310,16 +311,17 @@ async function getAnnualReportAnswers(year: number): Promise<AnnualReportAnswers
 }
 
 const reportQuestions = [
-  { id: 'p1', label: 'Describir los esfuerzos por ayudar a los miembros a vivir el Evangelio de Jesucristo.' },
-  { id: 'p2', label: 'Cómo apoyó su organización a la Obra Misional en su barrio o rama.' },
-  { id: 'p3', label: 'Describir los esfuerzos por cuidar de los pobres y necesitados (no utilice nombres sin permiso).' },
-  { id: 'p4', label: 'Describir como su organización apoyo los esfuerzos por ayudar a los miembros a investigar su historia familiar.' },
-  { id: 'p5', label: 'Como secretario, describa cómo usted ha sentido la inspiración del Señor y cómo ha sentido la mano de Dios el Padre guiando sus esfuerzos.' },
-  { id: 'p6', label: 'Describa la información adicional que usted sienta que es importante incluir en este informe.' },
+  { id: 'p1' },
+  { id: 'p2' },
+  { id: 'p3' },
+  { id: 'p4' },
+  { id: 'p5' },
+  { id: 'p6' },
 ];
 
 export default function ReportsPage() {
   const { user, loading: authLoading, organizacion, barrioOrg } = useAuth();
+  const { t } = useI18n();
   const { canWrite } = usePermission();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -422,10 +424,10 @@ export default function ReportsPage() {
     try {
       const docRef = doc(annualReportsCollection, String(selectedYear));
       await setDoc(docRef, { ...answers, barrioOrg }, { merge: true });
-      toast({ title: 'Éxito', description: 'Respuestas guardadas correctamente.' });
+       toast({ title: t('settings.toast.profileUpdatedTitle'), description: t('reports.toast.answersSaved') });
     } catch (error) {
       logger.error({ error, message: 'Error saving annual report answers' });
-      toast({ title: 'Error', description: 'No se pudieron guardar las respuestas.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('reports.toast.answersSaveError'), variant: 'destructive' });
     }
   };
 
@@ -443,8 +445,8 @@ export default function ReportsPage() {
         const data = result.data as { fileContents: string };
         const blob = base64ToDocxBlob(data.fileContents);
 
-        saveAs(blob, `Reporte_Completo_${year}.docx`);
-        toast({ title: "Éxito", description: "El reporte completo se ha generado correctamente." });
+         saveAs(blob, `Reporte_Completo_${year}.docx`);
+         toast({ title: t('settings.toast.profileUpdatedTitle'), description: t('reports.toast.reportGenerated') });
 
       } catch (error) {
         logger.error({ error, message: "Error calling generateCompleteReport cloud function" });
@@ -462,13 +464,13 @@ export default function ReportsPage() {
           const data = result.data as { fileContents: string };
           const blob = base64ToDocxBlob(data.fileContents);
 
-          saveAs(blob, `Reporte_Anual_${year}.docx`);
-          toast({ title: "Éxito", description: "El reporte se ha generado correctamente (versión anterior)." });
+           saveAs(blob, `Reporte_Anual_${year}.docx`);
+           toast({ title: t('settings.toast.profileUpdatedTitle'), description: t('reports.toast.reportGeneratedOld') });
         } catch (fallbackError) {
           logger.error({ error: fallbackError, message: "Error calling fallback generateReport cloud function" });
           toast({
-            title: "Error al Generar Reporte",
-            description: "No se pudo generar el reporte. Verifica la consola para más detalles.",
+            title: t('reports.toast.generateReportErrorTitle'),
+            description: t('reports.toast.generateReportErrorDesc'),
             variant: "destructive",
             duration: 9000
           });
@@ -491,17 +493,17 @@ export default function ReportsPage() {
             <div className="flex items-center gap-3">
               <FileText className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle>Informe Anual {selectedYear}</CardTitle>
+                <CardTitle>{t('reports.annualReportTitle', { year: selectedYear })}</CardTitle>
                 <CardDescription>
-                  Compila la información para el informe anual del quórum.
+                  {t('reports.annualReportDescription')}
                 </CardDescription>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="w-40">
                 <Select value={String(selectedYear)} onValueChange={handleYearChange} disabled={availableYears === null}>
-                  <SelectTrigger aria-label="Filtrar por año">
-                    <SelectValue placeholder="Año" />
+                  <SelectTrigger aria-label={t('reports.filterByYear')}>
+                    <SelectValue placeholder={t('reports.yearPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {yearOptions.map((year) => (
@@ -515,14 +517,14 @@ export default function ReportsPage() {
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button disabled={isGeneratingReport}>
-                    {isGeneratingReport ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />Generando...</> : <><Download className="mr-2 h-4 w-4" />Descargar Reporte</>}
+                    {isGeneratingReport ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />{t('reports.generating')}</> : <><Download className="mr-2 h-4 w-4" />{t('reports.downloadReport')}</>}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Descargar reporte</AlertDialogTitle>
+                    <AlertDialogTitle>{t('reports.downloadDialogTitle')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Elige el año del informe que deseas descargar.
+                      {t('reports.downloadDialogDescription')}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <div className="grid gap-2">
@@ -531,17 +533,17 @@ export default function ReportsPage() {
                       disabled={isGeneratingReport}
                       onClick={() => generateReportForYear(currentYear)}
                     >
-                      Año actual ({currentYear})
+                      {t('reports.currentYear', { year: currentYear })}
                     </AlertDialogAction>
                     <AlertDialogAction
                       className="w-full h-11"
                       disabled={isGeneratingReport}
                       onClick={() => generateReportForYear(currentYear - 1)}
                     >
-                      Año pasado ({currentYear - 1})
+                      {t('reports.lastYear', { year: currentYear - 1 })}
                     </AlertDialogAction>
                     <AlertDialogCancel className="w-full h-11">
-                      Cancelar
+                      {t('reports.cancel')}
                     </AlertDialogCancel>
                   </div>
                 </AlertDialogContent>
@@ -555,7 +557,7 @@ export default function ReportsPage() {
           ) : (
             reportQuestions.map(q => (
               <div key={q.id} className="space-y-2">
-                <Label htmlFor={q.id} className="font-semibold">{q.label}</Label>
+                <Label htmlFor={q.id} className="font-semibold">{t(`reports.questions.${q.id}`)}</Label>
                 <Textarea
                   id={q.id}
                   value={(answers as any)[q.id] || ''}
@@ -568,7 +570,7 @@ export default function ReportsPage() {
         </CardContent>
         <CardContent className="flex justify-end">
           {canWrite && (
-          <Button onClick={handleSaveAnswers}><Save className="mr-2 h-4 w-4" /> Guardar Respuestas</Button>
+          <Button onClick={handleSaveAnswers}><Save className="mr-2 h-4 w-4" /> {t('reports.saveAnswers')}</Button>
           )}
         </CardContent>
       </Card>
@@ -579,9 +581,9 @@ export default function ReportsPage() {
             <div className="flex items-center gap-3">
               <Droplets className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle>Bautismos del Año {selectedYear}</CardTitle>
+                <CardTitle>{t('reports.baptismsOfYear', { year: selectedYear })}</CardTitle>
                 <CardDescription>
-                  Lista de miembros bautizados en el año seleccionado.
+                  {t('reports.baptismsDescription')}
                 </CardDescription>
               </div>
             </div>
@@ -593,9 +595,9 @@ export default function ReportsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Fecha de Bautismo</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead>{t('reports.col.name')}</TableHead>
+                  <TableHead>{t('reports.col.baptismDate')}</TableHead>
+                  <TableHead className="text-right">{t('reports.col.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -614,7 +616,7 @@ export default function ReportsPage() {
                     return (
                       <TableRow>
                         <TableCell colSpan={3} className="h-24 text-center">
-                          No hay miembros bautizados registrados para este año.
+                          {t('reports.noBaptismsYear')}
                         </TableCell>
                       </TableRow>
                     );
@@ -627,7 +629,7 @@ export default function ReportsPage() {
                     return (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{format(item.date.toDate(), 'd LLLL yyyy', { locale: es })}</TableCell>
+                        <TableCell>{format(item.date.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             {hasLink ? (
@@ -660,7 +662,7 @@ export default function ReportsPage() {
               }
 
               if (baptisms.length === 0) {
-                return <p className="text-center text-sm text-muted-foreground py-8">No hay miembros bautizados registrados.</p>;
+                return                <p className="text-center text-sm text-muted-foreground py-8">{t('reports.noBaptisms')}</p>;
               }
 
               return baptisms.map((item) => {
@@ -674,7 +676,7 @@ export default function ReportsPage() {
                         <div>
                           <p className="font-bold">{item.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {format(item.date.toDate(), 'd LLLL yyyy', { locale: es })}
+                            {format(item.date.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
@@ -704,7 +706,7 @@ export default function ReportsPage() {
       <Dialog open={photosModalOpen} onOpenChange={setPhotosModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Fotos de Bautismo - {selectedBaptismName}</DialogTitle>
+            <DialogTitle>{t('reports.photosDialogTitle', { name: selectedBaptismName })}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto">
             {selectedPhotos.map((url, index) => (
@@ -712,7 +714,7 @@ export default function ReportsPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={url}
-                  alt={`Foto de bautismo ${index + 1}`}
+                  alt={t('reports.baptismPhotoAlt', { index: index + 1 })}
                   className="rounded-md object-cover max-h-96 w-auto"
                 />
               </div>

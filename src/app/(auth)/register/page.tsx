@@ -11,7 +11,7 @@ import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { doc, serverTimestamp, setDoc, getDocs } from "firebase/firestore";
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { CalendarIcon } from 'lucide-react';
 
 import { Button } from "@/components/ui/button";
@@ -49,22 +49,23 @@ import { cn } from '@/lib/utils';
 import { useI18n } from "@/contexts/i18n-context";
 import { usersCollection, barriosCollection, organizacionesCollection } from "@/lib/collections";
 
-const registerSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().email({ message: "Invalid email address." }),
-  birthDate: z.date({
-    required_error: "Date of birth is required.",
-  }),
-  barrio: z.string().min(1, { message: "Barrio is required." }),
-  organizacion: z.string().min(1, { message: "Organización is required." }),
-  password: z
-    .string()
-    .min(6, { message: "Password must be at least 6 characters." }),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match.",
+const createRegisterSchema = (t: (key: string, params?: Record<string, string | number>) => string) =>
+  z.object({
+    name: z.string().min(2, { message: t('register.validation.nameMin') }),
+    email: z.string().email({ message: t('register.validation.email') }),
+    birthDate: z.date({
+      required_error: t('register.validation.birthDateRequired'),
+    }),
+    barrio: z.string().min(1, { message: t('register.validation.barrioRequired') }),
+    organizacion: z.string().min(1, { message: t('register.validation.organizacionRequired') }),
+    password: z
+      .string()
+      .min(6, { message: t('register.validation.passwordMin') }),
+    confirmPassword: z.string(),
+  }).refine((data) => data.password === data.confirmPassword, {
+    message: t('register.validation.passwordMismatch'),
     path: ["confirmPassword"],
-});
+  });
 
 
 export default function RegisterPage() {
@@ -96,8 +97,8 @@ export default function RegisterPage() {
     fetchOptions();
   }, []);
 
-  const form = useForm<z.infer<typeof registerSchema>>({
-    resolver: zodResolver(registerSchema),
+  const form = useForm<z.infer<ReturnType<typeof createRegisterSchema>>>({
+    resolver: zodResolver(createRegisterSchema(t)),
     defaultValues: {
       name: "",
       email: "",
@@ -108,7 +109,7 @@ export default function RegisterPage() {
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof registerSchema>) => {
+  const onSubmit = async (values: z.infer<ReturnType<typeof createRegisterSchema>>) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
@@ -205,7 +206,7 @@ export default function RegisterPage() {
                           )}
                         >
                           {field.value ? (
-                            format(field.value, 'd LLLL yyyy', { locale: es })
+                            format(field.value, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                           ) : (
                             <span>{t('register.birthDatePlaceholder')}</span>
                           )}
@@ -222,7 +223,7 @@ export default function RegisterPage() {
                           date > new Date() || date < new Date('1900-01-01')
                         }
                         autoFocus
-                        locale={es}
+                        locale={getDateFnsLocale()}
                         captionLayout="dropdown"
                         startMonth={new Date(1920, 0)}
                         endMonth={new Date(new Date().getFullYear(), 11)}

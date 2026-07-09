@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/contexts/i18n-context";
 import logger from "@/lib/logger";
 import {
   Database,
@@ -60,31 +61,32 @@ interface UserInfo {
 }
 
 const DATA_COLLECTIONS: { ref: ReturnType<typeof collection>; label: string }[] = [
-  { ref: membersCollection, label: "Miembros" },
-  { ref: convertsCollection, label: "Conversos" },
-  { ref: activitiesCollection, label: "Actividades" },
-  { ref: servicesCollection, label: "Servicios" },
-  { ref: futureMembersCollection, label: "Futuros miembros" },
-  { ref: birthdaysCollection, label: "Cumpleaños" },
-  { ref: ministeringCollection, label: "Ministración" },
-  { ref: ministeringDistrictsCollection, label: "Distritos ministración" },
-  { ref: ministeringHistoryCollection, label: "Historial ministración" },
-  { ref: baptismsCollection, label: "Bautismos" },
-  { ref: annotationsCollection, label: "Anotaciones" },
-  { ref: healthConcernsCollection, label: "Salud" },
-  { ref: annualReportsCollection, label: "Reporte anual" },
-  { ref: newConvertFriendsCollection, label: "Amigos conversos" },
-  { ref: investigatorsCollection, label: "Investigadores" },
-  { ref: missionaryAssignmentsCollection, label: "Asignaciones misionales" },
-  { ref: missionaryImagesCollection, label: "Imágenes misionales" },
-  { ref: familySearchTrainingsCollection, label: "Capacitaciones FS" },
-  { ref: familySearchTasksCollection, label: "Tareas FS" },
-  { ref: familySearchAnnotationsCollection, label: "Anotaciones FS" },
-  { ref: adminAuditCollection, label: "Auditoría" },
+  { ref: membersCollection, label: "collection.members" },
+  { ref: convertsCollection, label: "collection.converts" },
+  { ref: activitiesCollection, label: "collection.activities" },
+  { ref: servicesCollection, label: "collection.services" },
+  { ref: futureMembersCollection, label: "collection.futureMembers" },
+  { ref: birthdaysCollection, label: "collection.birthdays" },
+  { ref: ministeringCollection, label: "collection.ministering" },
+  { ref: ministeringDistrictsCollection, label: "collection.ministeringDistricts" },
+  { ref: ministeringHistoryCollection, label: "collection.ministeringHistory" },
+  { ref: baptismsCollection, label: "collection.baptisms" },
+  { ref: annotationsCollection, label: "collection.annotations" },
+  { ref: healthConcernsCollection, label: "collection.health" },
+  { ref: annualReportsCollection, label: "collection.annualReport" },
+  { ref: newConvertFriendsCollection, label: "collection.newConvertFriends" },
+  { ref: investigatorsCollection, label: "collection.investigators" },
+  { ref: missionaryAssignmentsCollection, label: "collection.missionaryAssignments" },
+  { ref: missionaryImagesCollection, label: "collection.missionaryImages" },
+  { ref: familySearchTrainingsCollection, label: "collection.familySearchTrainings" },
+  { ref: familySearchTasksCollection, label: "collection.familySearchTasks" },
+  { ref: familySearchAnnotationsCollection, label: "collection.familySearchAnnotations" },
+  { ref: adminAuditCollection, label: "collection.audit" },
 ];
 
 export default function MigratePage() {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [migrationStatus, setMigrationStatus] = useState<string[]>([]);
@@ -105,10 +107,10 @@ export default function MigratePage() {
         const data = d.data();
         list.push({
           uid: d.id,
-          name: data.name || "Sin nombre",
+          name: data.name || t("admin.migrate.sinNombre"),
           email: data.email || "—",
-          barrio: data.barrio || "Sin barrio",
-          organizacion: data.organizacion || "Sin organización",
+          barrio: data.barrio || t("admin.migrate.sinBarrio"),
+          organizacion: data.organizacion || t("admin.migrate.sinOrganizacion"),
           barrioOrg: data.barrioOrg || "",
           role: data.role || "user",
         });
@@ -145,7 +147,7 @@ export default function MigratePage() {
 
   const handleAnalyze = async () => {
     if (!selectedUserBarrioOrg) {
-      toast({ title: "Selecciona un usuario", description: "Elige un usuario de referencia.", variant: "destructive" });
+      toast({ title: t("admin.migrate.toast.selectUser"), description: t("admin.migrate.toast.selectUserDesc"), variant: "destructive" });
       return;
     }
     setMigrationStatus([]);
@@ -159,7 +161,7 @@ export default function MigratePage() {
         setMigrationCounts({ ...counts });
       }
       setMigrationCounts(counts);
-      toast({ title: "Análisis completo", description: "Revisa los resultados abajo." });
+      toast({ title: t("admin.migrate.toast.analysisComplete"), description: t("admin.migrate.toast.analysisCompleteDesc") });
     } catch (err) {
       logger.error({ error: err, message: "Error analyzing collections" });
     } finally {
@@ -172,7 +174,7 @@ export default function MigratePage() {
 
     const totalMissing = Object.values(migrationCounts).reduce((sum, c) => sum + c.missing, 0);
     if (totalMissing === 0) {
-      toast({ title: "Nada que migrar", description: "Todas las colecciones ya tienen barrioOrg." });
+      toast({ title: t("admin.migrate.toast.nothingToMigrate"), description: t("admin.migrate.toast.nothingToMigrateDesc") });
       return;
     }
 
@@ -203,23 +205,23 @@ export default function MigratePage() {
 
         if (batchCount > 0) {
           await batch.commit();
-          log.push(`✅ ${col.label}: ${updatedCount} docs actualizados`);
+          log.push(`✅ ${t(col.label)}: ${t("admin.migrate.docsUpdated", { count: updatedCount })}`);
         }
         setMigrationStatus([...log]);
       }
 
-      log.push("---");
-      log.push("🎉 Migración completada.");
+      log.push(t("admin.migrate.separator"));
+      log.push(t("admin.migrate.completed"));
       setMigrationStatus(log);
-      toast({ title: "Migración completa", description: "Todos los documentos sin barrioOrg fueron actualizados." });
+      toast({ title: t("admin.migrate.toast.migrationComplete"), description: t("admin.migrate.toast.migrationCompleteDesc") });
 
       // Reload analysis
       await handleAnalyze();
     } catch (err) {
       logger.error({ error: err, message: "Error migrating data" });
-      log.push("❌ Error durante la migración");
+      log.push(t("admin.migrate.errorDuring"));
       setMigrationStatus(log);
-      toast({ title: "Error", description: "Ocurrió un error durante la migración.", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("admin.migrate.toast.errorDesc"), variant: "destructive" });
     } finally {
       setIsMigrating(false);
     }
@@ -233,11 +235,11 @@ export default function MigratePage() {
         <div className="flex items-center gap-2">
           <Database className="h-6 w-6 text-primary" />
           <h1 className="text-balance text-fluid-title font-semibold">
-            Migración de datos
+            {t("admin.migrate.title")}
           </h1>
         </div>
         <p className="text-balance text-fluid-subtitle text-muted-foreground">
-          Asigna barrio/organización a documentos existentes para activar el alcance por barrio.
+          {t("admin.migrate.subtitle")}
         </p>
       </header>
 
@@ -246,10 +248,10 @@ export default function MigratePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <UserCog className="h-4 w-4" />
-            Usuarios registrados
+            {t("admin.migrate.registeredUsers")}
           </CardTitle>
           <CardDescription>
-            Cada usuario tiene su barrio y organización. Úsalos como referencia para migrar datos.
+            {t("admin.migrate.usersDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -264,10 +266,10 @@ export default function MigratePage() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-muted text-left">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Usuario</th>
-                    <th className="px-3 py-2 font-medium">Barrio</th>
-                    <th className="px-3 py-2 font-medium">Organización</th>
-                    <th className="px-3 py-2 font-medium">Rol</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.migrate.col.user")}</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.migrate.col.barrio")}</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.migrate.col.organizacion")}</th>
+                    <th className="px-3 py-2 font-medium">{t("admin.migrate.col.rol")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -299,13 +301,13 @@ export default function MigratePage() {
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <p className="text-sm">
-                  BarrioOrg seleccionado:{" "}
+                  {t("admin.migrate.selectedBarrioOrg")}{" "}
                   <Badge variant="secondary" className="ml-1 font-mono text-xs">
                     {selectedUserBarrioOrg}
                   </Badge>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Este valor se asignará a los documentos sin barrioOrg.
+                  {t("admin.migrate.selectedHint")}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -315,7 +317,7 @@ export default function MigratePage() {
                   ) : (
                     <RefreshCw className="mr-1 h-4 w-4" />
                   )}
-                  Analizar
+                  {t("admin.migrate.analyze")}
                 </Button>
                 <Button onClick={handleMigrateAll} disabled={isMigrating || totalMissingAll === 0}>
                   {isMigrating ? (
@@ -323,7 +325,7 @@ export default function MigratePage() {
                   ) : (
                     <CheckCircle2 className="mr-1 h-4 w-4" />
                   )}
-                  Migrar ({totalMissingAll} pendientes)
+                  {t("admin.migrate.migrate", { count: totalMissingAll })}
                 </Button>
               </div>
             </div>
@@ -335,9 +337,9 @@ export default function MigratePage() {
       {Object.keys(migrationCounts).length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Resultados del análisis</CardTitle>
+            <CardTitle className="text-base">{t("admin.migrate.results")}</CardTitle>
             <CardDescription>
-              Documentos que necesitan barrioOrg en cada colección.
+              {t("admin.migrate.resultsDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -350,16 +352,16 @@ export default function MigratePage() {
                   }`}
                 >
                   <div>
-                    <p className="text-sm font-medium">{label}</p>
-                    <p className="text-xs text-muted-foreground">{info.total} docs</p>
+                    <p className="text-sm font-medium">{t(label)}</p>
+                    <p className="text-xs text-muted-foreground">{t("admin.migrate.docs", { count: info.total })}</p>
                   </div>
                   {info.missing > 0 ? (
                     <Badge variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-300">
-                      {info.missing} sin barrioOrg
+                      {info.missing} {t("admin.migrate.withoutBarrioOrg")}
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="text-emerald-600 dark:text-emerald-400">
-                      OK
+                      {t("admin.migrate.ok")}
                     </Badge>
                   )}
                 </div>
@@ -373,7 +375,7 @@ export default function MigratePage() {
       {migrationStatus.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Registro de migración</CardTitle>
+            <CardTitle className="text-base">{t("admin.migrate.log")}</CardTitle>
           </CardHeader>
           <CardContent>
             <pre className="max-h-64 overflow-y-auto rounded bg-muted p-3 text-xs whitespace-pre-wrap">
@@ -387,16 +389,16 @@ export default function MigratePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
             <AlertTriangle className="h-5 w-5" />
-            Instrucciones
+            {t("admin.migrate.instructions")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-amber-800 dark:text-amber-200">
-          <p>1. Revisa la tabla de usuarios para ver qué barrio/organización tiene cada uno.</p>
-          <p>2. Haz clic en un usuario para seleccionar su <code className="rounded bg-amber-200/50 px-1 dark:bg-amber-800/50">barrioOrg</code>.</p>
-          <p>3. Haz clic en <strong>Analizar</strong> para ver cuántos documentos en cada colección no tienen barrioOrg.</p>
-          <p>4. Haz clic en <strong>Migrar</strong> para asignar el barrioOrg seleccionado a esos documentos.</p>
+          <p>{t("admin.migrate.step1")}</p>
+          <p>{t("admin.migrate.step2")}</p>
+          <p>{t("admin.migrate.step3")}</p>
+          <p>{t("admin.migrate.step4")}</p>
           <p className="font-medium">
-            Repite este proceso por cada combinación de barrio/organización que exista en tus datos.
+            {t("admin.migrate.step5")}
           </p>
         </CardContent>
       </Card>

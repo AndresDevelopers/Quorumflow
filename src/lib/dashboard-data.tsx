@@ -13,7 +13,7 @@ import type { Convert, Companionship, Activity, Service, Member } from '@/lib/ty
 import { normalizeMemberStatus } from '@/lib/members-data';
 import { buildActivityOverview } from '@/lib/activity-overview';
 import { subMonths, addDays, format, isAfter, isBefore } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 
 export async function getFutureMembers(barrioOrg: string): Promise<Member[]> {
   const today = new Date();
@@ -233,7 +233,7 @@ export async function getActivityChartData(barrioOrg: string) {
   activities.forEach(activity => {
     const activityDate = activity.date.toDate();
     if (activityDate.getFullYear() === currentYear) {
-      const month = format(activityDate, 'MMM', { locale: es });
+      const month = format(activityDate, 'MMM', { locale: getDateFnsLocale() });
       // Capitalize first letter for consistency (e.g., 'Ene' -> 'Ene')
       const monthKey = month.charAt(0).toUpperCase() + month.slice(1).replace('.', '');
       if (monthlyTotals.hasOwnProperty(monthKey)) {

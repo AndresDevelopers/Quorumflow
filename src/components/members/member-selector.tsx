@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 import type { Member, MemberStatus } from '@/lib/types';
 import { getMembersForSelector } from '@/lib/members-data';
 
@@ -39,22 +40,18 @@ interface MemberSelectorProps {
 
 const statusConfig = {
   active: {
-    label: 'Activo',
     variant: 'default' as const,
     color: 'text-green-600'
   },
   less_active: {
-    label: 'Menos Activo',
     variant: 'secondary' as const,
     color: 'text-yellow-600'
   },
   inactive: {
-    label: 'Inactivo',
     variant: 'destructive' as const,
     color: 'text-red-600'
   },
   deceased: {
-    label: 'Fallecido',
     variant: 'secondary' as const,
     color: 'text-muted-foreground'
   }
@@ -63,7 +60,7 @@ const statusConfig = {
 export function MemberSelector({
   value,
   onValueChange,
-  placeholder = 'Seleccionar miembro...',
+  placeholder,
   includeInactive = false,
   statusFilter,
   disabled = false,
@@ -73,6 +70,7 @@ export function MemberSelector({
 }: MemberSelectorProps) {
   const { toast } = useToast();
   const { barrioOrg } = useAuth();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,14 +164,14 @@ export function MemberSelector({
                     variant={statusConfig[selectedMember.status].variant}
                     className="ml-auto text-xs"
                   >
-                    {statusConfig[selectedMember.status].label}
+                    {t(`member.status.${selectedMember.status}`)}
                   </Badge>
                 )}
               </div>
             ) : (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4" />
-                <span>{placeholder}</span>
+                <span>{placeholder ?? t('memberSelector.placeholder')}</span>
               </div>
             )}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -182,7 +180,7 @@ export function MemberSelector({
         <PopoverContent className="w-full p-0" align="start">
           <Command>
             <CommandInput 
-              placeholder="Buscar miembro..." 
+              placeholder={t('memberSelector.search')} 
               className="h-9"
             />
             <CommandList>
@@ -190,7 +188,7 @@ export function MemberSelector({
                 <div className="flex flex-col items-center gap-2 py-6">
                   <Search className="h-8 w-8 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">
-                    No se encontraron miembros.
+                    {t('memberSelector.notFound')}
                   </p>
                 </div>
               </CommandEmpty>
@@ -226,7 +224,7 @@ export function MemberSelector({
                           variant={statusInfo.variant}
                           className="text-xs"
                         >
-                          {statusInfo.label}
+                          {t(`member.status.${member.status}`)}
                         </Badge>
                       )}
                       <Check
@@ -334,6 +332,7 @@ export function MemberDisplay({
   showPhone = false,
   className 
 }: MemberDisplayProps) {
+  const { t } = useI18n();
   const statusInfo = statusConfig[member.status];
   
   return (
@@ -357,7 +356,7 @@ export function MemberDisplay({
       </div>
       {showStatus && (
         <Badge variant={statusInfo.variant}>
-          {statusInfo.label}
+          {t(`member.status.${member.status}`)}
         </Badge>
       )}
     </div>

@@ -71,6 +71,7 @@ import { useToast } from '@/hooks/use-toast';
 
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
+import { useI18n } from '@/contexts/i18n-context';
 
 import type { Member, Companionship, Family, HealthConcern } from '@/lib/types';
 
@@ -82,7 +83,7 @@ import { fetchHealthConcerns, createHealthConcern, deleteHealthConcern, updateHe
 
 import { format, subMonths, differenceInYears } from 'date-fns';
 
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 
 import { useRouter } from 'next/navigation';
 
@@ -96,8 +97,6 @@ const statusConfig = {
 
   active: {
 
-    label: 'Activo',
-
     variant: 'default' as const,
 
     icon: UserCheck,
@@ -107,8 +106,6 @@ const statusConfig = {
   },
 
   less_active: {
-
-    label: 'Menos Activo',
 
     variant: 'secondary' as const,
 
@@ -120,8 +117,6 @@ const statusConfig = {
 
   inactive: {
 
-    label: 'Inactivo',
-
     variant: 'destructive' as const,
 
     icon: UserX,
@@ -131,8 +126,6 @@ const statusConfig = {
   },
 
   deceased: {
-
-    label: 'Fallecido',
 
     variant: 'secondary' as const,
 
@@ -180,6 +173,7 @@ export default function ObservationsPage() {
 
   const { user, loading: authLoading, barrioOrg, organizacion } = useAuth();
   const { canWrite } = usePermission();
+  const { t } = useI18n();
 
   const isElderesQuorum = organizacion.toLowerCase().includes('élder') || organizacion.toLowerCase().includes('elder');
 
@@ -1312,7 +1306,7 @@ export default function ObservationsPage() {
                       : [];
 
                     const createdAtLabel = concern.createdAt
-                      ? format(concern.createdAt.toDate(), 'd MMM yyyy', { locale: es })
+                      ? format(concern.createdAt.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
                       : 'Fecha no disponible';
 
                     return (
@@ -1408,7 +1402,7 @@ export default function ObservationsPage() {
                   : [];
 
                 const createdAtLabel = concern.createdAt
-                  ? format(concern.createdAt.toDate(), 'd MMM yyyy', { locale: es })
+                  ? format(concern.createdAt.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
                   : 'Fecha no disponible';
 
                 return (
@@ -1607,7 +1601,7 @@ export default function ObservationsPage() {
 
                             <StatusIcon className="h-3 w-3" />
 
-                            {statusInfo.label}
+                            {t(`member.status.${member.status}`)}
 
                           </Badge>
 
@@ -1757,7 +1751,7 @@ export default function ObservationsPage() {
 
                           <StatusIcon className="h-3 w-3" />
 
-                          {statusInfo.label}
+                          {t(`member.status.${member.status}`)}
 
                         </Badge>
 
@@ -1963,7 +1957,7 @@ export default function ObservationsPage() {
 
                             <StatusIcon className="h-3 w-3" />
 
-                            {statusInfo.label}
+                            {t(`member.status.${member.status}`)}
 
                           </Badge>
 
@@ -2113,7 +2107,7 @@ export default function ObservationsPage() {
 
                           <StatusIcon className="h-3 w-3" />
 
-                          {statusInfo.label}
+                          {t(`member.status.${member.status}`)}
 
                         </Badge>
 
@@ -2318,7 +2312,7 @@ export default function ObservationsPage() {
 
                             <StatusIcon className="h-3 w-3" />
 
-                            {statusInfo.label}
+                            {t(`member.status.${member.status}`)}
 
                           </Badge>
 
@@ -2468,7 +2462,7 @@ export default function ObservationsPage() {
 
                           <StatusIcon className="h-3 w-3" />
 
-                          {statusInfo.label}
+                          {t(`member.status.${member.status}`)}
 
                         </Badge>
 
@@ -2669,7 +2663,7 @@ export default function ObservationsPage() {
 
                             <StatusIcon className="h-3 w-3" />
 
-                            {statusInfo.label}
+                            {t(`member.status.${member.status}`)}
 
                           </Badge>
 
@@ -2793,7 +2787,7 @@ export default function ObservationsPage() {
 
                           <StatusIcon className="h-3 w-3" />
 
-                          {statusInfo.label}
+                          {t(`member.status.${member.status}`)}
 
                         </Badge>
 
@@ -2900,12 +2894,12 @@ export default function ObservationsPage() {
                       </TableCell>
                       <TableCell>
                         {member.baptismDate
-                          ? format(member.baptismDate.toDate(), 'd MMM yyyy', { locale: es })
+                          ? format(member.baptismDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
                           : 'No especificada'}
                       </TableCell>
                       <TableCell>
                         {member.lastActiveDate
-                          ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: es })
+                          ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
                           : 'Nunca'}
                       </TableCell>
                       <TableCell className="text-right">
@@ -2960,7 +2954,7 @@ export default function ObservationsPage() {
                           <h3 className="font-semibold">{member.firstName} {member.lastName}</h3>
                           <p className="text-sm text-muted-foreground">
                             Bautismo: {member.baptismDate
-                              ? format(member.baptismDate.toDate(), 'd MMM yyyy', { locale: es })
+                              ? format(member.baptismDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
                               : 'No especificada'}
                           </p>
                         </div>
@@ -2969,7 +2963,7 @@ export default function ObservationsPage() {
 
                     <p className="text-sm text-muted-foreground mb-3">
                       Última actividad: {member.lastActiveDate
-                        ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: es })
+                        ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
                         : 'Nunca'}
                     </p>
 
@@ -3113,7 +3107,7 @@ export default function ObservationsPage() {
 
                         {member.birthDate
 
-                          ? format(member.birthDate.toDate(), 'd MMM yyyy', { locale: es })
+                          ? format(member.birthDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
 
                           : 'No especificada'}
 
@@ -3123,7 +3117,7 @@ export default function ObservationsPage() {
 
                         {member.lastActiveDate
 
-                          ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: es })
+                          ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
 
                           : 'Nunca'}
 
@@ -3246,7 +3240,7 @@ export default function ObservationsPage() {
 
                       Última actividad: {member.lastActiveDate
 
-                        ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: es })
+                        ? format(member.lastActiveDate.toDate(), 'd MMM yyyy', { locale: getDateFnsLocale() })
 
                         : 'Nunca'}
 
@@ -3728,7 +3722,7 @@ export default function ObservationsPage() {
 
                                   <StatusIcon className="h-3 w-3" />
 
-                                  {statusInfo.label}
+                                  {t(`member.status.${member.status}`)}
 
                                 </Badge>
 
@@ -3892,7 +3886,7 @@ export default function ObservationsPage() {
 
                                 <StatusIcon className="h-3 w-3" />
 
-                                {statusInfo.label}
+                                {t(`member.status.${member.status}`)}
 
                               </Badge>
 
@@ -4116,7 +4110,7 @@ export default function ObservationsPage() {
                                             <Check className={cn('h-4 w-4', isSelected ? 'opacity-100' : 'opacity-0')} />
                                             <span className="flex-1">{member.firstName} {member.lastName}</span>
                                             <Badge variant={statusInfo.variant} className="text-[10px]">
-                                              {statusInfo.label}
+                                              {t(`member.status.${member.status}`)}
                                             </Badge>
                                           </div>
                                         </CommandItem>

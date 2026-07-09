@@ -12,6 +12,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/contexts/i18n-context";
 import logger from "@/lib/logger";
 import { logAdminAction } from "@/lib/audit-logger";
 import {
@@ -82,30 +83,20 @@ interface UserData {
   createdAt?: Timestamp;
 }
 
-const ROLE_META: Record<UserRole, { label: string; description: string; color: string }> = {
+const ROLE_META: Record<UserRole, { color: string }> = {
   user: {
-    label: "Miembro",
-    description: "Acceso limitado.",
     color: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
   },
   counselor: {
-    label: "Consejero",
-    description: "Ve todo salvo editar ajustes.",
     color: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
   },
   president: {
-    label: "Presidente",
-    description: "Ve todo salvo editar ajustes.",
     color: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
   },
   secretary: {
-    label: "Secretario",
-    description: "Control total.",
     color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   },
   other: {
-    label: "Otro",
-    description: "Acceso personalizado.",
     color: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
   },
 };
@@ -113,6 +104,7 @@ const ROLE_META: Record<UserRole, { label: string; description: string; color: s
 export default function AdminUsersPage() {
   const { firebaseUser, barrioOrg } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [users, setUsers] = useState<UserData[]>([]);
   const [filtered, setFiltered] = useState<UserData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -145,8 +137,8 @@ export default function AdminUsersPage() {
           if (userBarrioOrg !== barrioOrg) return;
           list.push({
             uid: d.id,
-            name: data.name || "Sin nombre",
-            email: data.email || "Sin email",
+            name: data.name || t("admin.users.noName"),
+            email: data.email || t("admin.users.noEmail"),
             role: normalizeRole(data.role),
             permission: normalizePermission(data.permission),
             visiblePages: Array.isArray(data.visiblePages)
@@ -164,8 +156,8 @@ export default function AdminUsersPage() {
       } catch (err) {
         logger.error({ error: err, message: "Error loading admin users" });
         toast({
-          title: "Error",
-          description: "No se pudieron cargar los usuarios.",
+          title: t("common.error"),
+          description: t("admin.users.toast.errorLoad"),
           variant: "destructive",
         });
       } finally {
@@ -227,14 +219,14 @@ export default function AdminUsersPage() {
         });
       }
       toast({
-        title: "Rol actualizado",
-        description: `El usuario ahora es ${ROLE_META[normalized].label}.`,
+        title: t("admin.users.toast.roleUpdated"),
+        description: t("admin.users.toast.roleUpdatedDesc", { role: t(`role.${normalized}`) }),
       });
     } catch (err) {
       logger.error({ error: err, message: "Error updating role", userId });
       toast({
-        title: "Error",
-        description: "No se pudo actualizar el rol.",
+        title: t("common.error"),
+        description: t("admin.users.toast.errorRole"),
         variant: "destructive",
       });
     } finally {
@@ -265,14 +257,14 @@ export default function AdminUsersPage() {
         });
       }
       toast({
-        title: "Permiso actualizado",
-        description: `Ahora tiene acceso: ${PERMISSION_META[newPermission].label}.`,
+        title: t("admin.users.toast.permissionUpdated"),
+        description: t("admin.users.toast.permissionUpdatedDesc", { permission: t(`permission.${newPermission}`) }),
       });
     } catch (err) {
       logger.error({ error: err, message: "Error updating permission", userId });
       toast({
-        title: "Error",
-        description: "No se pudo actualizar el permiso.",
+        title: t("common.error"),
+        description: t("admin.users.toast.errorPermission"),
         variant: "destructive",
       });
     } finally {
@@ -305,8 +297,8 @@ export default function AdminUsersPage() {
     } catch (err) {
       logger.error({ error: err, message: "Error updating visibility" });
       toast({
-        title: "Error",
-        description: "No se pudo guardar la visibilidad.",
+        title: t("common.error"),
+        description: t("admin.users.toast.visibilityError"),
         variant: "destructive",
       });
     } finally {
@@ -387,16 +379,16 @@ export default function AdminUsersPage() {
         });
       }
       toast({
-        title: "Roles actualizados",
-        description: `${selectedUids.size} usuarios ahora son ${ROLE_META[bulkRole].label}.`,
+        title: t("admin.users.toast.rolesUpdated"),
+        description: t("admin.users.toast.rolesUpdatedDesc", { count: selectedUids.size, role: t(`role.${bulkRole}`) }),
       });
       setSelectedUids(new Set());
       setBulkRole("");
     } catch (err) {
       logger.error({ error: err, message: "Error bulk updating roles" });
       toast({
-        title: "Error",
-        description: "No se pudieron actualizar los roles.",
+        title: t("common.error"),
+        description: t("admin.users.toast.errorBulkRole"),
         variant: "destructive",
       });
     } finally {
@@ -429,15 +421,15 @@ export default function AdminUsersPage() {
         });
       }
       toast({
-        title: "Permisos actualizados",
-        description: `${selectedUids.size} usuarios ahora tienen acceso: ${PERMISSION_META[bulkPermission].label}.`,
+        title: t("admin.users.toast.permissionsUpdated"),
+        description: t("admin.users.toast.permissionsUpdatedDesc", { count: selectedUids.size, permission: t(`permission.${bulkPermission}`) }),
       });
       setBulkPermission("");
     } catch (err) {
       logger.error({ error: err, message: "Error bulk updating permissions" });
       toast({
-        title: "Error",
-        description: "No se pudieron actualizar los permisos.",
+        title: t("common.error"),
+        description: t("admin.users.toast.errorBulkPermission"),
         variant: "destructive",
       });
     } finally {
@@ -476,14 +468,14 @@ export default function AdminUsersPage() {
         });
       }
       toast({
-        title: "Usuario eliminado",
-        description: `Se eliminó a ${deleteTarget.name}.`,
+        title: t("admin.users.toast.userDeleted"),
+        description: t("admin.users.toast.userDeletedDesc", { name: deleteTarget.name }),
       });
     } catch (err) {
       logger.error({ error: err, message: "Error deleting user", uid: deleteTarget.uid });
       toast({
-        title: "Error",
-        description: "No se pudo eliminar el usuario.",
+        title: t("common.error"),
+        description: t("admin.users.toast.errorDelete"),
         variant: "destructive",
       });
     } finally {
@@ -501,23 +493,23 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-2">
           <UserCog className="h-6 w-6 text-primary" />
           <h1 className="text-balance text-fluid-title font-semibold">
-            Gestión de usuarios
+            {t("admin.users.title")}
           </h1>
         </div>
         <p className="text-balance text-fluid-subtitle text-muted-foreground">
-          Asigna roles, controla permisos y modera el acceso al sistema.
+          {t("admin.users.subtitle")}
         </p>
       </header>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Filtros</CardTitle>
+          <CardTitle className="text-base">{t("admin.users.filters")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nombre o email..."
+              placeholder={t("admin.users.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -525,13 +517,13 @@ export default function AdminUsersPage() {
           </div>
           <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as UserRole | "all")}>
             <SelectTrigger>
-              <SelectValue placeholder="Filtrar por rol" />
+              <SelectValue placeholder={t("admin.users.filterByRole")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los roles</SelectItem>
+              <SelectItem value="all">{t("admin.users.allRoles")}</SelectItem>
               {assignableRoles.map((r) => (
                 <SelectItem key={r} value={r}>
-                  {ROLE_META[r].label}
+                  {t(`role.${r}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -544,17 +536,17 @@ export default function AdminUsersPage() {
           <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-sm font-medium shrink-0">
               <ShieldCheck className="h-4 w-4 text-primary" />
-              {selectedUids.size} usuario{selectedUids.size > 1 ? "s" : ""} seleccionado{selectedUids.size > 1 ? "s" : ""}
+              {selectedUids.size} {t("admin.users.selectedLabel")}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as UserRole)}>
                 <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Asignar rol..." />
+                  <SelectValue placeholder={t("admin.users.assignRole")} />
                 </SelectTrigger>
                 <SelectContent>
                   {assignableRoles.map((r) => (
                     <SelectItem key={r} value={r}>
-                      {ROLE_META[r].label}
+                      {t(`role.${r}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -567,19 +559,19 @@ export default function AdminUsersPage() {
                 {isBulkSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Aplicando...
+                    {t("admin.users.applying")}
                   </>
                 ) : (
-                  "Aplicar"
+                  t("admin.users.apply")
                 )}
               </Button>
               <Select value={bulkPermission} onValueChange={(v) => setBulkPermission(v as UserPermission)}>
                 <SelectTrigger className="w-full sm:w-44">
-                  <SelectValue placeholder="Asignar permiso..." />
+                  <SelectValue placeholder={t("admin.users.assignPermission")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(Object.keys(PERMISSION_META) as UserPermission[]).map((p) => (
-                    <SelectItem key={p} value={p}>{PERMISSION_META[p].label}</SelectItem>
+                    <SelectItem key={p} value={p}>{t(`permission.${p}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -591,10 +583,10 @@ export default function AdminUsersPage() {
                 {isBulkSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Aplicando...
+                    {t("admin.users.applying")}
                   </>
                 ) : (
-                  "Aplicar"
+                  t("admin.users.apply")
                 )}
               </Button>
               <Button
@@ -602,7 +594,7 @@ export default function AdminUsersPage() {
                 size="sm"
                 onClick={() => setSelectedUids(new Set())}
               >
-                Cancelar
+                {t("admin.users.cancel")}
               </Button>
             </div>
           </CardContent>
@@ -613,10 +605,10 @@ export default function AdminUsersPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-4 w-4" />
-            Usuarios ({filtered.length})
+            {t("admin.users.usersHeader", { count: filtered.length })}
           </CardTitle>
           <CardDescription>
-            Haz clic en el rol para cambiarlo. Marca varios para acciones masivas.
+            {t("admin.users.tableHint")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -628,7 +620,7 @@ export default function AdminUsersPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              No se encontraron usuarios con los filtros aplicados.
+              {t("admin.users.noResults")}
             </div>
           ) : (
             <>
@@ -641,15 +633,15 @@ export default function AdminUsersPage() {
                         <Checkbox
                           checked={allSelected}
                           onCheckedChange={(v) => toggleAll(v === true)}
-                          aria-label="Seleccionar todos"
-                        />
-                      </TableHead>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead className="w-48">Rol</TableHead>
-                      <TableHead className="w-36">Permiso</TableHead>
-                      <TableHead>Visibilidad</TableHead>
-                      <TableHead className="w-24 text-center">Acciones</TableHead>
+                          aria-label={t("admin.users.selectAll")}
+                         />
+                       </TableHead>
+                       <TableHead>{t("admin.users.col.name")}</TableHead>
+                       <TableHead>{t("admin.users.col.email")}</TableHead>
+                       <TableHead className="w-48">{t("admin.users.col.role")}</TableHead>
+                       <TableHead className="w-36">{t("admin.users.col.permission")}</TableHead>
+                       <TableHead>{t("admin.users.col.visibility")}</TableHead>
+                       <TableHead className="w-24 text-center">{t("admin.users.col.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -687,7 +679,7 @@ export default function AdminUsersPage() {
                               <SelectContent>
                                 {assignableRoles.map((r) => (
                                   <SelectItem key={r} value={r}>
-                                    {ROLE_META[r].label}
+                                    {t(`role.${r}`)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -696,7 +688,7 @@ export default function AdminUsersPage() {
                               variant="secondary"
                               className={`w-fit text-xs ${ROLE_META[user.role].color}`}
                             >
-                              {ROLE_META[user.role].description}
+                              {t(`role.description.${user.role}`)}
                             </Badge>
                           </div>
                         </TableCell>
@@ -714,7 +706,7 @@ export default function AdminUsersPage() {
                             <SelectContent>
                               {(Object.keys(PERMISSION_META) as UserPermission[]).map((p) => (
                                 <SelectItem key={p} value={p}>
-                                  {PERMISSION_META[p].label}
+                                  {t(`permission.${p}`)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -723,10 +715,10 @@ export default function AdminUsersPage() {
                         <TableCell>
                           <details className="text-xs">
                             <summary className="cursor-pointer text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5">
-                              <span>{user.visiblePages.length} páginas</span>
+                              <span>{t("admin.users.pagesVisible", { count: user.visiblePages.length })}</span>
                               {savedVisibilityUids.has(user.uid) && (
                                 <span className="text-emerald-600 dark:text-emerald-400 font-medium animate-in fade-in">
-                                  ✓ Guardado
+                                  ✓ {t("admin.users.saved")}
                                 </span>
                               )}
                             </summary>
@@ -752,7 +744,7 @@ export default function AdminUsersPage() {
                                     disabled={user.role === "user"}
                                     className="shrink-0"
                                   />
-                                  <span className="truncate">{item.label}</span>
+                                  <span className="truncate">{t(item.i18nKey)}</span>
                                 </label>
                               ))}
                               <div className="flex gap-1 pt-1">
@@ -768,7 +760,7 @@ export default function AdminUsersPage() {
                                   }
                                   disabled={user.role === "user"}
                                 >
-                                  Todo
+                                  {t("admin.users.all")}
                                 </Button>
                                 <Button
                                   size="sm"
@@ -777,7 +769,7 @@ export default function AdminUsersPage() {
                                   onClick={() => updateUserVisibility(user.uid, [])}
                                   disabled={user.role === "user"}
                                 >
-                                  Ninguno
+                                  {t("admin.users.none")}
                                 </Button>
                                 {isSaving === user.uid && (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -792,7 +784,7 @@ export default function AdminUsersPage() {
                               asChild
                               size="icon"
                               variant="ghost"
-                              aria-label={`Ver perfil de ${user.name}`}
+                              aria-label={t("admin.users.viewProfile", { name: user.name })}
                             >
                               <Link href={`/profile?uid=${user.uid}`}>
                                 <Eye className="h-4 w-4" />
@@ -801,7 +793,7 @@ export default function AdminUsersPage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              aria-label={`Eliminar a ${user.name}`}
+                              aria-label={t("admin.users.deleteUser", { name: user.name })}
                               onClick={() => setDeleteTarget(user)}
                               disabled={isSaving === user.uid || isDeleting}
                               className="text-destructive hover:text-destructive"
@@ -856,7 +848,7 @@ export default function AdminUsersPage() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            aria-label={`Eliminar a ${user.name}`}
+                            aria-label={t("admin.users.deleteUser", { name: user.name })}
                             onClick={() => setDeleteTarget(user)}
                             disabled={isSaving === user.uid || isDeleting}
                             className="shrink-0 text-destructive hover:text-destructive"
@@ -869,7 +861,7 @@ export default function AdminUsersPage() {
                       <div className="mt-3 ml-8 space-y-3">
                         {/* Role selector */}
                         <div>
-                          <Label className="text-xs text-muted-foreground">Rol</Label>
+                          <Label className="text-xs text-muted-foreground">{t("admin.users.roleLabel")}</Label>
                           <div className="mt-1 flex items-center gap-2">
                             <Select
                               value={user.role}
@@ -884,7 +876,7 @@ export default function AdminUsersPage() {
                               <SelectContent>
                                 {assignableRoles.map((r) => (
                                   <SelectItem key={r} value={r}>
-                                    {ROLE_META[r].label}
+                                    {t(`role.${r}`)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -893,14 +885,14 @@ export default function AdminUsersPage() {
                               variant="secondary"
                               className={`shrink-0 text-xs ${ROLE_META[user.role].color}`}
                             >
-                              {ROLE_META[user.role].label}
+                              {t(`role.${user.role}`)}
                             </Badge>
                           </div>
                         </div>
 
                         {/* Permission selector */}
                         <div>
-                          <Label className="text-xs text-muted-foreground">Permiso</Label>
+                          <Label className="text-xs text-muted-foreground">{t("admin.users.permissionLabel")}</Label>
                           <div className="mt-1">
                             <Select
                               value={user.permission}
@@ -915,7 +907,7 @@ export default function AdminUsersPage() {
                               <SelectContent>
                                 {(Object.keys(PERMISSION_META) as UserPermission[]).map((p) => (
                                   <SelectItem key={p} value={p}>
-                                    {PERMISSION_META[p].label}
+                                    {t(`permission.${p}`)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -925,13 +917,13 @@ export default function AdminUsersPage() {
 
                         {/* Visibility */}
                         <div>
-                          <Label className="text-xs text-muted-foreground">Visibilidad</Label>
+                          <Label className="text-xs text-muted-foreground">{t("admin.users.visibilityLabel")}</Label>
                           <details className="mt-1 text-xs">
                             <summary className="cursor-pointer text-primary hover:underline inline-flex items-center gap-1.5">
-                              <span>{user.visiblePages.length} páginas visibles</span>
+                              <span>{t("admin.users.pagesVisibleMobile", { count: user.visiblePages.length })}</span>
                               {savedVisibilityUids.has(user.uid) && (
                                 <span className="text-emerald-600 dark:text-emerald-400 font-medium animate-in fade-in">
-                                  ✓ Guardado
+                                  ✓ {t("admin.users.saved")}
                                 </span>
                               )}
                             </summary>
@@ -957,7 +949,7 @@ export default function AdminUsersPage() {
                                     disabled={user.role === "user"}
                                     className="shrink-0"
                                   />
-                                  <span className="truncate">{item.label}</span>
+                                  <span className="truncate">{t(item.i18nKey)}</span>
                                 </label>
                               ))}
                               <div className="flex gap-1 pt-1">
@@ -973,7 +965,7 @@ export default function AdminUsersPage() {
                                   }
                                   disabled={user.role === "user"}
                                 >
-                                  Todo
+                                  {t("admin.users.all")}
                                 </Button>
                                 <Button
                                   size="sm"
@@ -982,7 +974,7 @@ export default function AdminUsersPage() {
                                   onClick={() => updateUserVisibility(user.uid, [])}
                                   disabled={user.role === "user"}
                                 >
-                                  Ninguno
+                                  {t("admin.users.none")}
                                 </Button>
                                 {isSaving === user.uid && (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1004,17 +996,16 @@ export default function AdminUsersPage() {
       <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar usuario</AlertDialogTitle>
+            <AlertDialogTitle>{t("admin.users.deleteDialog.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de que deseas eliminar a{" "}
-              <span className="font-semibold text-foreground">{deleteTarget?.name}</span>{" "}
-              ({deleteTarget?.email})?
-              <br />
-              Esta acción no se puede deshacer. El usuario perderá acceso al sistema y sus datos serán eliminados permanentemente.
+              {t("admin.users.deleteDialog.description", {
+                name: deleteTarget?.name ?? "",
+                email: deleteTarget?.email ?? "",
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t("admin.users.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteUser}
               disabled={isDeleting}
@@ -1023,10 +1014,10 @@ export default function AdminUsersPage() {
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Eliminando...
+                  {t("admin.users.deleting")}
                 </>
               ) : (
-                "Eliminar"
+                t("admin.users.delete")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

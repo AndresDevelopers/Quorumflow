@@ -1,6 +1,20 @@
 {
-  "current": "1.1.26",
+  "current": "1.1.27",
   "entries": [
+    {
+      "version": "1.1.27",
+      "date": "2026-07-09",
+      "changes": {
+        "es": [
+          "Actualización: Add internationalized date and changelog caching.",
+          "Actualización: Add SEO support, polish UI, and update configs."
+        ],
+        "en": [
+          "Update: Add internationalized date and changelog caching.",
+          "Update: Add SEO support, polish UI, and update configs."
+        ]
+      }
+    },
     {
       "version": "1.1.26",
       "date": "2026-07-08",

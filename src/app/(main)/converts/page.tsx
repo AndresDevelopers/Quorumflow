@@ -25,7 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Info, Pencil, Eye } from 'lucide-react';
 import { format, subMonths } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
@@ -417,7 +417,7 @@ export default function ConvertsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: es })}
+                      {format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -491,7 +491,7 @@ export default function ConvertsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: es })}
+                      {format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
                     </p>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">

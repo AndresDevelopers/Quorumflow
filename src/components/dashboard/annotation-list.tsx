@@ -46,7 +46,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '../ui/skeleton';
 import { CheckCircle, NotebookPen, PlusCircle, Trash2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { EditAnnotationDialog } from './edit-annotation-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
@@ -267,7 +267,7 @@ export function AnnotationList({
                     <div>
                       <p className="text-sm font-medium">{item.text}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(item.createdAt.toDate(), 'd LLL yyyy, h:mm a', { locale: es })}
+                        {format(item.createdAt.toDate(), 'd LLL yyyy, h:mm a', { locale: getDateFnsLocale() })}
                         {item.userId && ` · Por: ${userNames[item.userId] ?? 'Usuario'}`}
                         {showCouncilView &&
                           ` - Creado en: ${item.source === 'dashboard' ? 'Dashboard' : 'Consejo'}`}

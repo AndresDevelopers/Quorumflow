@@ -23,7 +23,7 @@ Aplicación web moderna (PWA) diseñada para las presidencias del Quórum de Él
 | **Chat Iglesia** | Chat con IA impulsado por DeepSeek |
 | **Consejo** | Acciones del consejo, anotaciones y decisiones |
 | **Reportes** | Reportes de actividad por año, generación de reporte anual (DOCX vía docxtemplater) |
-| **Actividades** | Actividades registradas del quórum por año |
+| **Actividades** | Actividades registradas de tu organización por año |
 | **Admin** | Panel de administración: gestión de usuarios, roles, logs de auditoría, migración de datos |
 
 ---
@@ -35,7 +35,7 @@ Aplicación web moderna (PWA) diseñada para las presidencias del Quórum de Él
 | `secretary` | Todo | Acceso total: administración, ajustes, gestión de roles y reportes |
 | `president` | Todo | Acceso estratégico: todos los módulos operativos + panel de admin |
 | `counselor` | Todo | Herramientas operativas para seguimiento de familias y asignaciones |
-| `other` | Lectura | Solo lectura de datos del quórum |
+| `other` | Lectura | Solo lectura de datos de tu organización |
 | `user` | Lectura | Estado por defecto al registrarse. Ve la página de acceso restringido hasta que un líder le asigne un rol |
 
 - **Aislamiento multi-tenant**: cada usuario pertenece a un barrio + organización (`barrioOrg`). Todas las consultas se limitan a ese scope.
@@ -182,9 +182,9 @@ public/                          # PWA assets, service worker, changelog.json
 ## 📊 IA y Genkit
 
 La app integra **DeepSeek** (`deepseek-v4-flash`) para:
+- **Resumen inteligente del dashboard**: análisis del estado actual de tu organización
 
-- **Resumen inteligente del dashboard**: análisis del estado actual del quórum
-- **Sugerencias de actividades y servicio**: recomendaciones basadas en datos del quórum
+- **Sugerencias de actividades y servicio**: recomendaciones basadas en datos de tu organización
 - **Chat Iglesia**: chat conversacional con contexto eclesiástico
 
 Los flujos de IA usan DeepSeek como proveedor a través de `@/lib/deepseek`.
@@ -236,5 +236,5 @@ MIT — ver [LICENSE](LICENSE).
 ---
 
 <div align="center">
-  <p>Desarrollado con ❤️ para apoyar la obra del quórum</p>
+  <p>Desarrollado con ❤️ para apoyar la obra de tu organización</p>
 </div>

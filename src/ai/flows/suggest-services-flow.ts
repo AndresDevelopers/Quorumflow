@@ -11,7 +11,7 @@ const SuggestServicesInputSchema = z.object({
 export type SuggestServicesInput = z.infer<typeof SuggestServicesInputSchema>;
 
 const SuggestedServicesSchema = z.object({
-  quorumCare: z.array(z.string()).length(3).describe('3 sugerencias de servicio de cuidado y apoyo a hermanos/familias del quórum.'),
+  quorumCare: z.array(z.string()).length(3).describe('3 sugerencias de servicio de cuidado y apoyo a miembros/familias de la organización.'),
   communityImpact: z.array(z.string()).length(3).describe('3 sugerencias de servicio comunitario con impacto medible.'),
 });
 

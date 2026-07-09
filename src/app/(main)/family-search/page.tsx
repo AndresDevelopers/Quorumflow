@@ -50,22 +50,10 @@ import { where, deleteDoc as deleteDocFirestore } from 'firebase/firestore';
 
 
 const faqData = [
-    {
-        question: "¿Cómo empiezo a buscar a mis antepasados?",
-        answer: "El primer paso es registrar la información que ya conoces sobre ti, tus padres y tus abuelos en el Árbol Familiar. Luego, utiliza la función 'Buscar' para encontrar registros históricos (actas de nacimiento, matrimonio, censos, etc.) que coincidan con la información de tus familiares. Estos registros te darán pistas para encontrar a la siguiente generación."
-    },
-    {
-        question: "¿Qué hago si no encuentro registros para un antepasado?",
-        answer: "No te desanimes. Intenta buscar variaciones en los nombres y apellidos, o busca en registros de localidades cercanas. También puedes buscar a los hermanos de tu antepasado; a menudo, los registros de un hermano pueden contener información sobre los padres. Otra herramienta útil es el Catálogo de FamilySearch, donde puedes buscar registros que aún no han sido indexados."
-    },
-    {
-        question: "¿Cómo puedo reservar nombres de antepasados para llevar al templo?",
-        answer: "Una vez que encuentres a un antepasado nacido hace más de 110 años que necesite las ordenanzas del templo (lo verás indicado con un ícono de templo verde), puedes solicitar esas ordenanzas. Ve a la página de la persona, haz clic en la pestaña 'Ordenanzas' y sigue los pasos para solicitar y agregar los nombres a tu lista del templo para imprimirlos."
-    },
-    {
-        question: "¿Qué significa 'adjuntar una fuente'?",
-        answer: "Adjuntar una fuente significa vincular un registro histórico (como un censo o un acta de nacimiento) a un perfil en tu Árbol Familiar. Esto sirve como prueba de la información (fechas, lugares, relaciones familiares) y ayuda a otros a verificar la exactitud de los datos. Siempre es una buena práctica adjuntar la fuente cada vez que agregas o modificas información."
-    }
+    { question: "familySearch.faq.q1", answer: "familySearch.faq.a1" },
+    { question: "familySearch.faq.q2", answer: "familySearch.faq.a2" },
+    { question: "familySearch.faq.q3", answer: "familySearch.faq.a3" },
+    { question: "familySearch.faq.q4", answer: "familySearch.faq.a4" }
 ];
 
 const trainingSchema = z.object({
@@ -90,27 +78,6 @@ export default function FamilySearchPage() {
     const [loading, setLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
-
-    // Local translations for FamilySearch
-    const translations = {
-        title: "Coordinación de FamilySearch",
-        description: "Organiza y da seguimiento al trabajo de historia familiar en el quórum.",
-        familiesToTrain: "Familias por Capacitar",
-        familiesToTrainDescription: "Lista de familias para enseñar sobre FamilySearch.",
-        addFamily: "Familia",
-        noFamilies: "No hay familias registradas.",
-        trainingDeleted: "Capacitación eliminada.",
-        generalNotes: "Anotaciones Generales",
-        generalNotesDescription: "Notas y recordatorios sobre la obra de historia familiar.",
-        addNote: "Anotación",
-        noNotes: "No hay anotaciones.",
-        noteDeleted: "Anotación eliminada.",
-        faq: "Preguntas Frecuentes",
-        faqDescription: "Respuestas rápidas a las dudas más comunes sobre FamilySearch.",
-        linkedTo: "Vinculado a:",
-        saving: "Guardando...",
-        save: "Guardar"
-    };
 
     // State for dialogs and forms
     const [isTrainingOpen, setTrainingOpen] = useState(false);
@@ -263,9 +230,9 @@ export default function FamilySearchPage() {
        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Library className="h-8 w-8 text-primary" />
             <div className="flex flex-col gap-1">
-                <h1 className="text-balance text-fluid-title font-semibold">{translations.title}</h1>
+                <h1 className="text-balance text-fluid-title font-semibold">{t('familySearch.title')}</h1>
                 <p className="text-balance text-fluid-subtitle text-muted-foreground">
-                    {translations.description}
+                    {t('familySearch.description')}
                 </p>
             </div>
         </div>
@@ -278,19 +245,19 @@ export default function FamilySearchPage() {
                         <div className="flex items-center gap-3">
                            <BookUser className="h-6 w-6 text-primary" />
                            <div>
-                                <CardTitle>{translations.familiesToTrain}</CardTitle>
-                                <CardDescription>{translations.familiesToTrainDescription}</CardDescription>
+                                <CardTitle>{t('familySearch.familiesToTrain')}</CardTitle>
+                                <CardDescription>{t('familySearch.familiesToTrainDescription')}</CardDescription>
                            </div>
                         </div>
                         <Dialog open={isTrainingOpen} onOpenChange={setTrainingOpen}>
                             {canWrite && (
-                            <DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2"/> Familia</Button></DialogTrigger>
+                            <DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2"/> {t('familySearch.addFamily')}</Button></DialogTrigger>
                             )}
                             <DialogContent className="w-full max-w-[90vw] sm:max-w-lg">
                                 <DialogHeader>
-                                    <DialogTitle>Agregar Familia para Capacitación</DialogTitle>
+                                    <DialogTitle>{t('familySearch.addFamilyDialogTitle')}</DialogTitle>
                                     <DialogDescription>
-                                        Puedes seleccionar un miembro existente o agregar una familia manualmente.
+                                        {t('familySearch.addFamilyDialogDescription')}
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="py-4">
@@ -304,7 +271,7 @@ export default function FamilySearchPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {loading ? <Skeleton className="h-24 w-full" /> : trainings.length === 0 ? <p className="text-sm text-center py-4 text-muted-foreground">No hay familias registradas.</p> : (
+                    {loading ? <Skeleton className="h-24 w-full" /> : trainings.length === 0 ? <p className="text-sm text-center py-4 text-muted-foreground">{t('familySearch.noFamilies')}</p> : (
                         <ul className="space-y-3">{trainings.map(item => (
                             <li key={item.id} className="flex items-center justify-between text-sm border-b pb-2">
                                 <div className="flex-1">
@@ -312,7 +279,7 @@ export default function FamilySearchPage() {
                                     {item.memberName && (
                                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                                             <Users className="h-3 w-3" />
-                                            Vinculado a: {item.memberName}
+                                            {t('familySearch.linkedTo', { name: item.memberName })}
                                         </p>
                                     )}
                                 </div>
@@ -326,8 +293,8 @@ export default function FamilySearchPage() {
 
              {/* Anotaciones */}
             <VoiceAnnotations
-                title="Anotaciones de FamilySearch"
-                description="Notas y recordatorios sobre la obra de historia familiar."
+                title={t('familySearch.annotationsTitle')}
+                description={t('familySearch.annotationsDescription')}
                 source="family-search"
                 annotations={annotations}
                 isLoading={loadingAnnotations}
@@ -340,16 +307,16 @@ export default function FamilySearchPage() {
             {/* FAQ */}
             <Card className="lg:col-span-2">
                 <CardHeader>
-                    <CardTitle>Preguntas Frecuentes</CardTitle>
-                     <CardDescription>Respuestas rápidas a las dudas más comunes sobre FamilySearch.</CardDescription>
+                    <CardTitle>{t('familySearch.faqTitle')}</CardTitle>
+                     <CardDescription>{t('familySearch.faqDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Accordion type="single" collapsible className="w-full">
                         {faqData.map((faq, index) => (
                              <AccordionItem value={`item-${index}`} key={index}>
-                                <AccordionTrigger>{faq.question}</AccordionTrigger>
+                                <AccordionTrigger>{t(faq.question)}</AccordionTrigger>
                                 <AccordionContent>
-                                    <p className="text-muted-foreground leading-relaxed">{faq.answer}</p>
+                                    <p className="text-muted-foreground leading-relaxed">{t(faq.answer)}</p>
                                 </AccordionContent>
                             </AccordionItem>
                         ))}

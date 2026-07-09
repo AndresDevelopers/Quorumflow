@@ -24,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
@@ -115,7 +115,7 @@ export default function FutureMembersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: es }) : 'No especificada'}
+                    {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }) : 'No especificada'}
                   </TableCell>
                    <TableCell className="text-right">
                      {canWrite && (

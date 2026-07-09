@@ -43,7 +43,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '../ui/skeleton';
 import { CheckCircle, NotebookPen, Pencil, PlusCircle, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { EditAnnotationDialog } from '../dashboard/edit-annotation-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
@@ -280,7 +280,7 @@ export function VoiceAnnotations({
                     <div className="min-w-0">
                       <p className="text-sm font-medium break-words">{item.text}</p>
                       <p className="text-xs text-muted-foreground break-words">
-                        {format(item.createdAt.toDate(), 'd LLL yyyy, h:mm a', { locale: es })}
+                        {format(item.createdAt.toDate(), 'd LLL yyyy, h:mm a', { locale: getDateFnsLocale() })}
                         {item.userId && ` - Por: ${userNames[item.userId] ?? 'Usuario'}`}
                         {showCouncilView && ` - Creado en: ${item.source === 'dashboard'
                           ? 'Dashboard'

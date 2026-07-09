@@ -3,10 +3,10 @@
 import * as React from "react"
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react"
 import { DayPicker } from "react-day-picker"
-import { es, type Locale } from "date-fns/locale"
-
+import type { Locale } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { getDateFnsLocale } from "@/lib/i18n-date"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
@@ -14,7 +14,7 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
-  locale = es,
+  locale = getDateFnsLocale(),
   ...props
 }: CalendarProps & { locale?: Locale }) {
   return (

@@ -56,7 +56,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { AlertCircle, CalendarIcon, User, Camera, Loader2, X, Link2, Search, Lock, Mail, KeyRound } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -964,7 +964,7 @@ export default function SettingsPage() {
     {
       key: 'observations',
       label: 'Observaciones',
-      description: 'Sin investidura, sin ordenanza de élderes, inactivos, familias en seguimiento, apoyo de salud',
+      description: 'settings.cat.observations.description',
       page: '/observations',
       inAppDetail: '1 vez a la semana',
       pushDetail: '1 vez a la semana',
@@ -972,7 +972,7 @@ export default function SettingsPage() {
     {
       key: 'converts',
       label: 'Conversos',
-      description: 'Nuevos conversos sin amigo asignado, sin llamamiento, sin recomendación, con observación',
+      description: 'settings.cat.converts.description',
       page: '/converts',
       inAppDetail: '1 vez a la semana',
       pushDetail: '1 vez a la semana',
@@ -980,7 +980,7 @@ export default function SettingsPage() {
     {
       key: 'futureMembers',
       label: 'Futuros Miembros',
-      description: 'Próximos bautismos o conversos',
+      description: 'settings.cat.futureMembers.description',
       page: '/future-members',
       inAppDetail: '3 días antes del bautismo',
       pushDetail: '3 días antes del bautismo',
@@ -988,7 +988,7 @@ export default function SettingsPage() {
     {
       key: 'birthdays',
       label: 'Cumpleaños',
-      description: 'Próximos cumpleaños y cumpleaños del día',
+      description: 'settings.cat.birthdays.description',
       page: '/birthdays',
       inAppDetail: '14 días antes y el día del cumpleaños',
       pushDetail: '14 días antes y el día del cumpleaños',
@@ -996,7 +996,7 @@ export default function SettingsPage() {
     {
       key: 'familySearch',
       label: 'FamilySearch',
-      description: 'Familias pendientes de capacitación en FamilySearch',
+      description: 'settings.cat.familySearch.description',
       page: '/family-search',
       inAppDetail: '1 vez a la semana',
       pushDetail: '1 vez a la semana',
@@ -1295,7 +1295,7 @@ export default function SettingsPage() {
                                   )}
                                 >
                                   {field.value ? (
-                                    format(field.value, 'd LLLL yyyy', { locale: es })
+                                    format(field.value, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                                   ) : (
                                     <span>Selecciona una fecha</span>
                                   )}
@@ -1312,7 +1312,7 @@ export default function SettingsPage() {
                                   date > new Date() || date < new Date('1900-01-01')
                                 }
                                 autoFocus
-                                locale={es}
+                                locale={getDateFnsLocale()}
                                 captionLayout="dropdown"
                                 startMonth={new Date(1920, 0)}
                                 endMonth={new Date(new Date().getFullYear(), 11)}
@@ -1465,7 +1465,7 @@ export default function SettingsPage() {
                   .filter((item) => visiblePages.includes(item.href))
                   .map((item) => (
                     <option key={item.href} value={item.href}>
-                      {item.label}
+                      {t(item.i18nKey)}
                     </option>
                   ))}
               </select>
@@ -1646,7 +1646,7 @@ export default function SettingsPage() {
                     .map(cat => (
                       <div key={`inapp-${cat.key}`} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between py-2">
                         <div className="flex flex-col space-y-0.5">
-                          <span className="text-sm font-medium">{cat.label}</span>
+                          <span className="text-sm font-medium">{t(cat.key)}</span>
                           <span className="text-xs text-muted-foreground">{cat.description}</span>
                           <span className="text-xs text-muted-foreground/70">{cat.inAppDetail}</span>
                         </div>
@@ -1697,7 +1697,7 @@ export default function SettingsPage() {
                     .map(cat => (
                       <div key={`push-${cat.key}`} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between py-2">
                         <div className="flex flex-col space-y-0.5">
-                          <span className="text-sm font-medium">{cat.label}</span>
+                          <span className="text-sm font-medium">{t(cat.key)}</span>
                           <span className="text-xs text-muted-foreground">{cat.description}</span>
                           <span className="text-xs text-muted-foreground/70">{cat.pushDetail}</span>
                         </div>

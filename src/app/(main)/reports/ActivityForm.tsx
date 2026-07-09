@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { CalendarIcon, X, Upload, Loader2, AlertCircle } from 'lucide-react';
 import { addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -46,26 +46,7 @@ import type { Activity } from '@/lib/types';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-const activitySchema = z.object({
-  title: z
-    .string()
-    .min(3, {
-      message: 'El título es requerido y debe tener al menos 3 caracteres.',
-    }),
-  date: z.date({
-    required_error: 'La fecha es requerida.',
-  }),
-  time: z.string().optional(),
-  description: z.string().min(10, {
-    message: 'La descripción es requerida y debe tener al menos 10 caracteres.',
-  }),
-  location: z.string().optional(),
-  context: z.string().optional(),
-  learning: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof activitySchema>;
+import { useI18n } from '@/contexts/i18n-context';
 
 interface ActivityFormProps {
   activity?: Activity;
@@ -77,7 +58,29 @@ export function ActivityForm({ activity }: ActivityFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, barrioOrg } = useAuth();
+  const { t } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const activitySchema = z.object({
+    title: z
+      .string()
+      .min(3, {
+        message: t('reports.activityForm.titleRequired'),
+      }),
+    date: z.date({
+      required_error: t('reports.activityForm.dateRequired'),
+    }),
+    time: z.string().optional(),
+    description: z.string().min(10, {
+      message: t('reports.activityForm.descriptionRequired'),
+    }),
+    location: z.string().optional(),
+    context: z.string().optional(),
+    learning: z.string().optional(),
+  });
+
+  type FormValues = z.infer<typeof activitySchema>;
+
   const isEditMode = !!activity;
   
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -125,8 +128,8 @@ export function ActivityForm({ activity }: ActivityFormProps) {
     for (const file of Array.from(files)) {
         if (file.size > MAX_FILE_SIZE) {
             toast({
-                title: "Archivo demasiado grande",
-                description: `La imagen "${file.name}" supera el límite de 20MB.`,
+                title: t('settings.toast.fileTooLargeTitle'),
+                description: t('reports.activityForm.imageTooLarge', { name: file.name }),
                 variant: "destructive",
             });
         } else {
@@ -159,7 +162,7 @@ export function ActivityForm({ activity }: ActivityFormProps) {
 
   const onSubmit = async (values: FormValues) => {
     if (!user) {
-      toast({ title: "Error", description: "Debes iniciar sesión para guardar.", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('reports.activityForm.loginRequired'), variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
@@ -205,14 +208,14 @@ export function ActivityForm({ activity }: ActivityFormProps) {
         await updateDoc(activityRef, dataToSave);
 
         toast({
-          title: 'Actividad Actualizada',
-          description: 'La actividad ha sido actualizada exitosamente.',
+          title: t('reports.activityForm.updatedTitle'),
+          description: t('reports.activityForm.updatedDescription'),
         });
       } else {
         await addDoc(activitiesCollection, dataToSave);
         toast({
-          title: 'Actividad Agregada',
-          description: 'La actividad ha sido registrada exitosamente.',
+          title: t('reports.activityForm.addedTitle'),
+          description: t('reports.activityForm.addedDescription'),
         });
       }
       router.push('/reports/activities');
@@ -221,8 +224,8 @@ export function ActivityForm({ activity }: ActivityFormProps) {
       logger.error({ error: e, message: 'Error saving activity', data: values });
       setUploadError(e); // Set the error state to display it in the UI
       toast({
-        title: "Error al Subir Imagen",
-        description: 'Hubo un error al guardar la actividad. Revisa el error mostrado.',
+        title: t('reports.activityForm.uploadErrorTitle'),
+        description: t('reports.activityForm.saveErrorDescription'),
         variant: 'destructive',
       });
     } finally {
@@ -238,24 +241,24 @@ export function ActivityForm({ activity }: ActivityFormProps) {
       >
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>{isEditMode ? 'Editar Actividad' : 'Agregar Nueva Actividad'}</CardTitle>
+            <CardTitle>{isEditMode ? t('reports.activityForm.editTitle') : t('reports.activityForm.addTitle')}</CardTitle>
             <CardDescription>
-              {isEditMode ? 'Modifica los detalles de la actividad.' : 'Ingresa los detalles de la actividad realizada por el quórum.'}
+              {isEditMode ? t('reports.activityForm.editDescription') : t('reports.activityForm.addDescription')}
               <br />
-              <span className="text-sm text-muted-foreground">Los campos marcados con <span className="text-red-600">*</span> son obligatorios.</span>
+              <span className="text-sm text-muted-foreground">{t('reports.form.requiredFields')}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {uploadError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error de Subida</AlertTitle>
+                <AlertTitle>{t('reports.activityForm.uploadErrorTitle')}</AlertTitle>
                 <AlertDescription>
-                  <p>No se pudo subir la imagen. Por favor, comparte este error:</p>
+                  <p>{t('reports.activityForm.uploadErrorDescription')}</p>
                   <pre className="mt-2 text-xs bg-red-50 p-2 rounded whitespace-pre-wrap">
                     <strong>Código:</strong> {uploadError?.code || 'N/A'}
                     <br />
-                    <strong>Mensaje:</strong> {uploadError?.message || 'Error desconocido'}
+                    <strong>Mensaje:</strong> {uploadError?.message || t('reports.unknownError')}
                   </pre>
                 </AlertDescription>
               </Alert>
@@ -265,9 +268,9 @@ export function ActivityForm({ activity }: ActivityFormProps) {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Título de la Actividad <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('reports.activityForm.titleLabel')} <span className="text-red-600">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: Servicio en el asilo" {...field} />
+                    <Input placeholder={t('reports.activityForm.titlePlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -279,7 +282,7 @@ export function ActivityForm({ activity }: ActivityFormProps) {
                 name="date"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Fecha de la Actividad <span className="text-red-600">*</span></FormLabel>
+                    <FormLabel>{t('reports.activityForm.dateLabel')} <span className="text-red-600">*</span></FormLabel>
                     <Popover open={datePopoverOpen} onOpenChange={(open) => {
                       setDatePopoverOpen(open);
                       if (open) {
@@ -297,9 +300,9 @@ export function ActivityForm({ activity }: ActivityFormProps) {
                             )}
                           >
                             {field.value ? (
-                              format(field.value, 'd LLLL yyyy', { locale: es })
+                              format(field.value, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                             ) : (
-                              <span>Selecciona una fecha</span>
+                              <span>{t('reports.activityForm.selectDate')}</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -312,7 +315,7 @@ export function ActivityForm({ activity }: ActivityFormProps) {
                           onSelect={setSelectedDate}
                           defaultMonth={selectedDate || field.value}
                           autoFocus
-                          locale={es}
+                          locale={getDateFnsLocale()}
                         />
                         <div className="p-3 border-t flex justify-end gap-2">
                           <Button
@@ -324,7 +327,7 @@ export function ActivityForm({ activity }: ActivityFormProps) {
                               setDatePopoverOpen(false);
                             }}
                           >
-                            Cancelar
+                            {t('reports.cancel')}
                           </Button>
                           <Button
                             size="sm"
@@ -336,7 +339,7 @@ export function ActivityForm({ activity }: ActivityFormProps) {
                               setDatePopoverOpen(false);
                             }}
                           >
-                            Establecer fecha
+                            {t('reports.activityForm.setDate')}
                           </Button>
                         </div>
                       </PopoverContent>
@@ -364,11 +367,11 @@ export function ActivityForm({ activity }: ActivityFormProps) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descripción de la Actividad <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('reports.activityForm.descriptionLabel')} <span className="text-red-600">*</span></FormLabel>
                   <FormControl>
                     <Textarea
                       rows={5}
-                      placeholder="Describe brevemente qué se hizo, quiénes participaron, y los resultados."
+                      placeholder={t('reports.activityForm.descriptionPlaceholder')}
                       {...field}
                     />
                   </FormControl>
@@ -381,9 +384,9 @@ export function ActivityForm({ activity }: ActivityFormProps) {
               name="location"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>¿Dónde sucedió?</FormLabel>
+                  <FormLabel>{t('reports.activityForm.whereLabel')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Indicar el lugar donde ocurrió esta experiencia" {...field} />
+                    <Input placeholder={t('reports.activityForm.wherePlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -394,11 +397,11 @@ export function ActivityForm({ activity }: ActivityFormProps) {
               name="context"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>¿Qué estaba haciendo usted en ese momento?</FormLabel>
+                  <FormLabel>{t('reports.activityForm.contextLabel')}</FormLabel>
                   <FormControl>
                     <Textarea
                       rows={3}
-                      placeholder="Indicar los detalles históricos y personales."
+                      placeholder={t('reports.activityForm.contextPlaceholder')}
                       {...field}
                     />
                   </FormControl>
@@ -411,16 +414,16 @@ export function ActivityForm({ activity }: ActivityFormProps) {
               name="learning"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>¿Qué es lo que aprendió de esta experiencia (en una frase)?</FormLabel>
+                  <FormLabel>{t('reports.activityForm.learningLabel')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: Aprendí la importancia de servir a los demás." {...field} />
+                    <Input placeholder={t('reports.activityForm.learningPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
              <FormItem>
-              <FormLabel>Imágenes</FormLabel>
+              <FormLabel>{t('reports.activityForm.imagesLabel')}</FormLabel>
               <FormControl>
                 <div className="flex items-center justify-center w-full">
                     <label htmlFor="dropzone-file" className={cn(
@@ -429,8 +432,8 @@ export function ActivityForm({ activity }: ActivityFormProps) {
                     )}>
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             {isSubmitting ? <Loader2 className="w-8 h-8 mb-4 text-muted-foreground animate-spin" /> : <Upload className="w-8 h-8 mb-4 text-muted-foreground" />}
-                            <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Haz click para subir</span> o arrastra y suelta</p>
-                            <p className="text-xs text-muted-foreground">PNG, JPG (MAX. 20MB por imagen)</p>
+                            <p className="mb-2 text-sm text-muted-foreground">{t('reports.activityForm.dropzoneText')}</p>
+                            <p className="text-xs text-muted-foreground">{t('reports.activityForm.dropzoneHint')}</p>
                         </div>
                         <input id="dropzone-file" type="file" className="hidden" multiple accept="image/png, image/jpeg" onChange={handleImageChange} ref={fileInputRef} disabled={isSubmitting}/>
                     </label>
@@ -439,15 +442,15 @@ export function ActivityForm({ activity }: ActivityFormProps) {
               <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                 {previewUrls.map((url, index) => (
                    <div key={index} className="relative group">
-                     <Image src={url} alt={`Imagen de actividad ${index + 1}`} width={100} height={100} className="w-full h-24 object-cover rounded-md" data-ai-hint="activity image" />
-                     <button 
-                       type="button" 
-                       onClick={() => removeImage(url)} 
-                       className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" 
-                       disabled={isSubmitting}
-                       title="Eliminar imagen"
-                       aria-label={`Eliminar imagen ${index + 1}`}
-                     >
+                      <Image src={url} alt={t('reports.activityForm.imageAlt', { index: index + 1 })} width={100} height={100} className="w-full h-24 object-cover rounded-md" data-ai-hint="activity image" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(url)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        disabled={isSubmitting}
+                        title={t('reports.activityForm.deleteImageAlt', { index: index + 1 })}
+                        aria-label={t('reports.activityForm.deleteImageAlt', { index: index + 1 })}
+                      >
                        <X className="h-3 w-3" />
                      </button>
                    </div>
@@ -457,10 +460,10 @@ export function ActivityForm({ activity }: ActivityFormProps) {
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button variant="outline" asChild>
-              <Link href="/reports/activities">Cancelar</Link>
+              <Link href="/reports/activities">{t('reports.cancel')}</Link>
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : isEditMode ? 'Guardar Cambios' : 'Guardar Actividad'}
+              {isSubmitting ? t('reports.saving') : isEditMode ? t('reports.activityForm.saveChanges') : t('reports.activityForm.save')}
             </Button>
           </CardFooter>
         </Card>

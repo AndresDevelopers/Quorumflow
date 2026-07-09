@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, RefreshCw, UserPlus, Edit, Trash2 } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Timestamp } from 'firebase/firestore';
 
@@ -54,6 +55,8 @@ export function NewConvertsTab({
   onEdit,
   canWrite
 }: NewConvertsTabProps) {
+  const { t } = useI18n();
+
   // Function to safely get member name by ID
   const getMemberName = (memberId: string): string => {
     try {
@@ -63,7 +66,7 @@ export function NewConvertsTab({
       }
 
       const id = String(memberId || '').trim();
-      if (!id) return 'ID no válido';
+      if (!id) return t('newConverts.invalidId');
 
       const member = members.find(m => m && m.id === id);
       if (!member) return id;
@@ -90,10 +93,10 @@ export function NewConvertsTab({
           .join(', ');
       }
       
-      return 'Sin amigos asignados';
+      return t('newConverts.noFriendsAssigned');
     } catch (error) {
       console.error('Error getting friend names:', error);
-      return 'Error al cargar amigos';
+      return t('newConverts.loadFriendsError');
     }
   };
 
@@ -106,50 +109,50 @@ export function NewConvertsTab({
   }
 
   const formatDate = (date?: Timestamp | Date | string): string => {
-    if (!date) return 'No especificada';
+    if (!date) return t('newConverts.unspecified');
     try {
       const dateObj = date instanceof Timestamp ? date.toDate() : new Date(date);
       return dateObj.toLocaleDateString();
     } catch (error) {
       console.error('Error formatting date:', error);
-      return 'Fecha inválida';
+      return t('newConverts.invalidDate');
     }
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Nuevos Conversos</CardTitle>
-        <CardDescription>Gestión de nuevos conversos y sus asignaciones</CardDescription>
+        <CardTitle>{t('missionaryWork.tabs.new_converts')}</CardTitle>
+        <CardDescription>{t('missionaryWork.newConverts.manageDescription')}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex justify-end mb-4">
           <Button onClick={onRefresh} variant="outline" size="sm">
             <RefreshCw className="mr-2 h-4 w-4" />
-            Actualizar
+            {t('missionaryWork.newConverts.refresh')}
           </Button>
         </div>
         
         <Tabs defaultValue="nuevos" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="nuevos">Nuevos Conversos</TabsTrigger>
-            <TabsTrigger value="amistades">Asignaciones de Amistad</TabsTrigger>
+            <TabsTrigger value="nuevos">{t('missionaryWork.tabs.new_converts')}</TabsTrigger>
+            <TabsTrigger value="amistades">{t('missionaryWork.newConverts.friendshipsTab')}</TabsTrigger>
           </TabsList>
           
           <TabsContent value="nuevos">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Fecha de Bautismo</TableHead>
-                  <TableHead>Acciones</TableHead>
+                  <TableHead>{t('converts.name')}</TableHead>
+                  <TableHead>{t('converts.baptismDate')}</TableHead>
+                  <TableHead>{t('converts.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {newConverts.map((convert) => (
                   <TableRow key={convert.id}>
                     <TableCell>
-                      {convert.name || [convert.firstName, convert.lastName].filter(Boolean).join(' ').trim() || 'Nombre no disponible'}
+                      {convert.name || [convert.firstName, convert.lastName].filter(Boolean).join(' ').trim() || t('newConverts.nameUnavailable')}
                     </TableCell>
                     <TableCell>
                       {formatDate(convert.baptismDate)}
@@ -161,9 +164,9 @@ export function NewConvertsTab({
                         onClick={() => onEdit(convert)}
                         className="gap-2"
                       >
-                        <UserPlus className="h-4 w-4" />
-                        Asignar Amigos
-                      </Button>
+                         <UserPlus className="h-4 w-4" />
+                         {t('missionaryWork.newConverts.assignFriendButton')}
+                       </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -175,9 +178,9 @@ export function NewConvertsTab({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Conversos</TableHead>
-                  <TableHead>Amigos Asignados</TableHead>
-                  <TableHead>Acciones</TableHead>
+                <TableHead>{t('missionaryWork.newConverts.convertsHeader')}</TableHead>
+                <TableHead>{t('missionaryWork.newConverts.assignedFriends')}</TableHead>
+                <TableHead>{t('converts.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -186,7 +189,7 @@ export function NewConvertsTab({
                   return (
                     <TableRow key={friendship.id}>
                       <TableCell>
-                        {convert?.name || friendship.convertName || 'Conversión no encontrada'}
+                        {convert?.name || friendship.convertName || t('newConverts.conversionNotFound')}
                       </TableCell>
                       <TableCell>{getFriendNames(friendship)}</TableCell>
                       <TableCell className="flex gap-2">
@@ -196,7 +199,7 @@ export function NewConvertsTab({
                           size="sm"
                           onClick={() => onEdit(friendship)}
                         >
-                          Editar
+                          {t('missionaryWork.newConverts.editButton')}
                         </Button>
                         )}
                         {canWrite && (
@@ -204,23 +207,23 @@ export function NewConvertsTab({
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
                               <Trash2 className="h-4 w-4 mr-1" />
-                              Eliminar
+                              {t('missionaryWork.newConverts.deleteButton')}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                              <AlertDialogTitle>{t('missionaryWork.newConverts.deleteDialogTitle')}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Esta acción eliminará permanentemente esta asignación de amistad. ¿Deseas continuar?
+                                {t('missionaryWork.newConverts.deleteConfirmDescription')}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogCancel>{t('missionaryWork.newConverts.cancelButton')}</AlertDialogCancel>
                               <AlertDialogAction 
                                 onClick={() => onDelete(friendship.id)}
                                 className="bg-destructive hover:bg-destructive/90"
                               >
-                                Eliminar
+                                {t('missionaryWork.newConverts.deleteButton')}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>

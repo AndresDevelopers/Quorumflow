@@ -16,6 +16,7 @@ import {
 } from '@/lib/roles';
 import { navigationItems } from '@/lib/navigation';
 import { textSections, type TextSection } from '@/lib/text-sections';
+import { useI18n } from '@/contexts/i18n-context';
 import {
   Card,
   CardContent,
@@ -56,6 +57,7 @@ interface UserData {
 export default function RoleManagement() {
   const { firebaseUser } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [users, setUsers] = useState<UserData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState<string | null>(null);
@@ -65,40 +67,6 @@ export default function RoleManagement() {
     () => navigationItems.map((item) => item.href),
     []
   );
-  const roleMeta = useMemo<
-    Record<
-      UserRole,
-      {
-        label: string;
-        description: string;
-      }
-    >
-  >(
-    () => ({
-      user: {
-        label: 'Miembro',
-        description: 'Acceso limitado, sin configuraciones.',
-      },
-      counselor: {
-        label: 'Consejero',
-        description: 'Puede ver todo salvo editar ajustes.',
-      },
-      president: {
-        label: 'Presidente',
-        description: 'Puede ver todo salvo editar ajustes.',
-      },
-      secretary: {
-        label: 'Secretario',
-        description: 'Control total y gestión de permisos.',
-      },
-      other: {
-        label: 'Otro',
-        description: 'Acceso personalizado con selección de textos específicos.',
-      },
-    }),
-    []
-  );
-
   // Verificar si el usuario actual tiene rol "secretary"
   useEffect(() => {
     const checkUserRole = async () => {
@@ -292,14 +260,12 @@ export default function RoleManagement() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
             <AlertCircle className="h-5 w-5" />
-            Acceso Restringido
+            {t('roleManagement.restrictedTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm leading-relaxed">
           <p className="text-amber-800 dark:text-amber-200">
-            Solo el secretario designado puede administrar los roles desde la página de Ajustes.
-            El presidente y los consejeros tienen acceso al resto de la aplicación, pero deben
-            coordinar cambios de permisos con el secretario.
+            {t('roleManagement.restrictedDescription')}
           </p>
         </CardContent>
       </Card>
@@ -310,11 +276,10 @@ export default function RoleManagement() {
     <Card className="shadow-sm">
       <CardHeader className="gap-2">
         <CardTitle className="text-base font-semibold sm:text-lg">
-          Gestión de Roles de Usuarios
+          {t('roleManagement.title')}
         </CardTitle>
         <CardDescription className="text-sm text-muted-foreground">
-          Define qué líderes pueden administrar y apoyar al quórum sin salirte de la
-          pantalla.
+          {t('roleManagement.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -326,7 +291,7 @@ export default function RoleManagement() {
           </div>
         ) : users.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-muted-foreground">No hay usuarios registrados.</p>
+            <p className="text-muted-foreground">{t('roleManagement.noUsers')}</p>
           </div>
         ) : (
           <>
@@ -350,7 +315,7 @@ export default function RoleManagement() {
                       size="icon"
                       variant="ghost"
                       className="h-8 w-8 shrink-0"
-                      aria-label={`Ver perfil de ${user.name}`}
+                      aria-label={t('roleManagement.viewProfile', { name: user.name })}
                     >
                       <Link href={`/profile?uid=${user.uid}`}>
                         <Eye className="h-4 w-4" />
@@ -359,7 +324,7 @@ export default function RoleManagement() {
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor={`role-${user.uid}`} className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Rol asignado
+                      {t('roleManagement.roleAssigned')}
                     </Label>
                     <Select
                       value={user.role}
@@ -372,23 +337,23 @@ export default function RoleManagement() {
                         id={`role-${user.uid}`}
                         className="h-11 rounded-md text-left"
                       >
-                        <SelectValue placeholder="Selecciona un rol" />
+                        <SelectValue placeholder={t('roleManagement.selectRole')} />
                       </SelectTrigger>
                       <SelectContent className="max-h-64">
                         {assignableRoles.map((roleOption) => (
                           <SelectItem key={roleOption} value={roleOption}>
-                            {roleMeta[roleOption].label}
+                            {t(`role.${roleOption}`)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      {roleMeta[user.role].description}
+                      {t(`role.description.${user.role}`)}
                     </p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Lugares visibles
+                      {t('roleManagement.visiblePages')}
                     </Label>
                     <div className="grid gap-2">
                       {navigationItems.map((item) => (
@@ -406,7 +371,7 @@ export default function RoleManagement() {
                               )
                             }
                           />
-                          <span className="text-foreground">{item.label}</span>
+                                  <span className="text-foreground">{t(item.i18nKey)}</span>
                         </label>
                       ))}
                     </div>
@@ -419,7 +384,7 @@ export default function RoleManagement() {
                         }
                         disabled={isSaving === user.uid}
                       >
-                        Todo
+                        {t('roleManagement.all')}
                       </Button>
                       <Button
                         size="sm"
@@ -427,7 +392,7 @@ export default function RoleManagement() {
                         onClick={() => updateUserVisibility(user.uid, [])}
                         disabled={isSaving === user.uid}
                       >
-                        Ninguno
+                        {t('roleManagement.none')}
                       </Button>
                       <Button
                         size="sm"
@@ -436,11 +401,11 @@ export default function RoleManagement() {
                         }
                         disabled={isSaving === user.uid}
                       >
-                        Guardar
+                        {t('roleManagement.save')}
                       </Button>
                       {isSaving === user.uid && (
                         <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Guardando...
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('roleManagement.saving')}
                         </span>
                       )}
                     </div>
@@ -453,11 +418,11 @@ export default function RoleManagement() {
                 <Table className="min-w-[980px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead className="w-48">Rol</TableHead>
-                      <TableHead>Lugares visibles</TableHead>
-                      <TableHead className="w-32 text-center">Acciones</TableHead>
+                      <TableHead>{t('roleManagement.name')}</TableHead>
+                      <TableHead>{t('roleManagement.email')}</TableHead>
+                      <TableHead className="w-48">{t('roleManagement.role')}</TableHead>
+                      <TableHead>{t('roleManagement.visiblePages')}</TableHead>
+                      <TableHead className="w-32 text-center">{t('roleManagement.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -475,18 +440,18 @@ export default function RoleManagement() {
                               disabled={isSaving === user.uid}
                             >
                               <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Selecciona un rol" />
+                                <SelectValue placeholder={t('roleManagement.selectRole')} />
                               </SelectTrigger>
                               <SelectContent>
                                 {assignableRoles.map((roleOption) => (
                                   <SelectItem key={roleOption} value={roleOption}>
-                                    {roleMeta[roleOption].label}
+                                    {t(`role.${roleOption}`)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">
-                              {roleMeta[user.role].description}
+                              {t(`role.description.${user.role}`)}
                             </p>
                           </TableCell>
                           <TableCell>
@@ -507,7 +472,7 @@ export default function RoleManagement() {
                                     }
                                   />
                                   <span className="text-foreground">
-                                    {item.label}
+                                    {t(item.i18nKey)}
                                   </span>
                                 </label>
                               ))}
@@ -520,7 +485,7 @@ export default function RoleManagement() {
                                 size="icon"
                                 variant="ghost"
                                 className="h-9 w-9"
-                                aria-label={`Ver perfil de ${user.name}`}
+                                aria-label={t('roleManagement.viewProfile', { name: user.name })}
                               >
                                 <Link href={`/profile?uid=${user.uid}`}>
                                   <Eye className="h-4 w-4" />
@@ -534,7 +499,7 @@ export default function RoleManagement() {
                                 }
                                 disabled={isSaving === user.uid}
                               >
-                                Todo
+                                {t('roleManagement.all')}
                               </Button>
                               <Button
                                 size="sm"
@@ -542,7 +507,7 @@ export default function RoleManagement() {
                                 onClick={() => updateUserVisibility(user.uid, [])}
                                 disabled={isSaving === user.uid}
                               >
-                                Ninguno
+                                {t('roleManagement.none')}
                               </Button>
                               <Button
                                 size="sm"
@@ -551,7 +516,7 @@ export default function RoleManagement() {
                                 }
                                 disabled={isSaving === user.uid}
                               >
-                                Guardar
+                                {t('roleManagement.save')}
                               </Button>
                               {isSaving === user.uid && (
                                 <Loader2 className="h-4 w-4 animate-spin" />

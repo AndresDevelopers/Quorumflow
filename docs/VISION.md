@@ -17,7 +17,7 @@ Sistema de gestión integral diseñado para las presidencias del Quórum de Éld
 - Calendario operativo de reuniones, consejos y ministraciones
 - Seguimiento de familias asignadas y tareas delegadas
 - Sincronización bidireccional de asignaciones ministeriales
-- Chat con IA (DeepSeek) para consultas y resúmenes del quórum
+- Chat con IA (DeepSeek) para consultas y resúmenes de tu organización
 - Reportes y análisis orientados a la revisión de indicadores
 - Soporte multi-organización con aislamiento por barrio + organización (barrioOrg)
 

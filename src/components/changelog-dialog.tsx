@@ -31,14 +31,19 @@ export function ChangelogDialog({ children }: { children: React.ReactNode }) {
   const [changelog, setChangelog] = useState<ChangelogData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/changelog.json")
+  const fetchChangelog = () => {
+    setLoading(true);
+    fetch(`/changelog.json?v=${Date.now()}`)
       .then((res) => res.json())
       .then((data: ChangelogData) => {
         setChangelog(data);
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchChangelog();
   }, []);
 
   const lang = language as "es" | "en";

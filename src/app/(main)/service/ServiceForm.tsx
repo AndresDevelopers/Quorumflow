@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { CalendarIcon, X, Upload, Loader2, AlertCircle } from 'lucide-react';
 import { addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -44,18 +44,20 @@ import { Textarea } from '@/components/ui/textarea';
 import type { Service } from '@/lib/types';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/auth-context';
+import { useI18n } from '@/contexts/i18n-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-const serviceSchema = z.object({
-  title: z.string().min(3, 'El título es requerido.'),
-  description: z.string().min(10, 'La descripción es requerida.'),
-  date: z.date({
-    required_error: 'La fecha es requerida.',
-  }),
-  time: z.string().optional(),
-});
+const createServiceSchema = (t: (key: string, params?: Record<string, string | number>) => string) =>
+  z.object({
+    title: z.string().min(3, t('service.form.titleRequired')),
+    description: z.string().min(10, t('service.form.descriptionRequired')),
+    date: z.date({
+      required_error: t('service.form.dateRequired'),
+    }),
+    time: z.string().optional(),
+  });
 
-type FormValues = z.infer<typeof serviceSchema>;
+type FormValues = z.infer<ReturnType<typeof createServiceSchema>>;
 
 interface ServiceFormProps {
   service?: Service;
@@ -67,6 +69,7 @@ export function ServiceForm({ service }: ServiceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, barrioOrg } = useAuth();
+  const { t } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = !!service;
   
@@ -78,7 +81,7 @@ export function ServiceForm({ service }: ServiceFormProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(serviceSchema),
+    resolver: zodResolver(createServiceSchema(t)),
     defaultValues: isEditMode
       ? {
           title: service.title,
@@ -122,8 +125,8 @@ export function ServiceForm({ service }: ServiceFormProps) {
     for (const file of Array.from(files)) {
         if (file.size > MAX_FILE_SIZE) {
             toast({
-                title: "Archivo demasiado grande",
-                description: `La imagen "${file.name}" supera el límite de 20MB.`,
+                title: t('service.form.fileTooLargeTitle'),
+                description: t('service.form.fileTooLargeDescription', { name: file.name }),
                 variant: "destructive",
             });
         } else {
@@ -156,7 +159,7 @@ export function ServiceForm({ service }: ServiceFormProps) {
 
   const onSubmit = async (values: FormValues) => {
     if (!user) {
-      toast({ title: "Error", description: "Debes iniciar sesión para guardar.", variant: "destructive" });
+      toast({ title: t('common.error'), description: t('service.form.loginRequired'), variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
@@ -200,14 +203,14 @@ export function ServiceForm({ service }: ServiceFormProps) {
         await updateDoc(serviceRef, dataToSave);
         
         toast({
-          title: 'Servicio Actualizado',
-          description: 'El servicio ha sido actualizado exitosamente.',
+          title: t('service.updatedTitle'),
+          description: t('service.updatedDescription'),
         });
       } else {
         await addDoc(servicesCollection, dataToSave);
         toast({
-          title: 'Servicio Agregado',
-          description: 'El servicio ha sido registrado exitosamente.',
+          title: t('service.addedTitle'),
+          description: t('service.addedDescription'),
         });
       }
       router.push('/service');
@@ -216,8 +219,8 @@ export function ServiceForm({ service }: ServiceFormProps) {
       logger.error({ error: e, message: 'Error saving service', data: values });
       setUploadError(e); // Set the error state to display it in the UI
       toast({
-        title: "Error al Subir Imagen",
-        description: 'Hubo un error al guardar el servicio. Revisa el error mostrado.',
+        title: t('service.uploadErrorTitle'),
+        description: t('service.uploadErrorDescription'),
         variant: 'destructive',
       });
     } finally {
@@ -233,26 +236,26 @@ export function ServiceForm({ service }: ServiceFormProps) {
       >
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>{isEditMode ? 'Editar Servicio' : 'Agregar Nuevo Servicio'}</CardTitle>
+            <CardTitle>{isEditMode ? t('service.editTitle') : t('service.addTitle')}</CardTitle>
             <CardDescription>
-              {isEditMode ? 'Modifica los detalles del servicio.' : 'Ingresa los detalles del proyecto de servicio.'}
+              {isEditMode ? t('service.editDescription') : t('service.addDescription')}
               <br />
-              <span className="text-sm text-muted-foreground">Los campos marcados con <span className="text-red-600">*</span> son obligatorios.</span>
+              <span className="text-sm text-muted-foreground">{t('service.requiredFields')}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {uploadError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error de Subida</AlertTitle>
-                <AlertDescription>
-                  <p>No se pudo subir la imagen. Por favor, comparte este error:</p>
-                  <pre className="mt-2 text-xs bg-red-50 p-2 rounded whitespace-pre-wrap">
-                    <strong>Código:</strong> {uploadError?.code || 'N/A'}
-                    <br />
-                    <strong>Mensaje:</strong> {uploadError?.message || 'Error desconocido'}
-                  </pre>
-                </AlertDescription>
+                 <AlertTitle>{t('service.uploadAlertTitle')}</AlertTitle>
+                 <AlertDescription>
+                   <p>{t('service.uploadAlertDescription')}</p>
+                   <pre className="mt-2 text-xs bg-red-50 p-2 rounded whitespace-pre-wrap">
+                     <strong>{t('service.uploadCodeLabel')}</strong> {uploadError?.code || 'N/A'}
+                     <br />
+                     <strong>{t('service.uploadMessageLabel')}</strong> {uploadError?.message || 'Error desconocido'}
+                   </pre>
+                 </AlertDescription>
               </Alert>
             )}
             <FormField
@@ -260,9 +263,9 @@ export function ServiceForm({ service }: ServiceFormProps) {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Título del Servicio <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('service.form.titleLabel')} <span className="text-red-600">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: Limpieza del parque" {...field} />
+                    <Input placeholder={t('service.form.titlePlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -275,7 +278,7 @@ export function ServiceForm({ service }: ServiceFormProps) {
                 name="date"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Fecha <span className="text-red-600">*</span></FormLabel>
+                    <FormLabel>{t('service.form.dateLabel')} <span className="text-red-600">*</span></FormLabel>
                     <Popover open={datePopoverOpen} onOpenChange={(open) => {
                       setDatePopoverOpen(open);
                       if (open) {
@@ -293,9 +296,9 @@ export function ServiceForm({ service }: ServiceFormProps) {
                             )}
                           >
                             {field.value ? (
-                              format(field.value, 'd LLLL yyyy', { locale: es })
+                              format(field.value, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                             ) : (
-                              <span>Selecciona una fecha</span>
+                              <span>{t('service.form.datePlaceholder')}</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -308,7 +311,7 @@ export function ServiceForm({ service }: ServiceFormProps) {
                           onSelect={setSelectedDate}
                           defaultMonth={selectedDate || field.value}
                           autoFocus
-                          locale={es}
+                          locale={getDateFnsLocale()}
                         />
                         <div className="p-3 border-t flex justify-end gap-2">
                           <Button
@@ -319,21 +322,21 @@ export function ServiceForm({ service }: ServiceFormProps) {
                               setSelectedDate(undefined);
                               setDatePopoverOpen(false);
                             }}
-                          >
-                            Cancelar
-                          </Button>
-                          <Button
-                            size="sm"
-                            type="button"
-                            onClick={() => {
-                              if (selectedDate) {
-                                field.onChange(selectedDate);
-                              }
-                              setDatePopoverOpen(false);
-                            }}
-                          >
-                            Establecer fecha
-                          </Button>
+                           >
+                             {t('service.cancel')}
+                           </Button>
+                           <Button
+                             size="sm"
+                             type="button"
+                             onClick={() => {
+                               if (selectedDate) {
+                                 field.onChange(selectedDate);
+                               }
+                               setDatePopoverOpen(false);
+                             }}
+                           >
+                             {t('service.form.setDate')}
+                           </Button>
                         </div>
                       </PopoverContent>
                     </Popover>
@@ -346,7 +349,7 @@ export function ServiceForm({ service }: ServiceFormProps) {
                 name="time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hora</FormLabel>
+                    <FormLabel>{t('service.form.timeLabel')}</FormLabel>
                     <FormControl>
                       <Input type="time" {...field} />
                     </FormControl>
@@ -361,11 +364,11 @@ export function ServiceForm({ service }: ServiceFormProps) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descripción <span className="text-red-600">*</span></FormLabel>
+                  <FormLabel>{t('service.form.descriptionLabel')} <span className="text-red-600">*</span></FormLabel>
                   <FormControl>
                     <Textarea
                       rows={5}
-                      placeholder="Describe brevemente en qué consiste el servicio."
+                      placeholder={t('service.form.descriptionPlaceholder')}
                       {...field}
                     />
                   </FormControl>
@@ -374,7 +377,7 @@ export function ServiceForm({ service }: ServiceFormProps) {
               )}
             />
             <FormItem>
-              <FormLabel>Imágenes (Opcional)</FormLabel>
+              <FormLabel>{t('service.form.imagesLabel')}</FormLabel>
               <FormControl>
                 <div className="flex items-center justify-center w-full">
                     <label htmlFor="dropzone-file" className={cn(
@@ -383,8 +386,8 @@ export function ServiceForm({ service }: ServiceFormProps) {
                     )}>
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             {isSubmitting ? <Loader2 className="w-8 h-8 mb-4 text-muted-foreground animate-spin" /> : <Upload className="w-8 h-8 mb-4 text-muted-foreground" />}
-                            <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Haz click para subir</span> o arrastra y suelta</p>
-                            <p className="text-xs text-muted-foreground">PNG, JPG (MAX. 20MB por imagen)</p>
+                            <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">{t('service.form.uploadClick')}</span> {t('service.form.uploadDrag')}</p>
+                            <p className="text-xs text-muted-foreground">{t('service.form.uploadFormats')}</p>
                         </div>
                         <input id="dropzone-file" type="file" className="hidden" multiple accept="image/png, image/jpeg" onChange={handleImageChange} ref={fileInputRef} disabled={isSubmitting}/>
                     </label>
@@ -393,15 +396,15 @@ export function ServiceForm({ service }: ServiceFormProps) {
               <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                 {previewUrls.map((url, index) => (
                    <div key={index} className="relative group">
-                     <Image src={url} alt={`Imagen de servicio ${index + 1}`} width={100} height={100} className="w-full h-24 object-cover rounded-md" data-ai-hint="service image" />
-                     <button 
-                       type="button" 
-                       onClick={() => removeImage(url)} 
-                       className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" 
-                       disabled={isSubmitting}
-                       title="Eliminar imagen"
-                       aria-label={`Eliminar imagen ${index + 1}`}
-                     >
+                      <Image src={url} alt={t('service.form.imageAlt', { n: index + 1 })} width={100} height={100} className="w-full h-24 object-cover rounded-md" data-ai-hint="service image" />
+                      <button 
+                        type="button" 
+                        onClick={() => removeImage(url)} 
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" 
+                        disabled={isSubmitting}
+                        title={t('service.form.removeImageTitle')}
+                        aria-label={t('service.form.removeImageAria', { n: index + 1 })}
+                      >
                        <X className="h-3 w-3" />
                      </button>
                    </div>
@@ -411,10 +414,10 @@ export function ServiceForm({ service }: ServiceFormProps) {
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button variant="outline" asChild>
-              <Link href="/service">Cancelar</Link>
+              <Link href="/service">{t('service.cancel')}</Link>
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : isEditMode ? 'Guardar Cambios' : 'Guardar Servicio'}
+              {isSubmitting ? t('service.saving') : isEditMode ? t('service.saveChanges') : t('service.saveService')}
             </Button>
           </CardFooter>
         </Card>

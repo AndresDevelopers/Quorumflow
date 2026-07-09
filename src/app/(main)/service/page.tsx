@@ -8,7 +8,8 @@ import { getDocs, query, orderBy, Timestamp, where, deleteDoc, doc, addDoc } fro
 import { servicesCollection, activitiesCollection } from '@/lib/collections';
 import type { Service } from '@/lib/types';
 import { addDays, endOfYear, format, getYear, isAfter, isBefore, startOfYear } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
+import { useI18n } from "@/contexts/i18n-context";
 import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
 import { useAuth } from '@/contexts/auth-context';
@@ -88,6 +89,7 @@ async function getServicesForYear(year: number, barrioOrg?: string): Promise<Ser
 
 export default function ServicePage() {
   const { user, loading: authLoading, barrioOrg } = useAuth();
+  const { t } = useI18n();
   const { canWrite } = usePermission();
   const searchParams = useSearchParams();
   const [services, setServices] = useState<Service[]>([]);
@@ -108,7 +110,7 @@ export default function ServicePage() {
         })
         .catch(err => {
             logger.error({ error: err, message: "Failed to fetch services" });
-            toast({ title: "Error", description: "No se pudieron cargar los servicios.", variant: "destructive" });
+            toast({ title: t('common.error'), description: t('service.loadError'), variant: "destructive" });
         })
         .finally(() => {
             setLoading(false);
@@ -125,15 +127,15 @@ export default function ServicePage() {
     try {
       await deleteDoc(doc(servicesCollection, serviceId));
       toast({
-        title: 'Servicio Eliminado',
-        description: 'El registro ha sido eliminado exitosamente.',
+        title: t('service.deletedTitle'),
+        description: t('service.deletedDescription'),
       });
       fetchServices(); // Refresh the list
     } catch (error) {
       logger.error({ error, message: 'Error deleting service', serviceId });
       toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el servicio.',
+        title: t('common.error'),
+        description: t('service.deleteError'),
         variant: 'destructive',
       });
     }
@@ -151,15 +153,15 @@ export default function ServicePage() {
       });
       await deleteDoc(doc(servicesCollection, service.id));
       toast({
-        title: 'Transferido a Actividades',
-        description: `El servicio "${service.title}" ha sido transferido a Actividades y eliminado de Servicios.`,
+        title: t('service.transferredTitle'),
+        description: t('service.transferredDescription', { title: service.title }),
       });
       fetchServices();
     } catch (error) {
       logger.error({ error, message: 'Error transferring service to activity', serviceId: service.id });
       toast({
-        title: 'Error',
-        description: 'No se pudo transferir el servicio a Actividades.',
+        title: t('common.error'),
+        description: t('service.transferError'),
         variant: 'destructive',
       });
     }
@@ -226,19 +228,20 @@ export default function ServicePage() {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <Wand2 className="h-6 w-6 text-primary" />
-              <CardTitle>Sugerencias de Servicios</CardTitle>
+              <CardTitle>{t('service.suggestionsTitle')}</CardTitle>
             </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => handleGenerateServiceSuggestions(true)}
               disabled={isGeneratingSuggestions}
+              title={t('service.suggestionsRefresh')}
             >
               <RefreshCw className={`h-4 w-4 ${isGeneratingSuggestions ? 'animate-spin' : ''}`} />
             </Button>
           </div>
           <CardDescription>
-            Ideas generadas por IA para el próximo mes, basadas en servicios y actividades actuales.
+            {t('service.suggestionsDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -254,7 +257,7 @@ export default function ServicePage() {
           ) : serviceSuggestions ? (
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold mb-2">Apoyo a los Hermanos</h3>
+                <h3 className="font-semibold mb-2">{t('service.suggestionsQuorumCare')}</h3>
                 <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
                   {serviceSuggestions.quorumCare.map((service, index) => (
                     <li key={`qc-${index}`}>{service}</li>
@@ -262,7 +265,7 @@ export default function ServicePage() {
                 </ul>
               </div>
               <div>
-                <h3 className="font-semibold mb-2">Servicio Comunitario</h3>
+                <h3 className="font-semibold mb-2">{t('service.suggestionsCommunity')}</h3>
                 <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
                   {serviceSuggestions.communityImpact.map((service, index) => (
                     <li key={`ci-${index}`}>{service}</li>
@@ -272,7 +275,7 @@ export default function ServicePage() {
             </div>
           ) : (
             <p className="text-sm text-center text-muted-foreground py-8">
-              No se pudieron generar sugerencias de servicios en este momento.
+              {t('service.suggestionsError')}
             </p>
           )}
         </CardContent>
@@ -280,10 +283,10 @@ export default function ServicePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Próximos Servicios</CardTitle>
-          <CardDescription>
-            Proyectos de servicio planeados para los próximos 14 días.
-          </CardDescription>
+              <CardTitle>{t('service.upcomingTitle')}</CardTitle>
+              <CardDescription>
+                {t('service.upcomingDescription')}
+              </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -296,8 +299,8 @@ export default function ServicePage() {
                     <div className="flex-1">
                       <p className="font-semibold">{service.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {format(service.date.toDate(), "'El' d 'de' LLLL", { locale: es })}
-                        {service.time ? ` a las ${service.time}` : ''} - {service.description}
+                        {format(service.date.toDate(), t("service.dateLong"), { locale: getDateFnsLocale() })}
+                        {service.time ? t('service.atTime', { time: service.time }) : ''} - {service.description}
                       </p>
                     </div>
                     {service.imageUrls && service.imageUrls.length > 0 && (
@@ -312,7 +315,7 @@ export default function ServicePage() {
             </ul>
           ) : (
             <p className="text-center text-sm text-muted-foreground py-4">
-              No hay servicios programados para los próximos 14 días.
+              {t('service.upcomingEmpty')}
             </p>
           )}
         </CardContent>
@@ -322,16 +325,16 @@ export default function ServicePage() {
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle>Servicios del Año {selectedYear}</CardTitle>
+              <CardTitle>{t('service.yearTitle', { year: selectedYear })}</CardTitle>
               <CardDescription>
-                Proyectos de servicio registrados en el año seleccionado.
+                {t('service.yearDescription')}
               </CardDescription>
             </div>
             {canWrite && (
             <Button asChild>
                 <Link href="/service/add">
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Servicio
+                    {t('service.addService')}
                 </Link>
             </Button>
             )}
@@ -343,11 +346,11 @@ export default function ServicePage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Título</TableHead>
-                <TableHead className="hidden md:table-cell">Descripción</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-center">Imágenes</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead>{t('service.tableTitle')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('service.tableDescription')}</TableHead>
+                <TableHead>{t('service.tableDate')}</TableHead>
+                <TableHead className="text-center">{t('service.tableImages')}</TableHead>
+                <TableHead className="text-right">{t('service.tableActions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -364,7 +367,7 @@ export default function ServicePage() {
               ) : services.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    No hay servicios registrados.
+                    {t('service.empty')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -373,7 +376,7 @@ export default function ServicePage() {
                     <TableCell className="font-medium">{item.title}</TableCell>
                     <TableCell className="hidden md:table-cell max-w-sm truncate">{item.description}</TableCell>
                     <TableCell>
-                      {format(item.date.toDate(), "d MMM, yyyy", { locale: es })}
+                      {format(item.date.toDate(), "d MMM, yyyy", { locale: getDateFnsLocale() })}
                       {item.time ? `, ${item.time}` : ''}
                     </TableCell>
                     <TableCell className="text-center">
@@ -387,9 +390,9 @@ export default function ServicePage() {
                           </DialogTrigger>
                           <DialogContent className="max-w-4xl">
                             <DialogHeader>
-                              <DialogTitle>Imágenes del Servicio: {item.title}</DialogTitle>
+                              <DialogTitle>{t('service.imagesDialogTitle', { title: item.title })}</DialogTitle>
                               <DialogDescription>
-                                Imágenes relacionadas con este proyecto de servicio.
+                                {t('service.imagesDialogDescription')}
                               </DialogDescription>
                             </DialogHeader>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
@@ -408,7 +411,7 @@ export default function ServicePage() {
                           </DialogContent>
                         </Dialog>
                       ) : (
-                        <span className="text-muted-foreground text-sm">Sin imágenes</span>
+                        <span className="text-muted-foreground text-sm">{t('service.noImages')}</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -421,9 +424,9 @@ export default function ServicePage() {
                          variant="ghost"
                          size="icon"
                          onClick={() => handleTransferToActivity(item)}
-                         title="Transferir a Actividades"
-                       >
-                         <ArrowRightLeft className="h-4 w-4 text-blue-500" />
+                          title={t('service.transferTitle')}
+                        >
+                          <ArrowRightLeft className="h-4 w-4 text-blue-500" />
                        </Button>
                        <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -433,18 +436,18 @@ export default function ServicePage() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogTitle>{t('service.deleteDialogTitle')}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Esta acción no se puede deshacer. Esto eliminará permanentemente el servicio: <strong>{item.title}</strong>.
+                              {t('service.deleteDialogDescription')} <strong>{item.title}</strong>.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogCancel>{t('service.cancel')}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => handleDelete(item.id, item.title)}
                               className="bg-destructive hover:bg-destructive/90"
                             >
-                              Eliminar
+                              {t('service.delete')}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -469,9 +472,9 @@ export default function ServicePage() {
                 </div>
               ))
             ) : services.length === 0 ? (
-              <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
-                No hay servicios registrados.
-              </div>
+                   <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
+                 {t('service.empty')}
+               </div>
             ) : (
               services.map((item) => (
                 <div key={item.id} className="rounded-lg border p-3 space-y-2">
@@ -479,7 +482,7 @@ export default function ServicePage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{item.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(item.date.toDate(), "d MMM, yyyy", { locale: es })}
+                        {format(item.date.toDate(), "d MMM, yyyy", { locale: getDateFnsLocale() })}
                         {item.time ? `, ${item.time}` : ''}
                       </p>
                       {item.description && (
@@ -498,7 +501,7 @@ export default function ServicePage() {
                     <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
                       <Link href={`/service/${item.id}/edit`}><Pencil className="h-4 w-4" /></Link>
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleTransferToActivity(item)} title="Transferir a Actividades">
+                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleTransferToActivity(item)} title={t('service.transferTitle')}>
                       <ArrowRightLeft className="h-4 w-4 text-blue-500" />
                     </Button>
                     <AlertDialog>

@@ -90,12 +90,12 @@ El documento en Firestore debe tener la estructura:
 {
   "role": "secretary",
   "barrio": "Libertad",
-  "organizacion": "Quórum de Élderes",
+  "organizacion": "Sociedad de Socorro",
   "email": "api@ejemplo.com"
 }
 ```
 
-El valor de `barrioOrg` se construye en cada llamada como `barrio|organizacion` (ej: `Libertad|Quórum de Élderes`).
+El valor de `barrioOrg` se construye en cada llamada como `barrio|organizacion` (ej: `Libertad|Sociedad de Socorro`).
 
 ### 3. Firebase Auth con `email/password` habilitado
 
@@ -292,7 +292,7 @@ Authorization: Bearer <id-token>
     "time": "19:00",
     "imageUrls": ["https://storage.../foto1.jpg"],
     "location": "Capilla Libertad",
-    "context": "Fortalecer la unidad del quórum",
+    "context": "Fortalecer la unidad de la organización",
     "learning": "La importancia del servicio mutuo",
     "additionalText": "Traer refrigerio"
   }

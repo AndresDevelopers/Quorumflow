@@ -80,23 +80,23 @@ function UserNav() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      toast({
-        title: "Sesión cerrada",
-        description: "Has cerrado sesión exitosamente.",
-      });
-      router.push("/login");
-    } catch (error) {
-      console.error("Logout error", error);
-      toast({
-        title: "Error",
-        description: "No se pudo cerrar la sesión.",
-        variant: "destructive",
-      });
-    }
-  };
+   const handleLogout = async () => {
+     try {
+       await signOut(auth);
+       toast({
+         title: t("settings.security.passwordUpdatedTitle"),
+         description: t("settings.security.passwordUpdatedDescription"),
+       });
+       router.push("/login");
+     } catch (error) {
+       console.error("Logout error", error);
+       toast({
+         title: t("common.error"),
+         description: t("admin.users.toast.errorDelete"),
+         variant: "destructive",
+       });
+     }
+   };
 
   return (
     <DropdownMenu>
@@ -166,13 +166,17 @@ export function MainLayout({ children }: { children: ReactNode }) {
   const [visibleNavItems, setVisibleNavItems] = useState(navigationItems);
   const showAdminLink = isAdmin(userRole);
 
-  useEffect(() => {
-    fetch("/changelog.json")
+  const fetchVersion = () => {
+    fetch(`/changelog.json?v=${Date.now()}`)
       .then((res) => res.json())
       .then((data) => {
         setVersion(data.current);
       })
       .catch((error) => console.error("Error fetching version:", error));
+  };
+
+  useEffect(() => {
+    fetchVersion();
   }, []);
 
   useEffect(() => {
@@ -251,11 +255,11 @@ export function MainLayout({ children }: { children: ReactNode }) {
                         ? pathname === "/"
                         : pathname.startsWith(item.href)
                     }
-                    tooltip={{ children: item.label }}
+                    tooltip={{ children: t(item.i18nKey) }}
                   >
                     <item.icon className="h-5 w-5" />
                     <span className="group-data-[collapsible=icon]:hidden">
-                      {item.label}
+                      {t(item.i18nKey)}
                     </span>
                   </SidebarMenuButton>
                 </Link>

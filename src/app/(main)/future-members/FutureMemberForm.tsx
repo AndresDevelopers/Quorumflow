@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { CalendarIcon, User, X, Upload, Loader2 } from 'lucide-react';
 import { addDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -322,7 +322,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
                           )}
                         >
                           {field.value ? (
-                            format(field.value, 'd LLLL yyyy', { locale: es })
+                            format(field.value, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                           ) : (
                             <span>Selecciona una fecha</span>
                           )}
@@ -338,7 +338,7 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
                         defaultMonth={field.value}
                         disabled={(date) => date < new Date('1900-01-01')}
                         autoFocus
-                        locale={es}
+                        locale={getDateFnsLocale()}
                       />
                     </PopoverContent>
                   </Popover>

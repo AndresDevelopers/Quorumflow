@@ -11,6 +11,7 @@ import type { Convert, NewConvertFriendship } from '@/lib/types';
 import logger from '@/lib/logger';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
+import { useI18n } from '@/contexts/i18n-context';
 
 import {
   Dialog,
@@ -33,15 +34,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { MemberSelector } from '@/components/members/member-selector';
-
-const friendSchema = z.object({
-  name: z.string().min(2, 'El nombre es requerido.'),
-});
-
-const getFriendshipSchema = (allowEmptyFriends: boolean) =>
-  z.object({
-    friends: z.array(friendSchema).min(allowEmptyFriends ? 0 : 1, 'Se requiere al menos un amigo.'),
-  });
 
 type FormValues = {
   friends: Array<{ name: string }>;
@@ -67,6 +59,17 @@ export function FriendshipForm({
   const { barrioOrg } = useAuth();
   const { canWrite } = usePermission();
   const [isPending, startTransition] = useTransition();
+  const isSocorro = barrioOrg?.toLowerCase().includes('socorro');
+  const { t } = useI18n();
+
+  const friendSchema = z.object({
+    name: z.string().min(2, t('friendship.nameRequired')),
+  });
+
+  const getFriendshipSchema = (allowEmptyFriends: boolean) =>
+    z.object({
+      friends: z.array(friendSchema).min(allowEmptyFriends ? 0 : 1, t('friendship.minOne')),
+    });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(getFriendshipSchema(isEditMode)),
@@ -102,14 +105,14 @@ export function FriendshipForm({
           if (friendNames.length === 0) {
             await deleteDoc(friendshipRef);
             toast({
-              title: 'Éxito',
-              description: 'Asignación de amistad eliminada.',
+              title: t('missionaryWork.success'),
+              description: t('friendship.deleted'),
             });
           } else {
             await updateDoc(friendshipRef, { friends: friendNames });
             toast({
-              title: 'Éxito',
-              description: 'Asignación de amistad actualizada.',
+              title: t('missionaryWork.success'),
+              description: t('friendship.updated'),
             });
           }
         } else if (convert) {
@@ -121,23 +124,23 @@ export function FriendshipForm({
             barrioOrg,
           });
           toast({
-            title: 'Éxito',
-            description: 'Amigos asignados al nuevo converso.',
+            title: t('missionaryWork.success'),
+            description: t('friendship.assigned'),
           });
         }
         onFormSubmit();
       } catch (error) {
         logger.error({ error, message: 'Error saving friendship' });
         toast({
-          title: 'Error',
-          description: 'No se pudo guardar la asignación.',
+          title: t('common.error'),
+          description: t('friendship.saveError'),
           variant: 'destructive',
         });
       }
     });
   };
 
-  const targetName = isEditMode ? friendship?.convertName : convert?.name;
+  const targetName = (isEditMode ? friendship?.convertName : convert?.name) ?? '';
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -146,18 +149,17 @@ export function FriendshipForm({
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <DialogHeader>
               <DialogTitle>
-                {isEditMode ? 'Editar' : 'Asignar'} Amigos para {targetName}
+                {isEditMode ? t('friendship.editTitle', { name: targetName }) : t('friendship.assignTitle', { name: targetName })}
               </DialogTitle>
               <DialogDescription>
-                Agrega o modifica los miembros del quórum que apoyarán a este
-                nuevo converso.
+                {isSocorro ? t('friendship.descriptionSocorro') : t('friendship.descriptionQuorum')}
                 <br />
-                <span className="text-sm text-muted-foreground">Los campos marcados con * son obligatorios.</span>
+                <span className="text-sm text-muted-foreground">{t('birthdayForm.requiredFields')}</span>
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
               <div className="space-y-2">
-                <Label>Amigos del Quórum *</Label>
+                <Label>{t('missionaryWork.newConverts.table.friendsHeader')} *</Label>
                 {fields.map((field, index) => (
                   <FormField
                     key={field.id}
@@ -170,7 +172,7 @@ export function FriendshipForm({
                             <MemberSelector
                               value={field.value}
                               onValueChange={(memberId) => field.onChange(memberId)}
-                              placeholder={`Seleccionar amigo ${index + 1}`}
+                              placeholder={t('friendship.selectPlaceholder', { n: index + 1 })}
                               statusFilter={["active"]}
                               allowClear={false}
                             />
@@ -197,12 +199,12 @@ export function FriendshipForm({
                 onClick={() => append({ name: '' })}
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Agregar Amigo
+                {t('friendship.addFriend')}
               </Button>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={isPending}>
-                {isPending ? 'Guardando...' : 'Guardar Asignación'}
+                {isPending ? t('friendship.saving') : t('friendship.saveButton')}
               </Button>
             </DialogFooter>
           </form>

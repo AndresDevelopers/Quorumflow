@@ -33,7 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format, subYears, addDays, subHours, isAfter, isBefore } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import { UserCheck, UserMinus, Users, CalendarClock, AlertTriangle, CheckCircle, Wrench, BellRing, Calendar, Info, Loader2, BadgeCheck, AlertCircle, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -634,7 +634,7 @@ export default function CouncilPage() {
         <CardContent className="pt-6">
           <VoiceAnnotations
             title="Anotaciones para el Consejo"
-            description="Notas del quórum y puntos marcados para seguimiento en el consejo."
+            description="Notas de tu organización y puntos marcados para seguimiento en el consejo."
             source="council"
             annotations={annotations}
             isLoading={loading}
@@ -684,7 +684,7 @@ export default function CouncilPage() {
                     servicesIn7Days.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.title}</TableCell>
-                        <TableCell>{format(item.date.toDate(), "eeee, d 'de' LLLL", { locale: es })}</TableCell>
+                        <TableCell>{format(item.date.toDate(), "eeee, d 'de' LLLL", { locale: getDateFnsLocale() })}</TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" variant="outline" onClick={() => handleMarkServiceNotified(item.id)}>
                             <BellRing className="mr-2 h-4 w-4" />
@@ -721,7 +721,7 @@ export default function CouncilPage() {
                     futureServices.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.title}</TableCell>
-                        <TableCell>{format(item.date.toDate(), "d 'de' LLLL, yyyy", { locale: es })}</TableCell>
+                        <TableCell>{format(item.date.toDate(), "d 'de' LLLL, yyyy", { locale: getDateFnsLocale() })}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -851,7 +851,7 @@ export default function CouncilPage() {
                         <TableCell>
                           <div className="flex flex-col items-start gap-1">
                             <span className="text-xs font-medium text-foreground">{item.firstName} {item.lastName}</span>
-                            <span>{item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: es }) : 'N/A'}</span>
+                            <span>{item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }) : 'N/A'}</span>
                           </div>
                         </TableCell>
 
@@ -911,7 +911,7 @@ export default function CouncilPage() {
                           <div>
                             <p className="font-bold text-foreground break-words">{item.firstName} {item.lastName}</p>
                             <p className="text-sm text-muted-foreground">
-                              Bautismo: {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLL yyyy', { locale: es }) : 'N/A'}
+                              Bautismo: {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLL yyyy', { locale: getDateFnsLocale() }) : 'N/A'}
                             </p>
                           </div>
                         </div>
@@ -998,7 +998,7 @@ export default function CouncilPage() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
-                        {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: es }) : 'N/A'}
+                        {item.baptismDate ? format(item.baptismDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() }) : 'N/A'}
                       </TableCell>
                     </TableRow>
                   ))
@@ -1036,7 +1036,7 @@ export default function CouncilPage() {
                       <h4 className="font-semibold text-lg break-words">{activity.title}</h4>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-1">
                         <CalendarClock className="h-4 w-4 shrink-0" />
-                        <span>{format(activity.date.toDate(), 'd LLLL yyyy', { locale: es })}</span>
+                        <span>{format(activity.date.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}</span>
                         {activity.time && <span>• {activity.time}</span>}
                       </div>
                       {activity.location && (
@@ -1154,9 +1154,9 @@ export default function CouncilPage() {
                         </TableCell>
                         <TableCell>
                           {member.lessActiveSince
-                            ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLLL yyyy', { locale: es })
+                            ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                             : member.inactiveSince
-                              ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLLL yyyy', { locale: es })
+                              ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                               : '—'}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate" title={member.lessActiveObservation || (member as any).inactiveObservation || ''}>
@@ -1189,9 +1189,9 @@ export default function CouncilPage() {
                           {(member.lessActiveSince || member.inactiveSince) && (
                             <p className="text-sm text-muted-foreground">
                               Menos activo desde: {member.lessActiveSince
-                                ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLL yyyy', { locale: es })
+                                ? format((member.lessActiveSince as any).toDate ? (member.lessActiveSince as any).toDate() : member.lessActiveSince, 'd LLL yyyy', { locale: getDateFnsLocale() })
                                 : member.inactiveSince
-                                  ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: es })
+                                  ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: getDateFnsLocale() })
                                   : null}
                             </p>
                           )}
@@ -1264,7 +1264,7 @@ export default function CouncilPage() {
                         </TableCell>
                         <TableCell>
                           {member.inactiveSince
-                            ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLLL yyyy', { locale: es })
+                            ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLLL yyyy', { locale: getDateFnsLocale() })
                             : 'N/A'}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate" title={member.inactiveObservation || ''}>
@@ -1285,7 +1285,7 @@ export default function CouncilPage() {
                         <p className="font-bold">{member.firstName} {member.lastName}</p>
                         <p className="text-sm text-muted-foreground">
                           Inactivo desde: {member.inactiveSince
-                            ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: es })
+                            ? format((member.inactiveSince as any).toDate ? (member.inactiveSince as any).toDate() : member.inactiveSince, 'd LLL yyyy', { locale: getDateFnsLocale() })
                             : 'N/A'}
                         </p>
                         {member.inactiveObservation && (
@@ -1395,7 +1395,7 @@ export default function CouncilPage() {
                         )}
                         {member.deathDate && (
                           <p className="text-sm text-muted-foreground">
-                            Fecha de fallecimiento: {format(member.deathDate.toDate(), 'd LLLL yyyy', { locale: es })}
+                            Fecha de fallecimiento: {format(member.deathDate.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
                           </p>
                         )}
                       </div>

@@ -55,7 +55,7 @@ import { useI18n } from '@/contexts/i18n-context';
 import { useToast } from '@/hooks/use-toast';
 import { Camera, FileText, Pencil, PlusCircle, RefreshCw, Wand2, Trash2, ArrowRightLeft } from 'lucide-react';
 import { endOfYear, format, getYear, startOfYear } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getDateFnsLocale } from "@/lib/i18n-date";
 import logger from '@/lib/logger';
 
 async function getAvailableActivityYears(barrioOrg?: string): Promise<number[]> {
@@ -142,15 +142,15 @@ export default function ActivitiesPage() {
     try {
       await deleteDoc(doc(activitiesCollection, activityId));
       toast({
-        title: 'Actividad Eliminada',
-        description: 'La actividad ha sido eliminada exitosamente.',
+        title: t('reports.activities.deletedTitle'),
+        description: t('reports.activities.deletedDescription'),
       });
       fetchActivities();
     } catch (error) {
       logger.error({ error, message: 'Error deleting activity', activityId });
       toast({
-        title: 'Error',
-        description: 'No se pudo eliminar la actividad.',
+        title: t('common.error'),
+        description: t('reports.activities.deleteError'),
         variant: 'destructive',
       });
     }
@@ -169,15 +169,15 @@ export default function ActivitiesPage() {
       });
       await deleteDoc(doc(activitiesCollection, activity.id));
       toast({
-        title: 'Transferido a Servicios',
-        description: `La actividad "${activity.title}" ha sido transferida a Servicios y eliminada de Actividades.`,
+        title: t('reports.activities.transferredTitle'),
+        description: t('reports.activities.transferredDescription', { title: activity.title }),
       });
       fetchActivities();
     } catch (error) {
       logger.error({ error, message: 'Error transferring activity to service', activityId: activity.id });
       toast({
-        title: 'Error',
-        description: 'No se pudo transferir la actividad a Servicios.',
+        title: t('common.error'),
+        description: t('reports.activities.transferError'),
         variant: 'destructive',
       });
     }
@@ -289,9 +289,9 @@ export default function ActivitiesPage() {
             <div className="flex items-center gap-3">
               <FileText className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle>Actividades Registradas</CardTitle>
+                <CardTitle>{t('activities.pageTitle')}</CardTitle>
                 <CardDescription>
-                  Registro de las actividades del año {selectedYear}.
+                  {t('reports.activities.cardDescription', { year: selectedYear })}
                 </CardDescription>
               </div>
             </div>
@@ -302,8 +302,8 @@ export default function ActivitiesPage() {
                   onValueChange={handleYearChange}
                   disabled={availableYears === null}
                 >
-                  <SelectTrigger aria-label="Filtrar por año">
-                    <SelectValue placeholder="Año" />
+                  <SelectTrigger aria-label={t('reports.filterByYear')}>
+                    <SelectValue placeholder={t('reports.yearPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {yearOptions.map((year) => (
@@ -317,7 +317,7 @@ export default function ActivitiesPage() {
               <Button asChild>
                 <Link href="/reports/add">
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Actividad
+                  {t('reports.activities.addActivity')}
                 </Link>
               </Button>
             </div>
@@ -328,10 +328,10 @@ export default function ActivitiesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead>{t('reports.activities.colTitle')}</TableHead>
+                  <TableHead>{t('reports.activities.colDate')}</TableHead>
+                  <TableHead>{t('reports.activities.colDescription')}</TableHead>
+                  <TableHead className="text-right">{t('reports.activities.colActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -347,7 +347,7 @@ export default function ActivitiesPage() {
                 ) : activities.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="h-24 text-center">
-                      No hay actividades registradas.
+                      {t('reports.activities.noActivities')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -364,7 +364,7 @@ export default function ActivitiesPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>{item.title}</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    {format(item.date.toDate(), 'd LLLL yyyy', { locale: es })}
+                                    {format(item.date.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
                                     {item.time && `, ${item.time}`}
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
@@ -374,7 +374,7 @@ export default function ActivitiesPage() {
                                       <CarouselItem key={index}>
                                         <Image
                                           src={url}
-                                          alt={`Imagen ${index + 1} de ${item.title}`}
+                                          alt={t('reports.activities.imageAlt', { index: index + 1, title: item.title })}
                                           width={800}
                                           height={600}
                                           className="w-full h-auto object-contain rounded-md"
@@ -387,7 +387,7 @@ export default function ActivitiesPage() {
                                   <CarouselNext />
                                 </Carousel>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>Cerrar</AlertDialogCancel>
+                                  <AlertDialogCancel>{t('reports.activities.close')}</AlertDialogCancel>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
@@ -397,14 +397,14 @@ export default function ActivitiesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {format(item.date.toDate(), 'd LLLL yyyy', { locale: es })}
+                        {format(item.date.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
                         {item.time && `, ${item.time}`}
                       </TableCell>
                       <TableCell className="max-w-md">
                         <p className="truncate">{item.description}</p>
                         {item.additionalText && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            Texto adicional: {item.additionalText}
+                           <p className="text-xs text-muted-foreground truncate">
+                            {t('reports.activities.additionalText', { text: item.additionalText })}
                           </p>
                         )}
                       </TableCell>
@@ -419,30 +419,30 @@ export default function ActivitiesPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleTransferToService(item)}
-                          title="Transferir a Servicios"
+                          title={t('reports.activities.transferTitle')}
                         >
                           <ArrowRightLeft className="h-4 w-4 text-blue-500" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="Eliminar actividad">
+                          <Button variant="ghost" size="icon" title={t('reports.activities.deleteTitle')}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                              <AlertDialogTitle>{t('reports.activities.deleteDialogTitle')}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Esto eliminará permanentemente la actividad: <strong>{item.title}</strong>.
+                                {t('reports.activities.deleteDialogDescription', { title: item.title })}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogCancel>{t('reports.cancel')}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleDelete(item.id, item.title)}
                                 className="bg-destructive hover:bg-destructive/90"
                               >
-                                Eliminar
+                                {t('reports.activities.delete')}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -458,7 +458,7 @@ export default function ActivitiesPage() {
             {loading ? (
               Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-32 w-full" />)
             ) : activities.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">No hay actividades registradas.</p>
+              <p className="text-center text-sm text-muted-foreground py-8">{t('reports.activities.noActivities')}</p>
             ) : (
               activities.map((item) => (
                 <Card key={item.id}>
@@ -466,7 +466,7 @@ export default function ActivitiesPage() {
                     <div>
                       <CardTitle className="text-base">{item.title}</CardTitle>
                       <CardDescription>
-                        {format(item.date.toDate(), 'd LLLL yyyy', { locale: es })}
+                        {format(item.date.toDate(), 'd LLLL yyyy', { locale: getDateFnsLocale() })}
                         {item.time && `, ${item.time}`}
                       </CardDescription>
                     </div>
@@ -480,32 +480,32 @@ export default function ActivitiesPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleTransferToService(item)}
-                        title="Transferir a Servicios"
-                      >
-                        <ArrowRightLeft className="h-4 w-4 text-blue-500" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="Eliminar actividad">
+                          onClick={() => handleTransferToService(item)}
+                          title={t('reports.activities.transferTitle')}
+                        >
+                          <ArrowRightLeft className="h-4 w-4 text-blue-500" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" title={t('reports.activities.deleteTitle')}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogTitle>{t('reports.activities.deleteDialogTitle')}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Esta acción no se puede deshacer. Esto eliminará permanentemente la actividad: <strong>{item.title}</strong>.
+                              {t('reports.activities.deleteDialogDescription', { title: item.title })}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(item.id, item.title)}
-                              className="bg-destructive hover:bg-destructive/90"
-                            >
-                              Eliminar
-                            </AlertDialogAction>
+                              <AlertDialogCancel>{t('reports.cancel')}</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(item.id, item.title)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                {t('reports.activities.delete')}
+                              </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -515,9 +515,9 @@ export default function ActivitiesPage() {
                     <div>
                       <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
                       {item.additionalText && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 pt-1">
-                          Adicional: {item.additionalText}
-                        </p>
+                          <p className="text-xs text-muted-foreground line-clamp-2 pt-1">
+                           {t('reports.activities.additionalTextMobile', { text: item.additionalText })}
+                         </p>
                       )}
                     </div>
                   </CardContent>
@@ -533,7 +533,7 @@ export default function ActivitiesPage() {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <Wand2 className="h-6 w-6 text-primary" />
-              <CardTitle>Sugerencias de Actividades</CardTitle>
+              <CardTitle>{t('reports.activities.suggestionsTitle')}</CardTitle>
             </div>
             <Button
               variant="ghost"
@@ -545,7 +545,7 @@ export default function ActivitiesPage() {
             </Button>
           </div>
           <CardDescription>
-            Ideas generadas por IA para el próximo mes, basadas en actividades anteriores.
+            {t('reports.activities.suggestionsDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -561,7 +561,7 @@ export default function ActivitiesPage() {
           ) : suggestions ? (
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold mb-2">Espirituales</h3>
+                 <h3 className="font-semibold mb-2">{t('reports.activities.spiritual')}</h3>
                 <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
                   {suggestions.spiritual.map((activity, index) => (
                     <li key={`s-${index}`}>{activity}</li>
@@ -569,7 +569,7 @@ export default function ActivitiesPage() {
                 </ul>
               </div>
               <div>
-                <h3 className="font-semibold mb-2">Temporales</h3>
+                 <h3 className="font-semibold mb-2">{t('reports.activities.temporal')}</h3>
                 <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
                   {suggestions.temporal.map((activity, index) => (
                     <li key={`t-${index}`}>{activity}</li>
@@ -579,7 +579,7 @@ export default function ActivitiesPage() {
             </div>
           ) : (
             <p className="text-sm text-center text-muted-foreground py-8">
-              No se pudieron generar sugerencias. Verifica tu clave de API de Gemini.
+              {t('reports.activities.suggestionsError')}
             </p>
           )}
         </CardContent>

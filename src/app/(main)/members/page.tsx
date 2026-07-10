@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Plus, Search, Filter, Edit, Trash2, Users, UserCheck, UserX, Eye, ChevronUp, AlertTriangle, IdCard } from 'lucide-react';
@@ -55,11 +55,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import { usePermission } from '@/hooks/use-permission';
-import { useMembersSync } from '@/hooks/use-members-sync';
+import { useMembersLocal } from '@/hooks/use-members-local';
 import { SyncStatus } from '@/components/shared/sync-status';
 import type { Member, MemberStatus } from '@/lib/types';
 import { MemberForm } from '@/components/members/member-form';
-import { updateMember } from '@/lib/members-data';
+import { updateMember, getMemberById } from '@/lib/members-data';
 import { createNotificationsForAll } from '@/lib/notification-helpers';
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { safeGetDate, safeFormatDate } from '@/lib/date-utils';
@@ -93,11 +93,11 @@ export default function MembersPage() {
   const { t } = useI18n();
   const { canWrite } = usePermission();
   const router = useRouter();
-  // Realtime onSnapshot disabled: API + local cache only (cuts continuous Firestore billed reads)
-  const { members, loading, syncStatus, lastSyncTime, fetchMembers, clearCache } = useMembersSync({
-    enableInitialFetch: true,
-    enableRealtimeSync: false,
-  });
+  // Cache local-first: carga instantánea de localStorage, sync al servidor solo si TTL > 1h
+  const {
+    members, loading, syncStatus, lastSyncTime,
+    syncFromServer, addToLocal, updateInLocal, removeFromLocal, clearLocalCache,
+  } = useMembersLocal();
 
   const resolveOrdinanceLabel = (ordinance: string) =>
     t(`ordinance.${ordinance}`) || ordinance;
@@ -113,6 +113,7 @@ export default function MembersPage() {
   const [urgentReason, setUrgentReason] = useState('');
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const [noCedulaDialogOpen, setNoCedulaDialogOpen] = useState(false);
+  const editingRef = useRef(false);
 
 
 
@@ -148,42 +149,63 @@ export default function MembersPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete member');
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to delete member');
       }
+
+      // Eliminar del cache local inmediatamente (respuesta instantánea visual)
+      removeFromLocal(memberId);
 
       toast({
         title: t('common.success'),
         description: t('members.toast.deleted')
       });
-
-      // Clear cache and refresh immediately
-      clearCache();
-
-      // Force refresh to get updated data
-      await fetchMembers(true);
     } catch (error) {
-      console.error('Error deleting member:', error);
+      const message = error instanceof Error ? error.message : t('members.toast.deleteError');
       toast({
         title: t('common.error'),
-        description: t('members.toast.deleteError'),
+        description: message,
         variant: 'destructive'
       });
     }
   };
 
   const handleEditMember = (member: Member) => {
+    editingRef.current = true;
     setEditingMember(member);
     setIsFormOpen(true);
   };
 
-  const handleFormClose = () => {
+  const handleFormClose = (savedMember?: Member | null) => {
+    const wasEditing = editingRef.current;
+    editingRef.current = false;
     setIsFormOpen(false);
     setEditingMember(null);
+
+    // Si se guardó/creó un miembro, actualizar localmente
+    if (savedMember) {
+      // Re-fetch del server para obtener datos reales con Timestamps correctos
+      getMemberById(savedMember.id).then((fresh) => {
+        if (!fresh) return;
+        if (wasEditing) {
+          updateInLocal(fresh);
+        } else {
+          addToLocal(fresh);
+        }
+      }).catch(() => {
+        // Fallback: usar los datos que tenemos
+        if (wasEditing) {
+          updateInLocal(savedMember);
+        } else {
+          addToLocal(savedMember);
+        }
+      });
+    }
+
     if (returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')) {
       router.push(returnTo);
       return;
     }
-    // Los miembros se actualizan automáticamente via el listener en tiempo real de Firestore
   };
 
   const handleViewProfile = (memberId: string) => {
@@ -238,8 +260,8 @@ export default function MembersPage() {
       setUrgentMember(null);
       setUrgentReason('');
 
-      clearCache();
-      await fetchMembers(true);
+      // Actualizar localmente sin refetch
+      updateInLocal({ ...member, isUrgent: markAsUrgent, urgentReason: markAsUrgent ? reason : '' });
     } catch (error) {
       console.error('Error toggling urgent:', error);
       toast({
@@ -700,9 +722,14 @@ export default function MembersPage() {
                           )}
                           <div>
                             <h3 className="font-semibold">{member.firstName} {member.lastName}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {member.phoneNumber || t('common.noPhone')}
-                            </p>
+                            {member.phoneNumber && (
+                              <a
+                                href={`tel:${member.phoneNumber.replace(/\D/g, '')}`}
+                                className="text-sm text-primary hover:underline"
+                              >
+                                {member.phoneNumber}
+                              </a>
+                            )}
                           </div>
                         </div>
                         <Badge variant={statusInfo.variant} className="gap-1">

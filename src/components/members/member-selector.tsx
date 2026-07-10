@@ -214,9 +214,13 @@ export function MemberSelector({
                           {getDisplayName(member)}
                         </p>
                         {member.phoneNumber && (
-                          <p className="text-xs text-muted-foreground truncate">
+                          <a
+                            href={`tel:${member.phoneNumber.replace(/\D/g, '')}`}
+                            className="text-xs text-primary hover:underline truncate"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {member.phoneNumber}
-                          </p>
+                          </a>
                         )}
                       </div>
                       {showStatus && (
@@ -349,9 +353,12 @@ export function MemberDisplay({
           {member.firstName} {member.lastName}
         </p>
         {showPhone && member.phoneNumber && (
-          <p className="text-sm text-muted-foreground truncate">
+          <a
+            href={`tel:${member.phoneNumber.replace(/\D/g, '')}`}
+            className="text-sm text-primary hover:underline truncate"
+          >
             {member.phoneNumber}
-          </p>
+          </a>
         )}
       </div>
       {showStatus && (

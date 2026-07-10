@@ -43,7 +43,7 @@ service cloud.firestore {
 
     // delete no tiene request.resource; validar barrio del documento existente
     function canDeleteInBarrio() {
-      return canWrite() && isSameBarrio(resource.data.barrioOrg);
+      return (canWrite() || isSecretary()) && isSameBarrio(resource.data.barrioOrg);
     }
 
     function isAnnotationOwner() {

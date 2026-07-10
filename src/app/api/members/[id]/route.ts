@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
-import { Timestamp } from 'firebase/firestore';
-import { updateMember, deleteMember } from '@/lib/members-data';
+import { firestoreAdmin } from '@/lib/firebase-admin';
+import { Timestamp } from 'firebase-admin/firestore';
+import logger from '@/lib/logger';
+import type { Member } from '@/lib/types';
 
 function coerceToTimestamp(value: unknown): Timestamp | null | undefined {
   if (value === undefined) return undefined;
@@ -41,131 +43,54 @@ export async function PUT(
   let data: any = null;
   const { id } = await params;
   try {
-    // Parse request body with error handling
     try {
       data = await request.json();
-    } catch (parseError) {
-      console.error('❌ Error parsing request JSON:', parseError);
+    } catch {
       return NextResponse.json(
-        { error: 'Invalid JSON in request body', details: 'Request body must be valid JSON' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
       );
     }
 
-    // Validate member ID
     if (!id || id.trim() === '') {
-      console.error('❌ Invalid member ID:', id);
       return NextResponse.json(
-        { error: 'Invalid member ID', details: 'Member ID is required' },
+        { error: 'Invalid member ID' },
         { status: 400 }
       );
     }
 
-    console.log('📥 PUT /api/members/[id] received data:', {
-      memberId: id,
-      data,
-      dataKeys: Object.keys(data),
-      birthDate: data.birthDate,
-      baptismDate: data.baptismDate
-    });
-
-    // Test Firebase connectivity
-    try {
-      const { initializeApp, getApps } = await import('firebase/app');
-      const { getFirestore } = await import('firebase/firestore');
-      const { firebaseConfig } = await import('@/firebaseConfig');
-
-      console.log('🔥 Testing Firebase initialization...');
-      const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-      console.log('✅ Firebase initialized successfully');
-    } catch (firebaseError) {
-      console.error('❌ Firebase initialization error:', firebaseError);
-      return NextResponse.json(
-        { error: 'Firebase initialization failed', details: 'Cannot connect to Firebase' },
-        { status: 500 }
-      );
-    }
-    // Convert date strings to Timestamps
-    const memberData: any = {
+    // Convert date strings to Admin Timestamps
+    const updateData: Record<string, unknown> = {
       ...data,
       updatedAt: Timestamp.now(),
     };
+    delete updateData.id;
+    delete updateData.createdAt;
+    delete updateData.createdBy;
 
     if ('birthDate' in data) {
-      const birthDate = coerceToTimestamp(data.birthDate);
-      if (birthDate instanceof Timestamp) {
-        memberData.birthDate = birthDate;
-        console.log('📅 Converted birthDate:', {
-          original: data.birthDate,
-          converted: memberData.birthDate
-        });
-      } else if (birthDate === null) {
-        memberData.birthDate = null;
-      } else if (data.birthDate) {
-        console.warn('⚠️ Invalid birthDate, skipping conversion:', data.birthDate);
-      }
+      const bd = coerceToTimestamp(data.birthDate);
+      updateData.birthDate = bd instanceof Timestamp ? bd : null;
     }
     if ('baptismDate' in data) {
-      const baptismDate = coerceToTimestamp(data.baptismDate);
-      if (baptismDate instanceof Timestamp) {
-        memberData.baptismDate = baptismDate;
-        console.log('🎂 Converted baptismDate:', {
-          original: data.baptismDate,
-          converted: memberData.baptismDate
-        });
-      } else if (baptismDate === null) {
-        memberData.baptismDate = null;
-      } else if (data.baptismDate) {
-        console.warn('⚠️ Invalid baptismDate, skipping conversion:', data.baptismDate);
-      }
+      const bap = coerceToTimestamp(data.baptismDate);
+      updateData.baptismDate = bap instanceof Timestamp ? bap : null;
     }
 
-    console.log('🔄 Calling updateMember with:', {
-      memberId: id,
-      memberData,
-      memberDataKeys: Object.keys(memberData)
-    });
+    // Admin SDK — bypasses Firestore rules
+    await firestoreAdmin.collection('c_miembros').doc(id).update(updateData);
 
-    await updateMember(id, memberData);
-
-    // Always invalidate cache when updating members
     revalidateTag('members', 'default');
 
-    // Return response with cache-busting headers
     const response = NextResponse.json({ success: true });
     response.headers.set('Cache-Control', 'no-store');
-    
     return response;
   } catch (error) {
-    console.error('❌ Error updating member:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      memberId: id,
-      dataKeys: data ? Object.keys(data) : 'data not parsed yet'
-    });
-
-    // Return more detailed error information
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    const errorResponse = {
-      error: 'Failed to update member',
-      details: errorMessage,
-      memberId: id,
-      timestamp: new Date().toISOString()
-    };
-
-    console.error('🚨 Sending error response:', errorResponse);
-
-    try {
-      return NextResponse.json(errorResponse, { status: 500 });
-    } catch (responseError) {
-      console.error('❌ Error creating response:', responseError);
-      // Fallback response
-      return new Response(JSON.stringify(errorResponse), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    const message = error instanceof Error ? error.message : 'Failed to update member';
+    return NextResponse.json(
+      { error: message, memberId: id },
+      { status: 500 }
+    );
   }
 }
 
@@ -175,21 +100,45 @@ export async function DELETE(
 ) {
   const { id } = await params;
   try {
-    await deleteMember(id);
+    // Check if member has photo to delete from storage
+    let photoURL: string | undefined;
+    try {
+      const doc = await firestoreAdmin.collection('c_miembros').doc(id).get();
+      if (doc.exists) {
+        photoURL = (doc.data() as any)?.photoURL;
+      }
+    } catch {
+      // Continue even if lookup fails
+    }
 
-    // Always invalidate cache when deleting members
+    // Delete photo from Firebase Storage if exists (via Admin SDK)
+    if (photoURL) {
+      try {
+        const { getAdminBucket } = await import('@/lib/firebase-admin');
+        const bucket = getAdminBucket();
+        // photoURL contains full Firebase Storage download URL, extract path
+        // e.g. https://firebasestorage.googleapis.com/v0/b/PROJECT/o/path%2Ffile?alt=media
+        const urlPath = photoURL.split('/o/')[1]?.split('?')[0];
+        if (urlPath) {
+          const filePath = decodeURIComponent(urlPath);
+          await bucket.file(filePath).delete().catch(() => {});
+        }
+      } catch {
+        // Non-critical, continue
+      }
+    }
+
+    // Admin SDK — bypasses Firestore rules
+    await firestoreAdmin.collection('c_miembros').doc(id).delete();
+
     revalidateTag('members', 'default');
 
-    // Return response with cache-busting headers
     const response = NextResponse.json({ success: true });
     response.headers.set('Cache-Control', 'no-store');
-    
     return response;
   } catch (error) {
-    console.error('Error deleting member:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete member' },
-      { status: 500 }
-    );
+    logger.error({ error, message: 'Error deleting member', memberId: id });
+    const message = error instanceof Error ? error.message : 'Failed to delete member';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

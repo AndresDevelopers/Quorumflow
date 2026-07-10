@@ -103,7 +103,7 @@ type MemberFormValues = z.infer<ReturnType<typeof createMemberFormSchema>>;
 
 interface MemberFormProps {
   member?: Member | null;
-  onClose: () => void;
+  onClose: (savedMember?: Member | null) => void;
 }
 
 export function MemberForm({ member, onClose }: MemberFormProps) {
@@ -861,6 +861,16 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             console.error('Error sending urgent notification from form:', notifError);
           }
         }
+
+        // Notificar al page con los datos del miembro guardado
+        const savedMemberForUpdate: Member = {
+          ...member,
+          ...memberData,
+          id: member.id,
+          photoURL: photoURL as any,
+        } as unknown as Member;
+        onClose(savedMemberForUpdate);
+        return;
       } else {
         const newMember: any = {
           firstName: values.firstName.trim(),
@@ -952,9 +962,12 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             console.error('Error sending urgent notification for new member:', notifError);
           }
         }
-      }
 
-      onClose();
+        // Notificar al page con el miembro recién creado
+        const savedNewMember: Member = { ...newMember, id: newMemberId } as unknown as Member;
+        onClose(savedNewMember);
+        return;
+      }
     } catch (error) {
       console.error('Error saving member:', error);
 
@@ -1822,7 +1835,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={() => onClose()}
               disabled={loading}
             >
               {t('common.cancel')}

@@ -6,20 +6,20 @@
       "date": "2026-07-10",
       "changes": {
         "es": [
-          "El Chat de la Iglesia ahora ofrece respuestas personalizadas con el contexto de tu organización, y el reconocimiento de voz en Obra Misional es más estable y seguro.",
-          "La carga de imágenes en Obra Misional ahora es más confiable y compatible con formatos modernos. La visión de IA usa un modelo actualizado para mejor análisis.",
-          "Ahora puedes adjuntar imágenes en el Chat de la Iglesia y obtener descripciones automáticas. Un nuevo sistema de IA dual maneja texto e imágenes de manera eficiente.",
-          "Las fotos de perfil en la sección de Conversos ahora se muestran correctamente, como en Miembros.",
-          "Los conversos recientes ahora se calculan de manera consistente a partir de las fechas de bautismo, mostrando nombres completos y fotos en todas las pantallas.",
-          "Ahora puedes gestionar distritos de ministerio: crear, eliminar y proteger distritos por defecto. Las asignaciones son más precisas."
+          "Agregamos enlaces a teléfono, dirección y WhatsApp en los perfiles de miembros para un contacto rápido.",
+          "El Chat de la Iglesia ahora comprende tu organización e idioma, explica sus respuestas y permite adjuntar imágenes.",
+          "El reconocimiento de voz en Misión de la Iglesia es más estable con mejor manejo de errores y verificación de seguridad.",
+          "La gestión de imágenes en Misión de la Iglesia fue renovada: las subidas son más confiables y las imágenes se describen con IA.",
+          "Los conversos recientes ahora se derivan automáticamente de las fechas de bautismo, asegurando consistencia en todos los módulos.",
+          "Ahora puedes crear, eliminar y administrar distritos en Ministering, con una lógica de asignación más clara."
         ],
         "en": [
-          "Church Chat now provides personalized answers with your organization context, and voice recognition in Missionary Work is more stable and secure.",
-          "Image uploading in Missionary Work is now more reliable and works with modern file formats. AI vision uses an updated model for better analysis.",
-          "You can now attach images in Church Chat and get automatic descriptions. A new dual-AI system handles text and images efficiently.",
-          "Profile photos in the Converts section are now displayed correctly, just like in Members.",
-          "Recent converts are now calculated consistently from baptism dates, showing full names and photos on all screens.",
-          "You can now manage ministering districts: create, delete, and protect default districts. Assignments are more accurate."
+          "We've added clickable phone, address, and WhatsApp links to member profiles for easy contact.",
+          "The AI Church Chat now understands your organization and language, explains its reasoning, and supports image attachments.",
+          "Voice recognition in Missionary Work is more stable with better error handling and security checks.",
+          "Image handling in Missionary Work got a major overhaul: uploads are now more reliable and viewable with AI descriptions.",
+          "Recent converts are now automatically derived from member baptism dates, ensuring consistency across all modules.",
+          "You can now create, delete, and manage districts in Ministering, with clearer assignment logic."
         ]
       }
     },

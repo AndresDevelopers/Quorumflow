@@ -23,6 +23,7 @@ import { getMemberById } from '@/lib/members-data';
 import { buildMemberEditUrl } from '@/lib/navigation';
 import { format, differenceInYears } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
+import { PhoneLink, AddressLink } from '@/lib/contact-links';
 
 const statusConfig = {
   active: {
@@ -203,10 +204,7 @@ export default function MemberProfilePage() {
               </div>
 
               {member.phoneNumber && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Phone className="h-4 w-4" />
-                  <span>{member.phoneNumber}</span>
-                </div>
+                <PhoneLink value={member.phoneNumber} />
               )}
 
               {member.birthDate && (
@@ -297,9 +295,7 @@ export default function MemberProfilePage() {
                   <label className="text-sm font-medium text-muted-foreground">
                     {t('memberProfile.phoneNumber')}
                   </label>
-                  <p className="text-sm">
-                    {member.phoneNumber || t('memberProfile.noPhone')}
-                  </p>
+                  <PhoneLink value={member.phoneNumber} />
                 </div>
               )}
               {member.address && (
@@ -307,9 +303,7 @@ export default function MemberProfilePage() {
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                     {t('memberProfile.address')}
                   </label>
-                  <p className="text-sm break-words">
-                    {member.address}
-                  </p>
+                  <AddressLink value={member.address} />
                 </div>
               )}
             </CardContent>

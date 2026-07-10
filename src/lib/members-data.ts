@@ -21,6 +21,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject, getStorage } from 'fire
 import { firebaseConfig } from '@/firebaseConfig';
 import type { Member, MemberStatus, Ordinance, TempleOrdinance } from './types';
 import { compressProfileImage, compressGalleryImage } from './image-compression';
+import logger from './logger';
 
 // Function to get Firestore instance, initializing if necessary
 function getFirestoreInstance() {
@@ -512,7 +513,7 @@ export async function deleteMember(memberId: string): Promise<void> {
           const photoRef = ref(storage, memberData.photoURL);
           await deleteObject(photoRef);
         } catch (photoError) {
-          console.warn('Could not delete member photo:', photoError);
+          logger.warn({ error: photoError, message: 'Could not delete member photo' });
           // Continue with member deletion even if photo deletion fails
         }
       }
@@ -521,7 +522,7 @@ export async function deleteMember(memberId: string): Promise<void> {
     // Delete the member document
     await deleteDoc(memberRef);
   } catch (error) {
-    console.error('Error deleting member:', error);
+    logger.error({ error, message: 'Error deleting member', memberId });
 
     if (error instanceof Error) {
       if (error.message.includes('permission-denied')) {

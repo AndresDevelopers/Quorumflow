@@ -26,7 +26,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Camera, Pencil, Save, X, Link2, Phone, Mail, MapPin, Church, Droplets, Loader2 } from 'lucide-react';
+import { Camera, Pencil, Save, X, Link2, Mail, Church, Droplets, Loader2 } from 'lucide-react';
+import { PhoneLink, AddressLink } from '@/lib/contact-links';
 import { OrdinanceLabels } from '@/lib/types';
 
 interface UserProfileData {
@@ -392,10 +393,7 @@ export default function ProfilePage() {
 
                             <div className="grid gap-2 text-sm">
                                 {syncedMember.phoneNumber && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <Phone className="h-3.5 w-3.5 shrink-0" />
-                                        <span>{syncedMember.phoneNumber}</span>
-                                    </div>
+                                    <PhoneLink value={syncedMember.phoneNumber} />
                                 )}
 
                                 {syncedMember.email && (
@@ -406,10 +404,7 @@ export default function ProfilePage() {
                                 )}
 
                                 {syncedMember.address && (
-                                    <div className="flex items-start gap-2 text-muted-foreground">
-                                        <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                                        <span>{syncedMember.address}</span>
-                                    </div>
+                                    <AddressLink value={syncedMember.address} />
                                 )}
 
                                 {syncedMember.birthDate && !profileData?.birthDate && (

@@ -8,7 +8,7 @@
 - **Base de Datos**: Firestore (NoSQL)
 - **Autenticación**: Firebase Auth (client + admin SDK)
 - **Almacenamiento**: Firebase Storage
-- **IA**: DeepSeek API (`deepseek-v4-flash`) + Google Genkit
+- **IA**: DeepSeek (todo en texto: dashboard, sugerencias, chat) + Gemini (solo imágenes / descripciones)
 - **PWA**: `@ducanh2912/next-pwa` (offline, notificaciones push)
 - **Gráficos**: Recharts
 - **Formularios**: react-hook-form + zod

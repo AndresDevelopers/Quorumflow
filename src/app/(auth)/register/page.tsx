@@ -51,17 +51,26 @@ import { usersCollection, barriosCollection, organizacionesCollection } from "@/
 
 const createRegisterSchema = (t: (key: string, params?: Record<string, string | number>) => string) =>
   z.object({
-    name: z.string().min(2, { message: t('register.validation.nameMin') }),
-    email: z.string().email({ message: t('register.validation.email') }),
-    birthDate: z.date({
-      required_error: t('register.validation.birthDateRequired'),
-    }),
+    name: z
+      .string()
+      .trim()
+      .min(1, { message: t('register.validation.nameRequired') })
+      .min(2, { message: t('register.validation.nameMin') }),
+    email: z
+      .string()
+      .trim()
+      .min(1, { message: t('register.validation.emailRequired') })
+      .email({ message: t('register.validation.email') }),
+    birthDate: z.date().optional(),
     barrio: z.string().min(1, { message: t('register.validation.barrioRequired') }),
     organizacion: z.string().min(1, { message: t('register.validation.organizacionRequired') }),
     password: z
       .string()
+      .min(1, { message: t('register.validation.passwordRequired') })
       .min(6, { message: t('register.validation.passwordMin') }),
-    confirmPassword: z.string(),
+    confirmPassword: z
+      .string()
+      .min(1, { message: t('register.validation.confirmPasswordRequired') }),
   }).refine((data) => data.password === data.confirmPassword, {
     message: t('register.validation.passwordMismatch'),
     path: ["confirmPassword"],
@@ -99,6 +108,7 @@ export default function RegisterPage() {
 
   const form = useForm<z.infer<ReturnType<typeof createRegisterSchema>>>({
     resolver: zodResolver(createRegisterSchema(t)),
+    mode: "onTouched",
     defaultValues: {
       name: "",
       email: "",
@@ -123,7 +133,7 @@ export default function RegisterPage() {
         uid: user.uid,
         name: values.name,
         email: values.email,
-        birthDate: values.birthDate,
+        birthDate: values.birthDate ?? null,
         barrio: values.barrio,
         organizacion: values.organizacion,
         barrioOrg: `${values.barrio}|${values.organizacion}`,
@@ -168,7 +178,9 @@ export default function RegisterPage() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('register.nameLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('register.nameLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input placeholder="John Doe" {...field} />
                   </FormControl>
@@ -181,7 +193,9 @@ export default function RegisterPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('register.emailLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('register.emailLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input placeholder="m@example.com" {...field} />
                   </FormControl>
@@ -194,7 +208,12 @@ export default function RegisterPage() {
               name="birthDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>{t('register.birthDateLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('register.birthDateLabel')}{" "}
+                    <span className="text-muted-foreground text-sm font-normal">
+                      ({t('register.optional')})
+                    </span>
+                  </FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -239,7 +258,9 @@ export default function RegisterPage() {
               name="barrio"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('register.barrioLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('register.barrioLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -261,7 +282,9 @@ export default function RegisterPage() {
               name="organizacion"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('register.organizacionLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('register.organizacionLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -283,7 +306,9 @@ export default function RegisterPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('register.passwordLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('register.passwordLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -296,7 +321,9 @@ export default function RegisterPage() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('register.confirmPasswordLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('register.confirmPasswordLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>

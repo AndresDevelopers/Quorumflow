@@ -54,14 +54,11 @@ describe('hasLeadershipPrivileges', () => {
 });
 
 describe('canViewSettings', () => {
-  it('allows leadership roles to view settings', () => {
+  it('allows all roles to view personal settings', () => {
     expect(canViewSettings('secretary')).toBe(true);
     expect(canViewSettings('president')).toBe(true);
     expect(canViewSettings('counselor')).toBe(true);
-  });
-
-  it('denies non-leadership roles from viewing settings', () => {
-    expect(canViewSettings('user')).toBe(false);
-    expect(canViewSettings('other')).toBe(false);
+    expect(canViewSettings('user')).toBe(true);
+    expect(canViewSettings('other')).toBe(true);
   });
 });

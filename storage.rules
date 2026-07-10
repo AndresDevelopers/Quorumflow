@@ -7,10 +7,12 @@ service firebase.storage {
     match /{allPaths=**} {
       
       // PERMISOS DE LECTURA
-      // Solo permite la lectura a usuarios autenticados.
-      // Esto protege los archivos de accesos no autorizados mientras permite
-      // que los usuarios registrados vean las imágenes necesarias.
-      allow read: if request.auth != null;
+      // Permite la lectura a usuarios autenticados O a cualquier imagen.
+      // Las fotos de perfil/miembro se cargan vía <img> en el navegador, cuyas
+      // peticiones NO envían el token de auth de Firebase. Por eso las imágenes
+      // deben ser legibles públicamente; con token de descarga ya lo eran, esto
+      // evita el 403 cuando la URL no trae token.
+      allow read: if request.auth != null || resource.contentType.matches('image/.*');
 
       // PERMISOS DE ESCRITURA (Crear, Actualizar, Eliminar)
       // Solo permite la escritura si se cumplen TODAS las siguientes condiciones:

@@ -30,6 +30,22 @@ service cloud.firestore {
       return signedIn() && docBarrioOrg == currentUserBarrioOrg();
     }
 
+    // create/update: validar barrio del documento resultante
+    function canCreateInBarrio() {
+      return canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+    }
+
+    // update parcial: aceptar barrio del doc existente o del request
+    function canUpdateInBarrio() {
+      return canWrite()
+        && (isSameBarrio(resource.data.barrioOrg) || isSameBarrio(request.resource.data.barrioOrg));
+    }
+
+    // delete no tiene request.resource; validar barrio del documento existente
+    function canDeleteInBarrio() {
+      return canWrite() && isSameBarrio(resource.data.barrioOrg);
+    }
+
     function isAnnotationOwner() {
       return signedIn()
         && resource.data.userId != null
@@ -46,7 +62,9 @@ service cloud.firestore {
 
     match /c_miembros/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_anotaciones/{document} {
@@ -65,57 +83,72 @@ service cloud.firestore {
 
     match /c_conversos/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_conversos_info/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_futuros_miembros/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_ministracion/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      // create: validar barrio del documento nuevo
-      allow create: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
-      // update: validar barrio del documento existente (funciona con updates parciales)
-      allow update: if canWrite()
-        && (isSameBarrio(resource.data.barrioOrg) || isSameBarrio(request.resource.data.barrioOrg));
-      allow delete: if canWrite() && isSameBarrio(resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_actividades/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_servicios/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_cumpleanos/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_bautismos/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_fs_capacitaciones/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_fs_pendientes/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_fs_anotaciones/{document} {
@@ -134,51 +167,65 @@ service cloud.firestore {
 
     match /c_obra_misional_asignaciones/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_obra_misional_investigadores/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_obra_misional_amigos_conversos/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_obra_misional_imagenes/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_reporte_anual/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_ministracion_distritos/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow create: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
-      allow update: if canWrite()
-        && (isSameBarrio(resource.data.barrioOrg) || isSameBarrio(request.resource.data.barrioOrg));
-      // delete no tiene request.resource; validar barrio del documento existente
-      allow delete: if canWrite() && isSameBarrio(resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_ministracion_historial/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_observaciones_salud/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     match /c_notifications/{document} {
       allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow write: if canWrite() && isSameBarrio(request.resource.data.barrioOrg);
+      allow create: if canCreateInBarrio();
+      allow update: if canUpdateInBarrio();
+      allow delete: if canDeleteInBarrio();
     }
 
     // ── User-scoped collections ──
@@ -187,9 +234,13 @@ service cloud.firestore {
       allow read: if signedIn()
         && resource.data.userId != null
         && resource.data.userId == request.auth.uid;
-      allow write: if canWrite()
+      allow create, update: if canWrite()
         && request.resource.data.userId != null
         && request.resource.data.userId == request.auth.uid;
+      // delete no tiene request.resource; validar owner del documento existente
+      allow delete: if canWrite()
+        && resource.data.userId != null
+        && resource.data.userId == request.auth.uid;
     }
 
     // ── Audit — already properly restricted ──

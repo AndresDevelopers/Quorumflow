@@ -1,3 +1,14 @@
+/**
+ * DeepSeek — IA de TODO el sistema en TEXTO.
+ *
+ * Usos: resumen del dashboard, sugerencias de actividades/servicio,
+ * Chat Iglesia, reescritura de textos y cualquier flujo JSON/texto.
+ *
+ * NO se usa para analizar fotos (la API de chat no acepta image_url).
+ * Para imágenes ver `@/lib/vision` (GEMINI_API_KEY).
+ *
+ * Env: DEEPSEEK_API_KEY, DEEPSEEK_MODEL, DEEPSEEK_CHAT_MODEL, DEEPSEEK_MAX_TOKENS
+ */
 import { z } from 'zod';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';

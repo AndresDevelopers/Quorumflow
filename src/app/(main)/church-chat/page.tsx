@@ -1,9 +1,9 @@
 'use client';
 
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
-import { Copy, History, Loader2, MessageCircle, Mic, Plus, Trash2, Volume2 } from 'lucide-react';
+import { Copy, History, ImagePlus, Loader2, MessageCircle, Mic, Plus, Trash2, Volume2, X } from 'lucide-react';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import { firestore } from '@/lib/firebase';
+import { compressImageForUpload } from '@/lib/image-compression';
 import logger from '@/lib/logger';
 import enTranslations from '@/locales/en.json';
 import esTranslations from '@/locales/es.json';
@@ -64,8 +65,29 @@ type ChatMessage = {
   content: string;
   /** i18n key for system-generated messages (e.g. welcome). Resolved at display time. */
   contentKey?: string;
+  /** Optional image attached by the user (data URL). Gemini describes it server-side. */
+  imageDataUrl?: string;
+  /** True when an image was attached (kept after stripping data URL on persist). */
+  hasImage?: boolean;
   createdAt: string;
 };
+
+type PendingImage = {
+  dataUrl: string;
+  name: string;
+};
+
+const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
+async function fileToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('No se pudo leer la imagen'));
+    reader.readAsDataURL(blob);
+  });
+}
 
 type ChatSession = {
   id: string;
@@ -243,6 +265,17 @@ const boundSessionMessages = (session: ChatSession): ChatSession => {
   };
 };
 
+/** Drop large base64 payloads before writing to localStorage / Firestore. */
+const stripHeavyImagePayloads = (sessions: ChatSession[]): ChatSession[] =>
+  sessions.map((session) => ({
+    ...session,
+    messages: session.messages.map((message) => {
+      if (!message.imageDataUrl) return message;
+      const { imageDataUrl: _removed, ...rest } = message;
+      return { ...rest, hasImage: true };
+    }),
+  }));
+
 const toBoundedSessions = (sessions: ChatSession[]): ChatSession[] =>
   sessions.slice(0, MAX_SESSIONS).map((session) => boundSessionMessages(normalizeSession(session)));
 
@@ -264,7 +297,7 @@ const loadSessionsFromLocal = (storageKey: string): ChatSession[] => {
 
 const saveSessionsToLocal = (storageKey: string, sessions: ChatSession[]) => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(storageKey, JSON.stringify(toBoundedSessions(sessions)));
+  localStorage.setItem(storageKey, JSON.stringify(stripHeavyImagePayloads(toBoundedSessions(sessions))));
 };
 
 const getInlineNodes = (text: string): ReactNode[] => {
@@ -336,11 +369,13 @@ export default function ChurchChatPage() {
   const [sessions, setSessions] = useState<ChatSession[]>(() => [makeSession()]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [input, setInput] = useState('');
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [showQuickOptions, setShowQuickOptions] = useState(true);
   const messagesViewportRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const speechInputPrefixRef = useRef('');
@@ -354,6 +389,7 @@ export default function ChurchChatPage() {
 
   const persistSessions = useCallback(async (nextSessions: ChatSession[]) => {
     const bounded = toBoundedSessions(nextSessions);
+    const forStorage = stripHeavyImagePayloads(bounded);
     saveSessionsToLocal(storageKey, bounded);
 
     if (!user?.uid) return;
@@ -363,7 +399,7 @@ export default function ChurchChatPage() {
       await setDoc(
         ref,
         {
-          sessions: bounded,
+          sessions: forStorage,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -553,11 +589,69 @@ export default function ChurchChatPage() {
     window.speechSynthesis.speak(utterance);
   }, [speakingMessageId, speechLang, t, toast]);
 
+  const clearPendingImage = useCallback(() => {
+    setPendingImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
+
+  const handleImagePick = useCallback(() => {
+    if (loading) return;
+    fileInputRef.current?.click();
+  }, [loading]);
+
+  const handleImageSelected = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Allow re-selecting the same file later
+    event.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: t('churchChat.imageInvalidTitle'),
+        description: t('churchChat.imageInvalidDescription'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast({
+        title: t('churchChat.imageTooLargeTitle'),
+        description: t('churchChat.imageTooLargeDescription'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const compressed = await compressImageForUpload(file, {
+        maxDimension: 1024,
+        quality: 0.72,
+        maxBytes: 350 * 1024,
+        preferWebp: false,
+      });
+      const dataUrl = await fileToDataUrl(compressed);
+      if (!dataUrl.startsWith('data:image/')) {
+        throw new Error('invalid data url');
+      }
+      setPendingImage({ dataUrl, name: file.name });
+    } catch {
+      toast({
+        title: t('churchChat.imageLoadErrorTitle'),
+        description: t('churchChat.imageLoadErrorDescription'),
+        variant: 'destructive',
+      });
+    }
+  }, [t, toast]);
+
   const handleNewChat = () => {
     const next = makeSession();
     updateSessions((current) => [next, ...current]);
     setActiveSessionId(next.id);
     setInput('');
+    clearPendingImage();
     setShowQuickOptions(true);
   };
 
@@ -577,19 +671,30 @@ export default function ChurchChatPage() {
     });
   };
 
-  const sendMessage = async (messageText: string) => {
-    if (messageText.length === 0 || loading || !activeSession) return false;
+  const sendMessage = async (messageText: string, image?: PendingImage | null) => {
+    const trimmed = messageText.trim();
+    const imageToSend = image ?? pendingImage;
+    if ((trimmed.length === 0 && !imageToSend) || loading || !activeSession) return false;
 
-    const messageContent = messageText;
+    // API requires min 2 chars when message is present; image-only is allowed without message.
+    if (trimmed.length > 0 && trimmed.length < 2 && !imageToSend) return false;
+
+    const messageContent = trimmed;
+    const titleFromMessage =
+      messageContent.slice(0, 60) ||
+      (imageToSend ? t('churchChat.imageMessageTitle') : t(TITLE_KEY_NEW_CHAT));
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
       content: messageContent,
+      imageDataUrl: imageToSend?.dataUrl,
+      hasImage: Boolean(imageToSend),
       createdAt: new Date().toISOString(),
     };
 
     setInput('');
+    clearPendingImage();
     setShowQuickOptions(false);
     setLoading(true);
 
@@ -602,7 +707,7 @@ export default function ChurchChatPage() {
         const isFirstUserTurn = session.messages.length <= 1;
         return {
           ...session,
-          title: isFirstUserTurn ? messageContent.slice(0, 60) : session.title,
+          title: isFirstUserTurn ? titleFromMessage : session.title,
           titleKey: isFirstUserTurn ? undefined : session.titleKey,
           messages: draftMessages,
         };
@@ -621,7 +726,12 @@ export default function ChurchChatPage() {
       const response = await fetch('/api/church-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: messageText, history, language }),
+        body: JSON.stringify({
+          ...(trimmed.length >= 2 ? { message: trimmed } : {}),
+          ...(imageToSend ? { imageDataUrl: imageToSend.dataUrl } : {}),
+          history,
+          language,
+        }),
       });
 
       const payload = (await response.json()) as { answer?: string; error?: string };
@@ -661,8 +771,10 @@ export default function ChurchChatPage() {
   };
 
   const handleSend = () => {
-    void sendMessage(input.trim());
+    void sendMessage(input.trim(), pendingImage);
   };
+
+  const canSend = !loading && (input.trim().length > 0 || Boolean(pendingImage));
 
   const handleQuickOption = (option: QuickOption) => {
     void sendMessage(option.generateMessage(organizacion, language, t));
@@ -765,7 +877,20 @@ export default function ChurchChatPage() {
                         : 'bg-muted text-foreground'
                     }`}
                   >
-                    <FormattedMessage content={displayContent} />
+                    {message.imageDataUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- data URL preview from user upload
+                      <img
+                        src={message.imageDataUrl}
+                        alt={t('churchChat.imageAlt')}
+                        className="mb-2 max-h-48 w-auto max-w-full rounded-md border border-border/40 object-contain"
+                      />
+                    ) : message.hasImage ? (
+                      <p className="mb-2 flex items-center gap-1.5 text-xs opacity-90">
+                        <ImagePlus className="h-3.5 w-3.5" />
+                        {t('churchChat.imageAttachedLabel')}
+                      </p>
+                    ) : null}
+                    {displayContent ? <FormattedMessage content={displayContent} /> : null}
                     {message.role === 'assistant' && (
                       <div className="mt-2 flex justify-end gap-1 border-t border-border/60 pt-2">
                         <Button
@@ -810,12 +935,51 @@ export default function ChurchChatPage() {
             {t('churchChat.messagesCount', { count: activeSession?.messages.length ?? 0, max: MAX_MESSAGES_PER_SESSION })}
           </p>
 
+          {pendingImage && (
+            <div className="flex items-center gap-3 rounded-md border bg-muted/40 p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element -- local preview before send */}
+              <img
+                src={pendingImage.dataUrl}
+                alt={pendingImage.name}
+                className="h-14 w-14 shrink-0 rounded object-cover"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{pendingImage.name}</p>
+                <p className="text-xs text-muted-foreground">{t('churchChat.imageReadyHint')}</p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 shrink-0"
+                onClick={clearPendingImage}
+                disabled={loading}
+                aria-label={t('churchChat.removeImageAria')}
+                title={t('churchChat.removeImageTitle')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_IMAGE_TYPES}
+              className="hidden"
+              onChange={(event) => void handleImageSelected(event)}
+              disabled={loading}
+            />
             <Input
               className="flex-1"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder={t('churchChat.inputPlaceholder')}
+              placeholder={
+                pendingImage
+                  ? t('churchChat.inputPlaceholderWithImage')
+                  : t('churchChat.inputPlaceholder')
+              }
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault();
@@ -824,8 +988,17 @@ export default function ChurchChatPage() {
               }}
               disabled={loading}
             />
-            <Button onClick={handleSend} disabled={loading || input.trim().length === 0}>
-              {t('churchChat.send')}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 shrink-0"
+              onClick={handleImagePick}
+              disabled={loading}
+              aria-label={t('churchChat.attachImageAria')}
+              title={t('churchChat.attachImageTitle')}
+            >
+              <ImagePlus className="h-4 w-4" />
             </Button>
             <Button
               type="button"
@@ -838,6 +1011,9 @@ export default function ChurchChatPage() {
               title={isListening ? t('churchChat.stopDictadoTitle') : t('churchChat.dictarTitle')}
             >
               {isListening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+            </Button>
+            <Button onClick={handleSend} disabled={!canSend}>
+              {t('churchChat.send')}
             </Button>
           </div>
         </CardContent>

@@ -124,17 +124,27 @@ export async function POST(request: Request) {
 
   const userText = message?.trim() || messages_i18n.analyzeImage;
 
+  // DeepSeek chat rejects multimodal image_url payloads. When an image is present,
+  // describe it with Gemini first and pass a text-only prompt to DeepSeek.
+  let imageContext = '';
+  if (imageDataUrl) {
+    try {
+      const { describeImage } = await import('@/lib/vision');
+      const vision = await describeImage(imageDataUrl);
+      imageContext = `\n\n[IMAGE_DESCRIPTION]\n${vision.description}`;
+    } catch (error) {
+      logger.warn({ error, message: 'No se pudo analizar la imagen adjunta en church-chat.' });
+      imageContext =
+        '\n\n[IMAGE_DESCRIPTION]\nNo se pudo analizar la imagen automáticamente (falta GEMINI_API_KEY o falló la API de visión).';
+    }
+  }
+
   const messages = [
     { role: 'system', content: `${systemPrompt}\n\nNEWS_STATUS:\n${newsStatus}\n\nCONTEXT_NEWS:\n${contextNews}` },
     ...history.map((item) => ({ role: item.role, content: item.content })),
     {
       role: 'user',
-      content: imageDataUrl
-        ? [
-            { type: 'text', text: userText },
-            { type: 'image_url', image_url: { url: imageDataUrl } },
-          ]
-        : userText,
+      content: `${userText}${imageContext}`,
     },
   ];
 

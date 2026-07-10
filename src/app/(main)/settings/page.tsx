@@ -25,7 +25,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from '@/contexts/auth-context';
-import { usePermission } from '@/hooks/use-permission';
 import {
   deleteUser,
   updateProfile,
@@ -67,7 +66,6 @@ import { getMembersForSelector } from '@/lib/members-data';
 import type { Member } from '@/lib/types';
 import {
   canViewSettings,
-  canManageSettings as checkCanManageSettings,
   normalizeRole,
   type UserRole,
 } from '@/lib/roles';
@@ -174,7 +172,6 @@ export default function SettingsPage() {
   const [userRole, setUserRole] = useState<UserRole>('user');
   const [mainPage, setMainPage] = useState<string>('/');
   const [visiblePages, setVisiblePages] = useState<string[]>([]);
-  const [canManageSettings, setCanManageSettings] = useState(false);
 
   // Synced member state
   const [syncedMemberId, setSyncedMemberId] = useState<string | null>(null);
@@ -428,17 +425,11 @@ export default function SettingsPage() {
         }
         setUserRole(normalizedRole);
 
-        const canView = canViewSettings(normalizedRole);
-        setHasSettingsAccess(canView);
-        setCanManageSettings(checkCanManageSettings(normalizedRole));
-
-        if (!canView) {
-          return;
-        }
+        // Personal settings are available to every authenticated role
+        setHasSettingsAccess(canViewSettings(normalizedRole));
       } catch (error) {
         logger.error({ error, message: 'Error loading settings profile data' });
         setHasSettingsAccess(false);
-        setCanManageSettings(false);
         toast({
           title: t('settings.toast.profileLoadErrorTitle'),
           description: t('settings.toast.profileLoadErrorDescription'),
@@ -1450,7 +1441,6 @@ export default function SettingsPage() {
             </form>
           </Form>
         </Card>
-        {canManageSettings && (<>
         <Card className="h-full">
           <CardHeader>
             <CardTitle>{t('settings.mainPage.title')}</CardTitle>
@@ -1488,8 +1478,6 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
-        </>)}
-        {canManageSettings && (<>
         <Card className="h-full">
           <CardHeader>
             <CardTitle>{t('Appearance')}</CardTitle>
@@ -1619,8 +1607,6 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
-        </>)}
-        {canManageSettings && (<>
         <Card className="xl:col-span-full">
           <CardHeader>
             <CardTitle>{t('Notifications')}</CardTitle>
@@ -1730,8 +1716,6 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
-        </>)}
-        {canManageSettings && (<>
         <Card className="border-destructive xl:col-span-full">
           <CardHeader>
             <CardTitle className="text-destructive">{t('settings.danger.title')}</CardTitle>
@@ -1761,7 +1745,6 @@ export default function SettingsPage() {
             </AlertDialog>
           </CardContent>
         </Card>
-        </>)}
       </div>
     </section>
   );

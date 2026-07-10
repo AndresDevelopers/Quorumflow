@@ -28,16 +28,21 @@ Este módulo agrega una página de chat enfocada **solo** en contenido oficial d
 
 ## Variables de entorno
 
-Agregar al archivo `.env`:
+Agregar al archivo `.env` / `.env.local`:
 
 ```bash
-# Se reutiliza para changelog + chat
+# DeepSeek = IA de TODO en texto (chat, respuestas, contexto)
 DEEPSEEK_API_KEY=tu_api_key
 # opcional para endpoint del chat
 DEEPSEEK_CHAT_MODEL=deepseek-v4-flash
+
+# Gemini = SOLO para IMÁGENES (si el usuario adjunta una foto al chat)
+# DeepSeek no analiza fotos; Gemini describe la imagen y DeepSeek responde en texto.
+GEMINI_API_KEY=tu_gemini_api_key
 ```
 
 Si `DEEPSEEK_CHAT_MODEL` no está definida, el sistema usa `deepseek-v4-flash`.
+Sin `GEMINI_API_KEY`, el chat de texto sigue funcionando; las imágenes no se analizan bien.
 
 ## Endpoints
 

@@ -74,8 +74,11 @@ export const canManageSettings = (role: UserRole): boolean =>
 export const hasLeadershipPrivileges = (role: UserRole): boolean =>
   leadershipRoles.includes(role);
 
-export const canViewSettings = (role: UserRole): boolean =>
-  hasLeadershipPrivileges(role);
+/**
+ * Settings is a personal page (profile, security, theme, notifications).
+ * Every authenticated role may view and edit their own settings.
+ */
+export const canViewSettings = (_role: UserRole): boolean => true;
 
 export const isAdmin = (role: UserRole | null | undefined): boolean =>
   role === settingsAdminRole || role === 'president';

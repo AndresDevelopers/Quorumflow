@@ -2,61 +2,47 @@
 
 import { useEffect } from 'react';
 
+/**
+ * In development: always tear down service workers + Cache Storage so stale
+ * production Workbox precaches cannot serve old JS (Server Action IDs).
+ * In production: register /sw.js (currently a self-unregistering kill-switch
+ * until the next production PWA rebuild).
+ */
 export function ServiceWorkerRegistration() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
       return;
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      const cleanupDevServiceWorkers = async () => {
-        try {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map((registration) => registration.unregister()));
+    const nukeCachesAndWorkers = async () => {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
 
-          if ('caches' in window) {
-            const cacheNames = await caches.keys();
-            await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-          }
-        } catch {
-          return undefined;
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
         }
-      };
+      } catch {
+        // ignore
+      }
+    };
 
-      void cleanupDevServiceWorkers();
+    if (process.env.NODE_ENV === 'development') {
+      void nukeCachesAndWorkers();
       return;
     }
 
-    const registerSW = async (): Promise<(() => void) | undefined> => {
+    // Production: ensure any old SW is replaced by the kill-switch sw.js once,
+    // then it unregisters itself. Re-enable full PWA registration when ready.
+    void (async () => {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/'
-        });
-
-        void registration;
-
+        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       } catch {
-        return undefined;
+        // ignore
       }
-    };
-
-    void registerSW();
-
-    // Handle page visibility change to sync when app becomes visible
-    const handleVisibilityChange = () => {
-      if (!document.hidden && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'FORCE_SYNC'
-        });
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    })();
   }, []);
 
-  return null; // This component doesn't render anything
+  return null;
 }

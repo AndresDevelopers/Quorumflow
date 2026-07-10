@@ -54,7 +54,7 @@ Aplicación web moderna (PWA) diseñada para las presidencias del Quórum de Él
 | **Base de datos** | Firebase Firestore |
 | **Autenticación** | Firebase Auth (client + admin SDK) |
 | **Funciones serverless** | Firebase Cloud Functions (Node 22) |
-| **IA** | DeepSeek API (`deepseek-v4-flash`) + Google Genkit |
+| **IA** | DeepSeek (todo en texto) + Gemini (solo imágenes) |
 | **PWA** | `@ducanh2912/next-pwa` — offline, instalable, notificaciones push |
 | **Notificaciones** | Web Push API + Firebase Cloud Messaging |
 | **Gráficos** | Recharts |
@@ -71,7 +71,8 @@ Aplicación web moderna (PWA) diseñada para las presidencias del Quórum de Él
 - Node.js v22+
 - pnpm
 - Proyecto Firebase (Firestore, Auth, Storage, Functions, Cloud Messaging)
-- API key de DeepSeek (opcional — para resúmenes IA y chat)
+- API key de **DeepSeek** (opcional) — IA de **todo** el sistema en texto (dashboard, sugerencias, chat, etc.)
+- API key de **Gemini** (opcional) — IA **solo para imágenes** (descripciones automáticas; DeepSeek no ve fotos)
 
 ### Pasos
 
@@ -100,10 +101,15 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=tu_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=tu_app_id
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
 
-# DeepSeek (IA)
+# DeepSeek = IA de TODO (texto): dashboard, sugerencias, chat, resúmenes…
+# https://platform.deepseek.com/api_keys
 DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_MODEL=deepseek-v4-flash
 DEEPSEEK_CHAT_MODEL=deepseek-v4-flash
+
+# Gemini = IA SOLO para IMÁGENES (Obra misional + imagen en chat)
+# No reemplaza a DeepSeek. Gratis: https://aistudio.google.com/apikey
+GEMINI_API_KEY=...
 
 # Push notifications
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=tu_vapid_key
@@ -181,13 +187,17 @@ public/                          # PWA assets, service worker, changelog.json
 
 ## 📊 IA y Genkit
 
-La app integra **DeepSeek** (`deepseek-v4-flash`) para:
-- **Resumen inteligente del dashboard**: análisis del estado actual de tu organización
+### Claves de IA: para qué sirve cada una
 
-- **Sugerencias de actividades y servicio**: recomendaciones basadas en datos de tu organización
-- **Chat Iglesia**: chat conversacional con contexto eclesiástico
+| Variable | Proveedor | Para qué es |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | DeepSeek | **Todo** lo de IA en **texto**: resumen del dashboard, sugerencias de actividades/servicio, Chat Iglesia, reescritura de textos. Es la IA principal de la app. |
+| `GEMINI_API_KEY` | Gemini | **Solo imágenes**: descripción automática al subir fotos en Obra misional, y entender una imagen adjunta en el Chat Iglesia. **No** se usa para chat, resúmenes ni sugerencias. |
 
-Los flujos de IA usan DeepSeek como proveedor a través de `@/lib/deepseek`.
+DeepSeek no acepta fotos en su API de chat; por eso la visión va aparte con Gemini.
+
+- Texto → `@/lib/deepseek` (`DEEPSEEK_API_KEY`)
+- Imágenes → `@/lib/vision` (`GEMINI_API_KEY`)
 
 ---
 

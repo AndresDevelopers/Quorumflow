@@ -168,6 +168,28 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning translate="no">
+      <head>
+        {/* Runs before any app JS: kill stale service workers / caches that served old Server Actions */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function () {
+  try {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (r) { r.unregister(); });
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function (keys) {
+        keys.forEach(function (k) { caches.delete(k); });
+      });
+    }
+  } catch (e) {}
+})();`,
+          }}
+        />
+      </head>
       <body className={`${ptSans.className} antialiased`}>
         <ThemeProvider
           attribute="class"

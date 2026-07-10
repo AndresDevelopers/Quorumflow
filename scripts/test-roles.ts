@@ -52,9 +52,10 @@ test('hasLeadershipPrivileges', () => {
 });
 
 test('canViewSettings', () => {
+  // Personal settings (profile, theme, notifications) are available to every role
   assert.strictEqual(canViewSettings('secretary'), true);
   assert.strictEqual(canViewSettings('president'), true);
   assert.strictEqual(canViewSettings('counselor'), true);
-  assert.strictEqual(canViewSettings('user'), false);
-  assert.strictEqual(canViewSettings('other'), false);
+  assert.strictEqual(canViewSettings('user'), true);
+  assert.strictEqual(canViewSettings('other'), true);
 });

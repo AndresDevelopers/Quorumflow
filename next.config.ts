@@ -59,19 +59,48 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      {
-        // Cache estática agresiva para assets (Cloudflare edge)
-        source: "/_next/static/:path*",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
-        ],
-      },
-      {
-        source: "/favicon.ico",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=86400" },
-        ],
-      },
+      // En producción: cache larga de assets con hash.
+      // En desarrollo: NUNCA cachear /_next/static — si no, el navegador se queda
+      // con bundles viejos (p. ej. Server Actions obsoletas) y muestra
+      // UnrecognizedActionError aunque el código en disco ya esté actualizado.
+      ...(process.env.NODE_ENV === 'production'
+        ? [
+            {
+              source: '/_next/static/:path*',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'public, max-age=31536000, immutable',
+                },
+              ],
+            },
+            {
+              source: '/favicon.ico',
+              headers: [
+                { key: 'Cache-Control', value: 'public, max-age=86400' },
+              ],
+            },
+          ]
+        : [
+            {
+              source: '/_next/static/:path*',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'no-store, no-cache, must-revalidate, max-age=0',
+                },
+              ],
+            },
+            {
+              source: '/:path*',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'no-store, no-cache, must-revalidate, max-age=0',
+                },
+              ],
+            },
+          ]),
     ];
   },
   // Webpack configuration for source maps

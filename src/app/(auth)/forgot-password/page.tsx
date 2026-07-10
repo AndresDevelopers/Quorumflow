@@ -47,23 +47,60 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (values: z.infer<typeof forgotPasswordSchema>) => {
     try {
-      await sendPasswordResetEmail(auth, values.email);
+      // Firebase client ya no lanza user-not-found (enumeración de emails).
+      // Verificamos en el servidor con Admin SDK antes de enviar el correo.
+      const checkResponse = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: values.email.trim() }),
+      });
+
+      if (!checkResponse.ok) {
+        const data = await checkResponse.json().catch(() => null);
+        const errorCode = data?.error as string | undefined;
+
+        let description = t("forgotPassword.toastErrorUnexpected");
+        if (errorCode === "user-not-found") {
+          description = t("forgotPassword.toastErrorUserNotFound");
+        } else if (errorCode === "invalid-email") {
+          description = t("forgotPassword.toastErrorInvalidEmail");
+        }
+
+        toast({
+          title: t("forgotPassword.toastErrorTitle"),
+          description,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await sendPasswordResetEmail(auth, values.email.trim());
       toast({
-        title: t('forgotPassword.toastSuccessTitle'),
-        description: t('forgotPassword.toastSuccessDescription'),
+        title: t("forgotPassword.toastSuccessTitle"),
+        description: t("forgotPassword.toastSuccessDescription"),
       });
       router.push("/login");
-    } catch (error: any) {
-        console.error("Password Reset Error:", error);
-        let description = t('forgotPassword.toastErrorUnexpected');
-        if (error.code === 'auth/user-not-found') {
-            description = t('forgotPassword.toastErrorUserNotFound');
-        }
-        toast({
-            title: t('forgotPassword.toastErrorTitle'),
-            description: description,
-            variant: "destructive",
-        });
+    } catch (error: unknown) {
+      console.error("Password Reset Error:", error);
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code: unknown }).code)
+          : "";
+
+      let description = t("forgotPassword.toastErrorUnexpected");
+      if (code === "auth/user-not-found") {
+        description = t("forgotPassword.toastErrorUserNotFound");
+      } else if (code === "auth/invalid-email") {
+        description = t("forgotPassword.toastErrorInvalidEmail");
+      } else if (code === "auth/too-many-requests") {
+        description = t("forgotPassword.toastErrorTooManyRequests");
+      }
+
+      toast({
+        title: t("forgotPassword.toastErrorTitle"),
+        description,
+        variant: "destructive",
+      });
     }
   };
 

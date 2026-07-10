@@ -1,7 +1,10 @@
-'use server';
-
+/**
+ * Shared image analysis helper (server-only logic via @/lib/vision).
+ * Prefer POST /api/analyze-image from the client — avoids Next.js Server Action
+ * ID mismatches after HMR ("UnrecognizedActionError").
+ */
 import { z } from 'zod';
-import { requestDeepSeekJson } from '@/lib/deepseek';
+import { describeImage } from '@/lib/vision';
 
 const AnalyzeImageInputSchema = z.object({
   imageData: z.string().describe('The base64 encoded image data (data:image/jpeg;base64,...).'),
@@ -15,27 +18,7 @@ export type AnalyzeImageOutput = z.infer<typeof AnalyzeImageOutputSchema>;
 
 export async function analyzeImage(input: AnalyzeImageInput): Promise<AnalyzeImageOutput> {
   const validatedInput = AnalyzeImageInputSchema.parse(input);
-
-  return requestDeepSeekJson({
-    schema: AnalyzeImageOutputSchema,
-    messages: [
-      {
-        role: 'system',
-        content: 'Analiza imágenes y responde siempre en JSON válido sin texto adicional.',
-      },
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: 'Analiza la imagen y proporciona una descripción detallada en español. Formato JSON requerido: {"description":"..."}',
-          },
-          {
-            type: 'image_url',
-            image_url: { url: validatedInput.imageData },
-          },
-        ],
-      },
-    ],
-  });
+  const result = await describeImage(validatedInput.imageData);
+  return AnalyzeImageOutputSchema.parse(result);
 }
+

@@ -6,20 +6,20 @@
       "date": "2026-07-10",
       "changes": {
         "es": [
-          "Mejoramos la gestión de imágenes en obra misional con una pestaña dedicada y una API de carga, solucionando problemas de estabilidad.",
-          "Integramos la IA Gemini para análisis de imágenes: descripciones automáticas en obra misional y soporte para adjuntar imágenes en el chat de la iglesia.",
-          "Corregimos las fotos de perfil de conversos y miembros, usando next/image para una visualización confiable.",
-          "Simplificamos los conversos recientes: ahora se derivan únicamente de la fecha de bautismo, alineando todas las herramientas.",
-          "Añadimos una nueva interfaz de gestión de distritos para ministerio, incluyendo creación, eliminación y protección del distrito predeterminado.",
-          "Mejoramos la seguridad y el rendimiento: actualizamos las reglas de Firestore, optimizamos el caché y mejoramos los flujos de autenticación."
+          "El Chat de la Iglesia ahora ofrece respuestas personalizadas con el contexto de tu organización, y el reconocimiento de voz en Obra Misional es más estable y seguro.",
+          "La carga de imágenes en Obra Misional ahora es más confiable y compatible con formatos modernos. La visión de IA usa un modelo actualizado para mejor análisis.",
+          "Ahora puedes adjuntar imágenes en el Chat de la Iglesia y obtener descripciones automáticas. Un nuevo sistema de IA dual maneja texto e imágenes de manera eficiente.",
+          "Las fotos de perfil en la sección de Conversos ahora se muestran correctamente, como en Miembros.",
+          "Los conversos recientes ahora se calculan de manera consistente a partir de las fechas de bautismo, mostrando nombres completos y fotos en todas las pantallas.",
+          "Ahora puedes gestionar distritos de ministerio: crear, eliminar y proteger distritos por defecto. Las asignaciones son más precisas."
         ],
         "en": [
-          "Improved image management in missionary work with a dedicated tab and upload API, fixing stability issues.",
-          "Integrated Gemini AI for image analysis: automatic descriptions in missionary work and image attachment support in church chat.",
-          "Fixed profile photos for converts and members, using next/image for reliable display.",
-          "Streamlined recent converts: now derived solely from member baptism dates, aligning all tools.",
-          "Added a new district management UI for ministering, including creation, deletion, and default district protection.",
-          "Enhanced security and performance: updated Firestore rules, optimized caching, and improved authentication flows."
+          "Church Chat now provides personalized answers with your organization context, and voice recognition in Missionary Work is more stable and secure.",
+          "Image uploading in Missionary Work is now more reliable and works with modern file formats. AI vision uses an updated model for better analysis.",
+          "You can now attach images in Church Chat and get automatic descriptions. A new dual-AI system handles text and images efficiently.",
+          "Profile photos in the Converts section are now displayed correctly, just like in Members.",
+          "Recent converts are now calculated consistently from baptism dates, showing full names and photos on all screens.",
+          "You can now manage ministering districts: create, delete, and protect default districts. Assignments are more accurate."
         ]
       }
     },

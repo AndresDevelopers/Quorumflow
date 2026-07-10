@@ -329,12 +329,37 @@ function InvestigatorsTab({
   const recognitionMissionariesRef = useRef<any>(null);
   const [isRecordingMissionaries, setIsRecordingMissionaries] = useState(false);
 
+  const getSpeechRecognitionConstructor = () => {
+    if (typeof window === 'undefined') return undefined;
+    return window.SpeechRecognition || window.webkitSpeechRecognition;
+  };
+
+  const handleVoiceError = (errorCode: string) => {
+    // User stopped recording or no speech detected — not real failures.
+    if (errorCode === 'aborted' || errorCode === 'no-speech') {
+      return;
+    }
+    const description =
+      errorCode === 'not-allowed'
+        ? t('missionaryWork.investigators.voicePermissionDenied')
+        : t('missionaryWork.investigators.voiceError');
+    toast({ title: t('common.error'), description, variant: 'destructive' });
+  };
+
   const startRecordingName = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    const SpeechRecognition = getSpeechRecognitionConstructor();
+    if (!SpeechRecognition) {
       toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceUnsupported'), variant: 'destructive' });
       return;
     }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // SpeechRecognition needs a secure context (HTTPS or localhost).
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceInsecureContext'), variant: 'destructive' });
+      return;
+    }
+    if (recognitionMissionariesRef.current) {
+      recognitionMissionariesRef.current.stop();
+    }
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -342,22 +367,33 @@ function InvestigatorsTab({
     recognition.onstart = () => setIsRecordingName(true);
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
-      setName(prev => prev + ' ' + transcript);
+      setName((prev) => (prev ? `${prev} ${transcript}` : transcript).trim());
     };
-    recognition.onend = () => setIsRecordingName(false);
+    recognition.onend = () => {
+      recognitionNameRef.current = null;
+      setIsRecordingName(false);
+    };
     recognition.onerror = (event: any) => {
-      console.error('Error en reconocimiento de voz', event.error);
+      recognitionNameRef.current = null;
+      setIsRecordingName(false);
+      handleVoiceError(event.error);
+    };
+    try {
+      recognitionNameRef.current = recognition;
+      recognition.start();
+    } catch {
+      recognitionNameRef.current = null;
       setIsRecordingName(false);
       toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceError'), variant: 'destructive' });
-    };
-    recognitionNameRef.current = recognition;
-    recognition.start();
+    }
   };
 
   const stopRecordingName = () => {
     if (recognitionNameRef.current) {
       recognitionNameRef.current.stop();
+      recognitionNameRef.current = null;
     }
+    setIsRecordingName(false);
   };
 
   const toggleRecordingName = () => {
@@ -369,11 +405,18 @@ function InvestigatorsTab({
   };
 
   const startRecordingMissionaries = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    const SpeechRecognition = getSpeechRecognitionConstructor();
+    if (!SpeechRecognition) {
       toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceUnsupported'), variant: 'destructive' });
       return;
     }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceInsecureContext'), variant: 'destructive' });
+      return;
+    }
+    if (recognitionNameRef.current) {
+      recognitionNameRef.current.stop();
+    }
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -381,22 +424,33 @@ function InvestigatorsTab({
     recognition.onstart = () => setIsRecordingMissionaries(true);
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
-      setMissionaries(prev => prev + ' ' + transcript);
+      setMissionaries((prev) => (prev ? `${prev} ${transcript}` : transcript).trim());
     };
-    recognition.onend = () => setIsRecordingMissionaries(false);
+    recognition.onend = () => {
+      recognitionMissionariesRef.current = null;
+      setIsRecordingMissionaries(false);
+    };
     recognition.onerror = (event: any) => {
-      console.error('Error en reconocimiento de voz', event.error);
+      recognitionMissionariesRef.current = null;
+      setIsRecordingMissionaries(false);
+      handleVoiceError(event.error);
+    };
+    try {
+      recognitionMissionariesRef.current = recognition;
+      recognition.start();
+    } catch {
+      recognitionMissionariesRef.current = null;
       setIsRecordingMissionaries(false);
       toast({ title: t('common.error'), description: t('missionaryWork.investigators.voiceError'), variant: 'destructive' });
-    };
-    recognitionMissionariesRef.current = recognition;
-    recognition.start();
+    }
   };
 
   const stopRecordingMissionaries = () => {
     if (recognitionMissionariesRef.current) {
       recognitionMissionariesRef.current.stop();
+      recognitionMissionariesRef.current = null;
     }
+    setIsRecordingMissionaries(false);
   };
 
   const toggleRecordingMissionaries = () => {
@@ -407,12 +461,13 @@ function InvestigatorsTab({
     }
   };
 
+  // Do not auto-start speech recognition when the dialog opens: browsers require
+  // a direct user gesture for mic access and will throw "not-allowed" otherwise.
   const handleAddOpenChange = (open: boolean) => {
     setAddOpen(open);
-    if (open) {
-      startRecordingName();
-    } else if (isRecordingName) {
+    if (!open) {
       stopRecordingName();
+      stopRecordingMissionaries();
     }
   };
 

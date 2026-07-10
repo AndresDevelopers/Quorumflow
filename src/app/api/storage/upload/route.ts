@@ -183,18 +183,16 @@ export async function POST(request: Request) {
         contentType: mimeType,
         cacheControl: 'public, max-age=31536000',
         metadata: {
+          // Permanent Firebase download token (does not expire like V4 signed URLs).
           firebaseStorageDownloadTokens: downloadToken,
           uploadedBy: uid,
         },
       },
     });
 
-    const [signedUrl] = await gcsFile.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 1000 * 60 * 60 * 24 * 365 * 10,
-    });
-
+    // Permanent media URL via download token.
+    // Do NOT use V4 signed URLs with multi-year expiry — GCS caps V4 signatures
+    // at 7 days (604800s) and throws: "Max allowed expiration is seven days".
     const firebaseUrl =
       `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/` +
       `${encodeURIComponent(objectPath)}?alt=media&token=${downloadToken}`;
@@ -208,7 +206,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      url: signedUrl,
+      url: firebaseUrl,
       firebaseUrl,
       path: objectPath,
       contentType: mimeType,

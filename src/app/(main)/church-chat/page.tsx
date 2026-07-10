@@ -731,6 +731,7 @@ export default function ChurchChatPage() {
           ...(imageToSend ? { imageDataUrl: imageToSend.dataUrl } : {}),
           history,
           language,
+          ...(organizacion ? { organizacion } : {}),
         }),
       });
 

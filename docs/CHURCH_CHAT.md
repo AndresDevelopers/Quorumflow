@@ -22,6 +22,11 @@ Este módulo agrega una página de chat enfocada **solo** en contenido oficial d
   - Manuales y textos oficiales de la Iglesia.
   - Evangelio de Jesucristo y Escrituras (Antiguo/Nuevo Testamento) según interpretación oficial de la Iglesia.
   - Si el usuario sale del tema, el asistente responde que el chat es exclusivo para temas de la Iglesia.
+  - Las respuestas deben explicar con claridad el **porqué** (razón y propósito) de lo que describen.
+  - Preguntas sobre la app de gestión: orientación general + recordatorio de que el control de la app corresponde a la **presidencia de la organización del usuario** (nombre dinámico enviado por el cliente); no inventa datos del barrio.
+- Contexto de sesión dinámico:
+  - El cliente envía `organizacion` del usuario autenticado.
+  - El servidor inyecta el nombre de la app (`getAppName()`) y la organización en el *system prompt*.
 - Verificación de noticias oficiales recientes:
   - Se consulta el RSS de Newsroom de la Iglesia.
   - Se adjunta como contexto al prompt para preguntas de actualidad.
@@ -47,7 +52,7 @@ Sin `GEMINI_API_KEY`, el chat de texto sigue funcionando; las imágenes no se an
 ## Endpoints
 
 - `POST /api/church-chat`
-  - Entrada: `{ message?: string, imageDataUrl?: string, history: Array<{role, content}> }`
+  - Entrada: `{ message?: string, imageDataUrl?: string, history: Array<{role, content}>, language?: 'es'|'en', organizacion?: string }`
   - Salida: `{ answer: string, contextNews: string }`
 
 ## Notas de seguridad

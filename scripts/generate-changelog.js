@@ -189,6 +189,7 @@ async function callDeepSeek(commits) {
     temperature: 0.5,
     max_tokens: 1200,
     response_format: { type: 'json_object' },
+    thinking: { type: 'disabled' },
   });
 
   return new Promise((resolve) => {

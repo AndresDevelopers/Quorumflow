@@ -206,6 +206,7 @@ export async function POST(request: Request) {
           messages,
           temperature: 0.3,
           max_tokens: DEEPSEEK_MAX_TOKENS,
+          thinking: { type: 'disabled' },
         }),
       });
 

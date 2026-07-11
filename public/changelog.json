@@ -1,6 +1,28 @@
 {
-  "current": "1.1.28",
+  "current": "1.1.29",
   "entries": [
+    {
+      "version": "1.1.29",
+      "date": "2026-07-11",
+      "changes": {
+        "es": [
+          "Hemos actualizado la versión a v1.1.29 y mejorado la compatibilidad con las últimas APIs de DeepSeek, añadiendo un modo de pensamiento desactivado para todas las solicitudes.",
+          "Ahora puedes gestionar los permisos de dispositivo (micrófono y GPS) desde la página de configuración, con comprobaciones en tiempo real y preferencias guardadas.",
+          "Las secciones de preguntas frecuentes en las páginas de obra misional e historia familiar ahora incluyen ajustes de tamaño de letra para una mejor lectura.",
+          "La página de informes muestra un aviso de que está obsoleta y te invita a usar la nueva sección de Historias.",
+          "Hemos mejorado la visión de Gemini para que extraiga solo texto visible de las imágenes, sin descripciones de escenas.",
+          "Se ha añadido nominatim.openstreetmap.org a la lista de conexiones permitidas de CSP para mejorar la funcionalidad de mapas."
+        ],
+        "en": [
+          "We've updated to v1.1.29 and improved compatibility with the latest DeepSeek APIs, adding a disabled thinking mode to all requests.",
+          "You can now manage device permissions (microphone and GPS) from the settings page, with real-time checks and saved preferences.",
+          "FAQ sections on the missionary work and family history pages now have font size adjusters for easier reading.",
+          "The reports page now shows a deprecated notice, directing you to use the new Historias section instead.",
+          "Gemini vision has been reworked to extract only visible text from images, without scene descriptions.",
+          "We've added nominatim.openstreetmap.org to the CSP connect-src allowlist to improve map functionality."
+        ]
+      }
+    },
     {
       "version": "1.1.28",
       "date": "2026-07-10",

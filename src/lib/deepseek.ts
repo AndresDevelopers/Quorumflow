@@ -48,6 +48,7 @@ export async function requestDeepSeekText(messages: DeepSeekMessage[], model = D
       model,
       messages,
       temperature: 0.4,
+      thinking: { type: 'disabled' },
     }),
   });
 

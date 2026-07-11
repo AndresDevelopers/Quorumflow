@@ -97,6 +97,9 @@ export default function LoginPage() {
 
   return (
     <>
+    <p className="mb-6 text-center text-sm text-muted-foreground">
+      {t('login.subtitle')}
+    </p>
     <Card>
       <CardHeader>
         <CardTitle className="text-2xl">{t('login.title')}</CardTitle>

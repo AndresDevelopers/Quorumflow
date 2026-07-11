@@ -889,6 +889,7 @@
   "Light": "Claro",
   "Log out": "Cerrar sesión",
   "login.description": "Ingresa tu correo electrónico para acceder a tu cuenta.",
+  "login.subtitle": "Gestión integral para presidencias del Quorum de Élderes y la Sociedad de Socorro.",
   "login.emailLabel": "Correo Electrónico",
   "login.forgotPassword": "¿Olvidaste tu contraseña?",
   "login.noAccount": "¿No tienes una cuenta?",

@@ -52,14 +52,14 @@ export function ChangelogDialog({ children }: { children: React.ReactNode }) {
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
 
-      <DialogContent className="w-full h-full max-w-none sm:max-w-[425px] sm:h-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-[95vw] sm:max-w-[425px] max-h-[85vh] flex flex-col overflow-hidden p-4 sm:p-6">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t("changelog.title")}</DialogTitle>
           <DialogDescription>{t("changelog.description")}</DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[70vh] sm:max-h-none">
-          <div className="grid gap-4 py-4">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="grid gap-4 py-2">
             {loading && (
               <p className="text-sm text-muted-foreground">{t("changelog.loading")}</p>
             )}
@@ -79,9 +79,9 @@ export function ChangelogDialog({ children }: { children: React.ReactNode }) {
                   )}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-1">{entry.date}</p>
-                <ul className="list-disc list-inside text-sm text-muted-foreground">
+                <ul className="list-disc list-outside ml-4 text-sm text-muted-foreground space-y-0.5">
                   {(entry.changes[lang] ?? entry.changes.es).map((item, i) => (
-                    <li key={i}>{item}</li>
+                    <li key={i} className="break-words">{item}</li>
                   ))}
                 </ul>
               </div>

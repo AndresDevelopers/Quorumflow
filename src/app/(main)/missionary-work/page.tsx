@@ -102,6 +102,9 @@ import {
   Pencil,
   Mic,
   Loader2,
+  Type,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import {
   addDoc,
@@ -961,6 +964,7 @@ export default function MissionaryWorkPage() {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingAnnotations, setLoadingAnnotations] = useState(true);
+  const [faqFontSize, setFaqFontSize] = useState<'sm' | 'base' | 'lg'>('base');
    const { user, loading: authLoading, barrioOrg } = useAuth();
    const { canWrite } = usePermission();
    const { toast } = useToast();
@@ -1044,6 +1048,10 @@ export default function MissionaryWorkPage() {
     (c) => !investigators.some((i) => i.convertId === c.id)
   );
 
+  const getFaqFontClass = () => {
+    return faqFontSize === 'sm' ? 'text-sm' : faqFontSize === 'lg' ? 'text-lg' : 'text-base';
+  };
+
   return (
     <section className="page-section">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -1114,18 +1122,51 @@ export default function MissionaryWorkPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t('missionaryWork.faq.title')}</CardTitle>
-          <CardDescription>
-            {t('missionaryWork.faq.description')}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>{t('missionaryWork.faq.title')}</CardTitle>
+              <CardDescription>
+                {t('missionaryWork.faq.description')}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-1 border rounded-md">
+              <Button
+                variant={faqFontSize === 'sm' ? 'default' : 'ghost'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setFaqFontSize('sm')}
+                title="Letra pequeña"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={faqFontSize === 'base' ? 'default' : 'ghost'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setFaqFontSize('base')}
+                title="Letra normal"
+              >
+                <Type className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={faqFontSize === 'lg' ? 'default' : 'ghost'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setFaqFontSize('lg')}
+                title="Letra grande"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Accordion type="single" collapsible className="w-full">
             {getFaqData(t).map((faq, index) => (
               <AccordionItem value={`item-${index}`} key={index}>
-                <AccordionTrigger className="text-xl">{faq.question}</AccordionTrigger>
+                <AccordionTrigger className={getFaqFontClass()}>{faq.question}</AccordionTrigger>
                 <AccordionContent>
-                  <p className="text-muted-foreground leading-relaxed text-lg">
+                  <p className={`text-muted-foreground leading-relaxed ${getFaqFontClass()}`}>
                     {faq.answer}
                   </p>
                 </AccordionContent>

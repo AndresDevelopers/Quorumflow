@@ -56,7 +56,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
-import { AlertCircle, CalendarIcon, User, Camera, Loader2, X, Link2, Search, Lock, Mail, KeyRound } from 'lucide-react';
+import { CalendarIcon, User, Camera, Loader2, X, Link2, Search, Lock, Mail, KeyRound, Mic, MapPin } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -64,11 +64,6 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { compressProfileImage } from '@/lib/image-compression';
 import { getMembersForSelector } from '@/lib/members-data';
 import type { Member } from '@/lib/types';
-import {
-  canViewSettings,
-  normalizeRole,
-  type UserRole,
-} from '@/lib/roles';
 import { navigationItems } from '@/lib/navigation';
 import {
   deleteNotificationToken,
@@ -159,6 +154,10 @@ export default function SettingsPage() {
   const [inAppCategoryPrefs, setInAppCategoryPrefs] = useState<Record<string, boolean>>(defaultCategoryPrefs);
   const [pushCategoryPrefs, setPushCategoryPrefs] = useState<Record<string, boolean>>(defaultCategoryPrefs);
   const [isCategoryPrefsSaving, setIsCategoryPrefsSaving] = useState(false);
+  const [micEnabled, setMicEnabled] = useState(false);
+  const [gpsEnabled, setGpsEnabled] = useState(false);
+  const [isMicLoading, setIsMicLoading] = useState(true);
+  const [isGpsLoading, setIsGpsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isThemeSaving, setIsThemeSaving] = useState(false);
 
@@ -167,11 +166,9 @@ export default function SettingsPage() {
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isCheckingRole, setIsCheckingRole] = useState(true);
-  const [hasSettingsAccess, setHasSettingsAccess] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole>('user');
-  const [mainPage, setMainPage] = useState<string>('/');
   const [visiblePages, setVisiblePages] = useState<string[]>([]);
+  const [mainPage, setMainPage] = useState<string>('/');
+  const [isCheckingRole, setIsCheckingRole] = useState(true);
 
   // Synced member state
   const [syncedMemberId, setSyncedMemberId] = useState<string | null>(null);
@@ -181,21 +178,11 @@ export default function SettingsPage() {
   const [syncMemberSearch, setSyncMemberSearch] = useState('');
   const [syncDropdownOpen, setSyncDropdownOpen] = useState(false);
   const syncDropdownRef = useRef<HTMLDivElement>(null);
-  const roleFriendlyNames = useMemo<Record<UserRole, string>>(
-    () => ({
-      user: t('settings.role.user'),
-      counselor: t('settings.role.counselor'),
-      president: t('settings.role.president'),
-      secretary: t('settings.role.secretary'),
-      other: t('settings.role.other'),
-    }),
-    [t]
-  );
 
 
   useEffect(() => {
     const loadNotificationPreferences = async () => {
-      if (!hasSettingsAccess || !user) {
+      if (!user) {
         setIsInAppNotificationLoading(false);
         setIsPushNotificationLoading(false);
         return;
@@ -232,7 +219,41 @@ export default function SettingsPage() {
     };
 
     loadNotificationPreferences();
-  }, [hasSettingsAccess, user, defaultCategoryPrefs]);
+  }, [user, defaultCategoryPrefs]);
+
+  // Load permission prefs (available for all roles)
+  useEffect(() => {
+    const loadPermissionPreferences = async () => {
+      if (!user) {
+        setIsMicLoading(false);
+        setIsGpsLoading(false);
+        return;
+      }
+
+      try {
+        const userDocRef = doc(usersCollection, user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setMicEnabled(userData.micPermissionEnabled === true);
+          setGpsEnabled(userData.gpsPermissionEnabled === true);
+        } else {
+          setMicEnabled(false);
+          setGpsEnabled(false);
+        }
+      } catch (error) {
+        logger.error({ error, message: 'Error loading permission preferences' });
+        setMicEnabled(false);
+        setGpsEnabled(false);
+      } finally {
+        setIsMicLoading(false);
+        setIsGpsLoading(false);
+      }
+    };
+
+    loadPermissionPreferences();
+  }, [user]);
 
   useEffect(() => {
     const initializeFCM = async () => {
@@ -279,7 +300,7 @@ export default function SettingsPage() {
 
   // Load members for sync selector
   useEffect(() => {
-    if (!hasSettingsAccess || !user) return;
+    if (!user) return;
     let cancelled = false;
     async function loadMembers() {
       setIsMembersLoading(true);
@@ -296,7 +317,7 @@ export default function SettingsPage() {
     }
     loadMembers();
     return () => { cancelled = true; };
-  }, [hasSettingsAccess, user]);
+  }, [user]);
 
   // Filter members for sync dropdown
   const filteredSyncMembers = membersForSync.filter(m =>
@@ -361,7 +382,6 @@ export default function SettingsPage() {
     const fetchUserData = async () => {
       if (!firebaseUser) {
         setIsCheckingRole(false);
-        setHasSettingsAccess(false);
         return;
       }
 
@@ -372,11 +392,8 @@ export default function SettingsPage() {
         const userDocRef = doc(usersCollection, firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
 
-        let normalizedRole: UserRole = 'user';
-
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          normalizedRole = normalizeRole(userData.role);
           const userVisiblePages = Array.isArray(userData.visiblePages) ? userData.visiblePages : navigationItems.map(item => item.href);
           setVisiblePages(userVisiblePages);
 
@@ -423,13 +440,8 @@ export default function SettingsPage() {
           setSyncedMemberName(null);
           setPreviewUrl(firebaseUser.photoURL || null);
         }
-        setUserRole(normalizedRole);
-
-        // Personal settings are available to every authenticated role
-        setHasSettingsAccess(canViewSettings(normalizedRole));
       } catch (error) {
         logger.error({ error, message: 'Error loading settings profile data' });
-        setHasSettingsAccess(false);
         toast({
           title: t('settings.toast.profileLoadErrorTitle'),
           description: t('settings.toast.profileLoadErrorDescription'),
@@ -904,6 +916,125 @@ export default function SettingsPage() {
     }
   };
 
+  const handleMicPermissionChange = async (checked: boolean) => {
+    if (!user) {
+      toast({
+        title: t('common.error'),
+        description: t('settings.toast.mustSignIn'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsMicLoading(true);
+
+    try {
+      if (checked) {
+        // Request microphone permission before saving
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(track => track.stop());
+        } catch {
+          toast({
+            title: t('settings.toast.subscriptionPermissionDeniedTitle'),
+            description: t('memberForm.toast.gpsPermissionDenied'),
+            variant: 'destructive',
+          });
+          setIsMicLoading(false);
+          return;
+        }
+      }
+
+      const userDocRef = doc(usersCollection, user.uid);
+      await updateDoc(userDocRef, { micPermissionEnabled: checked });
+      setMicEnabled(checked);
+
+      toast({
+        title: checked ? t('settings.permissions.microphoneEnabledTitle') : t('settings.permissions.microphoneDisabledTitle'),
+        description: checked
+          ? t('settings.permissions.microphoneEnabledDesc')
+          : t('settings.permissions.microphoneDisabledDesc'),
+      });
+    } catch (error) {
+      logger.error({ error, message: 'Failed to update microphone permission preference' });
+      toast({
+        title: t('common.error'),
+        description: t('settings.permissions.updateError'),
+        variant: 'destructive',
+      });
+      setMicEnabled(!checked);
+    } finally {
+      setIsMicLoading(false);
+    }
+  };
+
+  const handleGpsPermissionChange = async (checked: boolean) => {
+    if (!user) {
+      toast({
+        title: t('common.error'),
+        description: t('settings.toast.mustSignIn'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsGpsLoading(true);
+
+    try {
+      if (checked) {
+        // Request geolocation permission before saving
+        if (!navigator.geolocation) {
+          toast({
+            title: t('memberForm.toast.gpsUnavailableTitle'),
+            description: t('memberForm.toast.gpsUnavailableDesc'),
+            variant: 'destructive',
+          });
+          setIsGpsLoading(false);
+          return;
+        }
+
+        try {
+          await new Promise<void>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              () => resolve(),
+              (err) => reject(err),
+              { timeout: 10000 }
+            );
+          });
+        } catch {
+          toast({
+            title: t('memberForm.toast.gpsPermissionDenied'),
+            description: t('memberForm.toast.gpsUnavailableNow'),
+            variant: 'destructive',
+          });
+          setIsGpsLoading(false);
+          return;
+        }
+      }
+
+      const userDocRef = doc(usersCollection, user.uid);
+      await updateDoc(userDocRef, { gpsPermissionEnabled: checked });
+      setGpsEnabled(checked);
+
+      toast({
+        title: checked ? t('settings.permissions.gpsEnabledTitle') : t('settings.permissions.gpsDisabledTitle'),
+        description: checked
+          ? t('settings.permissions.gpsEnabledDesc')
+          : t('settings.permissions.gpsDisabledDesc'),
+      });
+    } catch (error) {
+      logger.error({ error, message: 'Failed to update GPS permission preference' });
+      toast({
+        title: t('common.error'),
+        description: t('settings.permissions.updateError'),
+        variant: 'destructive',
+      });
+      setGpsEnabled(!checked);
+    } finally {
+      setIsGpsLoading(false);
+    }
+  };
+
   const handleMainPageChange = async (value: string) => {
     if (!firebaseUser || value === mainPage) {
       setMainPage(value);
@@ -1048,27 +1179,6 @@ export default function SettingsPage() {
           <Skeleton className="mx-auto h-4 w-64" />
         </div>
       </div>
-    );
-  }
-
-  if (!hasSettingsAccess) {
-    return (
-      <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
-            <AlertCircle className="h-5 w-5" />
-            {t('settings.access.restrictedTitle')}
-          </CardTitle>
-          <CardDescription className="text-amber-800 dark:text-amber-200">
-            {t('settings.access.restrictedDescription', { role: roleFriendlyNames[userRole] })}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-amber-800 dark:text-amber-200">
-            {t('settings.access.restrictedBody')}
-          </p>
-        </CardContent>
-      </Card>
     );
   }
 
@@ -1604,6 +1714,59 @@ export default function SettingsPage() {
                   {t('settings.theme.saving')}
                 </p>
               )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="xl:col-span-full">
+          <CardHeader>
+            <CardTitle>{t('settings.permissions.title')}</CardTitle>
+            <CardDescription>
+              {t('settings.permissions.description')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* ── Micrófono ─────────────────────────────────── */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <Mic className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <Label htmlFor="mic-permission-switch" className="flex flex-col space-y-1 cursor-pointer">
+                  <span className="text-sm font-medium sm:text-base">{t('settings.permissions.microphone')}</span>
+                  <span className="text-xs font-normal leading-snug text-muted-foreground sm:text-sm">
+                    {t('settings.permissions.microphoneHint')}
+                  </span>
+                </Label>
+              </div>
+              <Switch
+                id="mic-permission-switch"
+                checked={micEnabled}
+                onCheckedChange={handleMicPermissionChange}
+                disabled={isMicLoading}
+              />
+            </div>
+
+            <div className="border-t" />
+
+            {/* ── GPS / Ubicación ─────────────────────────────────── */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <MapPin className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <Label htmlFor="gps-permission-switch" className="flex flex-col space-y-1 cursor-pointer">
+                  <span className="text-sm font-medium sm:text-base">{t('settings.permissions.gps')}</span>
+                  <span className="text-xs font-normal leading-snug text-muted-foreground sm:text-sm">
+                    {t('settings.permissions.gpsHint')}
+                  </span>
+                </Label>
+              </div>
+              <Switch
+                id="gps-permission-switch"
+                checked={gpsEnabled}
+                onCheckedChange={handleGpsPermissionChange}
+                disabled={isGpsLoading}
+              />
             </div>
           </CardContent>
         </Card>

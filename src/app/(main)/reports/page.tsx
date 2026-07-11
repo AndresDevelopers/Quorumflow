@@ -453,93 +453,74 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-8">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-3">
-              <FileText className="h-8 w-8 text-primary" />
-              <div>
-                <CardTitle>{t('reports.annualReportTitle', { year: selectedYear })}</CardTitle>
-                <CardDescription>
-                  {t('reports.annualReportDescription')}
-                </CardDescription>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="w-40">
-                <Select value={String(selectedYear)} onValueChange={handleYearChange} disabled={availableYears === null}>
-                  <SelectTrigger aria-label={t('reports.filterByYear')}>
-                    <SelectValue placeholder={t('reports.yearPlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {yearOptions.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button disabled={isGeneratingReport}>
-                    {isGeneratingReport ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />{t('reports.generating')}</> : <><Download className="mr-2 h-4 w-4" />{t('reports.downloadReport')}</>}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t('reports.downloadDialogTitle')}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t('reports.downloadDialogDescription')}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <div className="grid gap-2">
-                    <AlertDialogAction
-                      className="w-full h-11"
-                      disabled={isGeneratingReport}
-                      onClick={() => generateReportForYear(currentYear)}
-                    >
-                      {t('reports.currentYear', { year: currentYear })}
-                    </AlertDialogAction>
-                    <AlertDialogAction
-                      className="w-full h-11"
-                      disabled={isGeneratingReport}
-                      onClick={() => generateReportForYear(currentYear - 1)}
-                    >
-                      {t('reports.lastYear', { year: currentYear - 1 })}
-                    </AlertDialogAction>
-                    <AlertDialogCancel className="w-full h-11">
-                      {t('reports.cancel')}
-                    </AlertDialogCancel>
+      <div className="relative">
+        <div className="pointer-events-none select-none blur-sm">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-8 w-8 text-primary" />
+                  <div>
+                    <CardTitle>{t('reports.annualReportTitle', { year: selectedYear })}</CardTitle>
+                    <CardDescription>
+                      {t('reports.annualReportDescription')}
+                    </CardDescription>
                   </div>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {loadingAnswers ? (
-            <Skeleton className="h-64 w-full" />
-          ) : (
-            reportQuestions.map(q => (
-              <div key={q.id} className="space-y-2">
-                <Label htmlFor={q.id} className="font-semibold">{t(`reports.questions.${q.id}`)}</Label>
-                <Textarea
-                  id={q.id}
-                  value={(answers as any)[q.id] || ''}
-                  onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                  rows={4}
-                />
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="w-40">
+                    <Select value={String(selectedYear)} disabled>
+                      <SelectTrigger aria-label={t('reports.filterByYear')}>
+                        <SelectValue placeholder={t('reports.yearPlaceholder')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {yearOptions.map((year) => (
+                          <SelectItem key={year} value={year}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button disabled>
+                    <Download className="mr-2 h-4 w-4" />{t('reports.downloadReport')}
+                  </Button>
+                </div>
               </div>
-            ))
-          )}
-        </CardContent>
-        <CardContent className="flex justify-end">
-          {canWrite && (
-          <Button onClick={handleSaveAnswers}><Save className="mr-2 h-4 w-4" /> {t('reports.saveAnswers')}</Button>
-          )}
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {loadingAnswers ? (
+                <Skeleton className="h-64 w-full" />
+              ) : (
+                reportQuestions.map(q => (
+                  <div key={q.id} className="space-y-2">
+                    <Label htmlFor={q.id} className="font-semibold">{t(`reports.questions.${q.id}`)}</Label>
+                    <Textarea
+                      id={q.id}
+                      value={(answers as any)[q.id] || ''}
+                      rows={4}
+                      readOnly
+                    />
+                  </div>
+                ))
+              )}
+            </CardContent>
+            <CardContent className="flex justify-end">
+              <Button disabled><Save className="mr-2 h-4 w-4" /> {t('reports.saveAnswers')}</Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Overlay con mensaje de deprecación */}
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="bg-background/90 backdrop-blur-sm border rounded-xl shadow-lg p-8 max-w-md mx-4 text-center space-y-3">
+            <h3 className="text-xl font-bold text-destructive">{t('reports.deprecatedTitle')}</h3>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {t('reports.deprecatedDescription')}
+            </p>
+          </div>
+        </div>
+      </div>
 
       <Card>
         <CardHeader>

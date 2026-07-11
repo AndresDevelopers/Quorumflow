@@ -43,7 +43,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Trash2, Library, BookUser, ListTodo, NotebookPen, Users, Pencil } from 'lucide-react';
+import { PlusCircle, Trash2, Library, BookUser, ListTodo, NotebookPen, Users, Pencil, Type, Minus, Plus } from 'lucide-react';
 import logger from '@/lib/logger';
 import { VoiceAnnotations } from '@/components/shared/voice-annotations';
 import { where, deleteDoc as deleteDocFirestore } from 'firebase/firestore';
@@ -82,6 +82,7 @@ export default function FamilySearchPage() {
     const [isTrainingOpen, setTrainingOpen] = useState(false);
     const [isTaskOpen, setTaskOpen] = useState(false);
     const [loadingAnnotations, setLoadingAnnotations] = useState(true);
+    const [faqFontSize, setFaqFontSize] = useState<'sm' | 'base' | 'lg'>('base');
     const trainingFormRef = useRef<HTMLFormElement>(null);
     const taskFormRef = useRef<HTMLFormElement>(null);
 
@@ -224,6 +225,10 @@ export default function FamilySearchPage() {
     };
 
 
+  const getFaqFontClass = () => {
+    return faqFontSize === 'sm' ? 'text-sm' : faqFontSize === 'lg' ? 'text-lg' : 'text-base';
+  };
+
   return (
     <section className="page-section">
        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -302,20 +307,53 @@ export default function FamilySearchPage() {
                 onDeleteAnnotation={handleDeleteAnnotation}
                 currentUserId={user?.uid}
             />
-            
+
             {/* FAQ */}
             <Card className="lg:col-span-2">
                 <CardHeader>
-                    <CardTitle>{t('familySearch.faqTitle')}</CardTitle>
-                     <CardDescription>{t('familySearch.faqDescription')}</CardDescription>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle>{t('familySearch.faqTitle')}</CardTitle>
+                            <CardDescription>{t('familySearch.faqDescription')}</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-1 border rounded-md">
+                            <Button
+                                variant={faqFontSize === 'sm' ? 'default' : 'ghost'}
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => setFaqFontSize('sm')}
+                                title="Letra pequeña"
+                            >
+                                <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                                variant={faqFontSize === 'base' ? 'default' : 'ghost'}
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => setFaqFontSize('base')}
+                                title="Letra normal"
+                            >
+                                <Type className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                                variant={faqFontSize === 'lg' ? 'default' : 'ghost'}
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => setFaqFontSize('lg')}
+                                title="Letra grande"
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Accordion type="single" collapsible className="w-full">
                         {faqData.map((faq, index) => (
                              <AccordionItem value={`item-${index}`} key={index}>
-                                <AccordionTrigger>{t(faq.question)}</AccordionTrigger>
+                                <AccordionTrigger className={getFaqFontClass()}>{t(faq.question)}</AccordionTrigger>
                                 <AccordionContent>
-                                    <p className="text-muted-foreground leading-relaxed">{t(faq.answer)}</p>
+                                    <p className={`text-muted-foreground leading-relaxed ${getFaqFontClass()}`}>{t(faq.answer)}</p>
                                 </AccordionContent>
                             </AccordionItem>
                         ))}

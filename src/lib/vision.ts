@@ -67,8 +67,12 @@ async function callGeminiVision(
             {
               text:
                 'Analiza la imagen y responde SOLO con JSON válido, sin markdown ni texto extra. ' +
-                'Formato: {"description":"descripción detallada en español de lo que se ve"}. ' +
-                'Si es una actividad misional o de la Iglesia, menciónalo cuando sea evidente.',
+                'Formato: {"description":"texto extraído o vacío"}. ' +
+                'REGLAS ESTRICTAS: ' +
+                '1. Si la imagen contiene CUALQUIER texto visible (carteles, pancartas, pizarras, documentos, letreros, capturas, etc.), ' +
+                'transcribe ÚNICAMENTE ese texto de forma literal. NO describas la escena, NO menciones colores, objetos, personas ni el entorno. ' +
+                'SOLO el texto. ' +
+                '2. Si la imagen NO contiene absolutamente ningún texto, responde con la palabra "Sin texto".',
             },
             {
               inline_data: {
@@ -164,13 +168,17 @@ async function polishDescription(description: string): Promise<string> {
         {
           role: 'system',
           content:
-            'Eres un asistente que reescribe descripciones de fotos de obra misional. Responde solo JSON válido.',
+            'Eres un asistente que procesa transcripciones de texto extraídas de imágenes de obra misional. ' +
+            'Responde solo JSON válido. NUNCA agregues descripciones de la escena, colores, objetos ni personas.',
         },
         {
           role: 'user',
           content:
-            `Reescribe esta descripción de forma natural, clara y en español (1-3 oraciones). ` +
-            `No inventes detalles. Formato: {"description":"..."}\n\nTexto base:\n${description}`,
+            `Procesa el siguiente texto. Reglas estrictas: ` +
+            `1. Si es una transcripción de texto visible en una imagen, presérvala textualmente. Solo corrige errores obvios de OCR si los hay. ` +
+            `2. Si el texto base es "Sin texto", responde exactamente "Sin texto". ` +
+            `3. NO describas la escena, NO menciones objetos, colores, personas ni el entorno. ` +
+            `Formato: {"description":"..."}\n\nTexto base:\n${description}`,
         },
       ],
     });

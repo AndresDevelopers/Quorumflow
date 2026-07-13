@@ -85,7 +85,8 @@ import { getDateFnsLocale } from "@/lib/i18n-date";
 
 import { useRouter } from 'next/navigation';
 
-import { getDocs, query, orderBy, where } from 'firebase/firestore';
+import { query, orderBy, where } from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 
 import { ministeringCollection } from '@/lib/collections';
 

@@ -15,27 +15,41 @@ export function PushForegroundListener() {
 
   useEffect(() => {
     const unsubscribe = onMessageListener((payload) => {
+      const data =
+        typeof payload.data === 'object' && payload.data ? payload.data : null;
+
+      // Silent data-sync from Cloud Function — refresh without notification toast
+      if (data && 'type' in data && data.type === 'data-sync') {
+        const d = data as Record<string, unknown>;
+        window.dispatchEvent(
+          new CustomEvent('sionflow:data-sync', {
+            detail: {
+              barrioOrg: typeof d.barrioOrg === 'string' ? d.barrioOrg : undefined,
+              version: typeof d.version === 'string' ? d.version : undefined,
+              collection: typeof d.collection === 'string' ? d.collection : undefined,
+            },
+          })
+        );
+        return;
+      }
+
       const title =
         (typeof payload.notification === 'object' && payload.notification && 'title' in payload.notification
           ? payload.notification.title
           : null) ??
-        (typeof payload.data === 'object' && payload.data && 'title' in payload.data
-          ? payload.data.title
-          : null) ??
+        (data && 'title' in data ? data.title : null) ??
         appName;
 
       const body =
         (typeof payload.notification === 'object' && payload.notification && 'body' in payload.notification
           ? payload.notification.body
           : null) ??
-        (typeof payload.data === 'object' && payload.data && 'body' in payload.data
-          ? payload.data.body
-          : null) ??
+        (data && 'body' in data ? data.body : null) ??
         'Tienes una nueva notificacion.';
 
       const url =
-        typeof payload.data === 'object' && payload.data && 'url' in payload.data && typeof payload.data.url === 'string'
-          ? payload.data.url
+        data && 'url' in data && typeof data.url === 'string'
+          ? data.url
           : null;
 
       toast({

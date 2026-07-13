@@ -2,10 +2,18 @@ export type UserRole = 'user' | 'counselor' | 'president' | 'secretary' | 'other
 
 export type UserPermission = 'read' | 'all';
 
+/**
+ * Canonical permission values accepted in Firestore and the UI.
+ * Aliases cover Spanish labels and legacy typos that may exist in older docs.
+ */
+const WRITE_PERMISSION_ALIASES = new Set(['all', 'todo', 'todos']);
+const READ_PERMISSION_ALIASES = new Set(['read', 'lectura']);
+
 export const normalizePermission = (permission?: unknown): UserPermission => {
   if (typeof permission !== 'string') return 'read';
   const normalized = permission.trim().toLowerCase();
-  if (normalized === 'all' || normalized === 'todo') return 'all';
+  if (WRITE_PERMISSION_ALIASES.has(normalized)) return 'all';
+  if (READ_PERMISSION_ALIASES.has(normalized)) return 'read';
   return 'read';
 };
 
@@ -14,6 +22,32 @@ export const canWrite = (permission: UserPermission | null | undefined): boolean
 
 export const getDefaultPermission = (role: UserRole): UserPermission =>
   role === 'user' || role === 'other' ? 'read' : 'all';
+
+/**
+ * Resolve the permission to store when an admin changes a user's role.
+ * - Demote to `user` / `other` → force `read` (restricted roles).
+ * - Promote from restricted role → apply the new role default (`all` for leadership).
+ * - Move between leadership roles → keep the custom permission (Lectura/Todo).
+ */
+export const resolvePermissionForRoleChange = (
+  previousRole: UserRole,
+  newRole: UserRole,
+  previousPermission?: UserPermission | null
+): UserPermission => {
+  if (newRole === 'user' || newRole === 'other') {
+    return 'read';
+  }
+
+  const wasRestricted = previousRole === 'user' || previousRole === 'other';
+  if (wasRestricted) {
+    return getDefaultPermission(newRole);
+  }
+
+  // Leadership → leadership: preserve admin-assigned Lectura/Todo
+  return previousPermission === 'all' || previousPermission === 'read'
+    ? previousPermission
+    : getDefaultPermission(newRole);
+};
 
 export const PERMISSION_META: Record<UserPermission, { i18nKey: string }> = {
   read: { i18nKey: 'permission.read' },

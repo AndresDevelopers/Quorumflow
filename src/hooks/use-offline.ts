@@ -69,56 +69,24 @@ export function useOffline(): OfflineHook {
         }
     }, []);
 
-    // Force sync queued operations
+    // Force sync: Firestore pending writes (SDK) + Storage offline queue
     const forceSync = useCallback(async () => {
-        if (!isClient || !('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
-            console.warn('Service worker not available for sync');
-            return;
-        }
+        if (!isClient) return;
 
         setState(prev => ({ ...prev, syncInProgress: true }));
 
         try {
-            navigator.serviceWorker.controller.postMessage({
-                type: 'FORCE_SYNC'
-            });
+            const { flushOfflineSync } = await import('@/lib/firebase-offline-sync');
+            const result = await flushOfflineSync();
+            setState(prev => ({
+                ...prev,
+                queuedOperations: result.storagePending,
+            }));
 
-            // Wait for sync completion message with proper cleanup
-            await new Promise<void>((resolve) => {
-                let timeoutId: NodeJS.Timeout;
-
-                const handleMessage = (event: MessageEvent) => {
-                    if (event.data?.type === 'SYNC_COMPLETE') {
-                        cleanup();
-                        resolve();
-                    }
-                };
-
-                const cleanup = () => {
-                    if (timeoutId) clearTimeout(timeoutId);
-                    if ('serviceWorker' in navigator && navigator.serviceWorker) {
-                        try {
-                            navigator.serviceWorker.removeEventListener('message', handleMessage);
-                        } catch (error) {
-                            console.warn('Error removing service worker listener:', error);
-                        }
-                    }
-                };
-
-                try {
-                    navigator.serviceWorker.addEventListener('message', handleMessage);
-
-                    // Timeout after 30 seconds
-                    timeoutId = setTimeout(() => {
-                        cleanup();
-                        resolve();
-                    }, 30000);
-                } catch (error) {
-                    console.error('Error setting up sync listener:', error);
-                    cleanup();
-                    resolve();
-                }
-            });
+            // Keep SW hook for any legacy queue entries
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'FORCE_SYNC' });
+            }
         } catch (error) {
             console.error('Force sync failed:', error);
         } finally {
@@ -145,38 +113,34 @@ export function useOffline(): OfflineHook {
         }
     }, [deferredPrompt]);
 
-    // Get queued operations count
+    // Count Storage offline queue (+ legacy SW queue if present)
     const updateQueuedOperations = useCallback(async () => {
         try {
             if (!isClient || !('indexedDB' in window)) {
                 return;
             }
 
-            const db = await openSyncDB();
-            const transaction = db.transaction(['sync_queue'], 'readonly');
-            const store = transaction.objectStore('sync_queue');
-            const countRequest = store.count();
+            const { getStorageQueueCount } = await import('@/lib/storage-offline-queue');
+            let count = await getStorageQueueCount();
 
-            const count = await new Promise<number>((resolve, reject) => {
-                const timeoutId = setTimeout(() => {
-                    reject(new Error('IndexedDB operation timeout'));
-                }, 10000); // Aumentado a 10 segundos
-
-                countRequest.onsuccess = () => {
-                    clearTimeout(timeoutId);
-                    resolve(countRequest.result);
-                };
-
-                countRequest.onerror = () => {
-                    clearTimeout(timeoutId);
-                    reject(countRequest.error);
-                };
-            });
+            try {
+                const db = await openSyncDB();
+                const transaction = db.transaction(['sync_queue'], 'readonly');
+                const store = transaction.objectStore('sync_queue');
+                const legacy = await new Promise<number>((resolve) => {
+                    const countRequest = store.count();
+                    countRequest.onsuccess = () => resolve(countRequest.result);
+                    countRequest.onerror = () => resolve(0);
+                });
+                count += legacy;
+                db.close();
+            } catch {
+                // legacy store may not exist
+            }
 
             setState(prev => ({ ...prev, queuedOperations: count }));
         } catch (error) {
             console.error('Failed to get queued operations count:', error);
-            // Set queued operations to 0 on error to avoid blocking the UI
             setState(prev => ({ ...prev, queuedOperations: 0 }));
         }
     }, [isClient]);
@@ -194,10 +158,13 @@ export function useOffline(): OfflineHook {
         const handleOnline = () => {
             if (!mounted) return;
             setState(prev => ({ ...prev, isOnline: true }));
-            // Auto-sync when coming back online
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                forceSync().catch(console.error);
-            }
+            // Auto-sync Firestore pending + Storage queue when back online
+            forceSync().catch(console.error);
+        };
+
+        const onQueueChanged = () => {
+            if (!mounted) return;
+            updateQueuedOperations().catch(console.error);
         };
 
         const handleOffline = () => {
@@ -240,6 +207,8 @@ export function useOffline(): OfflineHook {
             window.addEventListener('offline', handleOffline, { passive: true });
             window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             window.addEventListener('appinstalled', handleAppInstalled, { passive: true });
+            window.addEventListener('sionflow:storage-queue-changed', onQueueChanged);
+            window.addEventListener('sionflow:offline-sync-complete', onQueueChanged);
 
             if ('serviceWorker' in navigator && navigator.serviceWorker) {
                 navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
@@ -265,6 +234,8 @@ export function useOffline(): OfflineHook {
                 window.removeEventListener('offline', handleOffline);
                 window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
                 window.removeEventListener('appinstalled', handleAppInstalled);
+                window.removeEventListener('sionflow:storage-queue-changed', onQueueChanged);
+                window.removeEventListener('sionflow:offline-sync-complete', onQueueChanged);
 
                 if ('serviceWorker' in navigator && navigator.serviceWorker) {
                     navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);

@@ -4,7 +4,7 @@
 import { useTheme } from "next-themes";
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { auth } from "@/lib/firebase";
 import { usersCollection } from "@/lib/collections";
 import { normalizeRole, normalizePermission, type UserRole, type UserPermission } from "@/lib/roles";
@@ -82,16 +82,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
+  // Live subscription so admin changes to role/permission/visiblePages apply immediately
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!firebaseUser) {
-        return;
-      }
+    if (!firebaseUser) {
+      return;
+    }
 
-      setProfileLoaded(false);
-      try {
-        const userDocRef = doc(usersCollection, firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
+    setProfileLoaded(false);
+    const userDocRef = doc(usersCollection, firebaseUser.uid);
+
+    const unsubscribe = onSnapshot(
+      userDocRef,
+      (userDoc) => {
         if (!userDoc.exists()) {
           setUserRole(normalizeRole(undefined));
           setUserPermission(normalizePermission(undefined));
@@ -124,28 +126,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUserTheme(savedTheme);
           setTheme(savedTheme);
         }
-      } catch {
+
+        setProfileLoaded(true);
+      },
+      () => {
         setUserRole(normalizeRole(undefined));
         setUserPermission(normalizePermission(undefined));
-      } finally {
         setProfileLoaded(true);
       }
-    };
+    );
 
-    fetchUserData();
+    return () => unsubscribe();
   }, [firebaseUser, setTheme]);
   
   const refreshAuth = useCallback(async () => {
     const currentUser = auth.currentUser;
     if (currentUser) {
-        await currentUser.reload();
-        const freshUser = auth.currentUser;
-        if (freshUser) {
-            setUser(formatUser(freshUser));
-            // Force profile re-fetch by updating firebaseUser reference
-            setFirebaseUser(freshUser);
-            setProfileLoaded(false);
-        }
+      await currentUser.reload();
+      const freshUser = auth.currentUser;
+      if (freshUser) {
+        // Auth profile fields only; role/permission stay live via onSnapshot
+        setUser(formatUser(freshUser));
+        setFirebaseUser(freshUser);
+      }
     }
   }, []);
 

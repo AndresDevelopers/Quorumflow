@@ -1,5 +1,6 @@
 
-import { getDocs, query, where, limit, Timestamp, orderBy } from 'firebase/firestore';
+import { query, where, limit, Timestamp, orderBy } from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import {
   futureMembersCollection,
   ministeringCollection,

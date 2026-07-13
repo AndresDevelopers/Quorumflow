@@ -3,14 +3,14 @@ import {
   deleteDoc,
   deleteField,
   doc,
-  getDocs,
   orderBy,
   query,
   where,
   Timestamp,
-  updateDoc,
-} from 'firebase/firestore';
-import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+  updateDoc} from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
+import { deleteObject, ref } from 'firebase/storage';
+import { uploadBytesOfflineAware } from '@/lib/storage-offline-queue';
 
 import { healthConcernsCollection, storage } from './collections';
 import type { HealthConcern } from './types';
@@ -54,10 +54,10 @@ const uploadPhoto = async (file: File, userId: string): Promise<UploadResult> =>
   const optimized = await compressProfileImage(file);
   const safeName = sanitizeFileName(optimized.name || `salud-${Date.now()}.jpg`);
   const storagePath = `health-concerns/${userId}/${Date.now()}-${safeName}`;
-  const storageRef = ref(storage, storagePath);
-  await uploadBytes(storageRef, optimized, { contentType: optimized.type });
-  const photoURL = await getDownloadURL(storageRef);
-  return { photoURL, photoPath: storagePath };
+  const result = await uploadBytesOfflineAware(storagePath, optimized, {
+    contentType: optimized.type,
+  });
+  return { photoURL: result.url, photoPath: storagePath };
 };
 
 export const fetchHealthConcerns = async (barrioOrg: string): Promise<HealthConcern[]> => {

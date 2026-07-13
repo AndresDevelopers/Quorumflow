@@ -1,6 +1,6 @@
 {
   "name": "nextn",
-  "version": "1.1.29",
+  "version": "1.1.30",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack -p 9001",
@@ -13,7 +13,7 @@
     "approve-builds": "pnpm approve-builds",
     "changelog": "node scripts/generate-changelog.js",
     "setup-hooks": "node scripts/setup-hooks.js",
-    "test:roles": "node --experimental-strip-types scripts/test-roles.ts",
+    "test:roles": "tsx --test scripts/test-roles.ts",
     "check:i18n": "node scripts/check-i18n-keys.mjs"
   },
   "dependencies": {

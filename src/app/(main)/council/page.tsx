@@ -3,7 +3,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { getDocs, query, orderBy, where, Timestamp, doc, updateDoc, getDoc, deleteDoc, collection, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { query, orderBy, where, Timestamp, doc, updateDoc, deleteDoc, collection, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getDocs, getDoc } from '@/lib/firestore-query';
 
 
 import type { Member, FutureMember, Companionship, Family, Annotation, Service, Activity, NewConvertFriendship, Ordinance, TempleOrdinance } from '@/lib/types';

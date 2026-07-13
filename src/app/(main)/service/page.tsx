@@ -4,7 +4,8 @@
 import { useCallback, useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getDocs, query, orderBy, Timestamp, where, deleteDoc, doc, addDoc } from 'firebase/firestore';
+import { query, orderBy, Timestamp, where, deleteDoc, doc, addDoc } from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import { servicesCollection, activitiesCollection } from '@/lib/collections';
 import type { Service } from '@/lib/types';
 import { addDays, endOfYear, format, getYear, isAfter, isBefore, startOfYear } from 'date-fns';

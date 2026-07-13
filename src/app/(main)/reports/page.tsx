@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getDocs, query, orderBy, Timestamp, where, doc, setDoc, getDoc } from 'firebase/firestore';
+import { query, orderBy, Timestamp, where, doc, setDoc } from 'firebase/firestore';
+import { getDocs, getDoc } from '@/lib/firestore-query';
 import { baptismsCollection, futureMembersCollection, annualReportsCollection, membersCollection } from '@/lib/collections';
 import type { Baptism, AnnualReportAnswers, Member } from '@/lib/types';
 import { normalizeMemberStatus } from '@/lib/members-data';

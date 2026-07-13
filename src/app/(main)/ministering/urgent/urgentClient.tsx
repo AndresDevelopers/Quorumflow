@@ -1,6 +1,7 @@
 'use client';
 
-import { getDocs, doc, getDoc, updateDoc, query, where } from 'firebase/firestore';
+import { doc, updateDoc, query, where } from 'firebase/firestore';
+import { getDocs, getDoc } from '@/lib/firestore-query';
 import { ministeringCollection } from '@/lib/collections';
 import type { Companionship, Family } from '@/lib/types';
 import { useEffect, useState, useRef } from 'react';

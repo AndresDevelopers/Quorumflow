@@ -16,4 +16,23 @@ export declare const onCouncilAnnotationDeleted: functions.CloudFunction<functio
 export declare const dailyNotifications: functions.CloudFunction<unknown>;
 export declare const weeklyNotifications: functions.CloudFunction<unknown>;
 export declare const councilNotifications: functions.CloudFunction<unknown>;
+export declare const syncOnMembersWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnAnnotationsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnMinisteringWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnMinisteringDistrictsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnActivitiesWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnServicesWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnMissionaryAssignmentsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnInvestigatorsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnNewConvertFriendsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnHealthConcernsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnBirthdaysWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnBaptismsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnFsTrainingsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnFsAnnotationsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnConvertsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnFutureMembersWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnUsersWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+/** Callable: re-broadcast a sync signal (rare; header refresh is the client fallback). */
+export declare const requestDataSyncSignal: functions.HttpsFunction & functions.Runnable<any>;
 //# sourceMappingURL=index.d.ts.map

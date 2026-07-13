@@ -3,15 +3,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Member, MemberStatus } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { useToast } from '@/hooks/use-toast';
+import { mergeMembersCache } from '@/lib/members-cache-merge';
 
 interface UseMembersLocalReturn {
   members: Member[];
   loading: boolean;
   syncStatus: 'idle' | 'syncing' | 'error';
   lastSyncTime: Date | null;
-  /** Fuerza sincronización desde el servidor (ignora TTL local) */
-  syncFromServer: () => Promise<void>;
+  /**
+   * Sincroniza con el servidor (manual / primera carga sin cache).
+   * Solo reescribe el cache local si hay cambios reales respecto a lo guardado.
+   * Returns whether the local cache was updated.
+   */
+  syncFromServer: () => Promise<boolean>;
   /** Agrega un miembro al cache local (ya debe estar creado en Firestore) */
   addToLocal: (member: Member) => void;
   /** Actualiza un miembro en el cache local (ya debe estar actualizado en Firestore) */
@@ -22,9 +26,7 @@ interface UseMembersLocalReturn {
   clearLocalCache: () => void;
 }
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hora
-
-function getCacheKeys(barrioOrg: string) {
+export function getMembersLocalCacheKeys(barrioOrg: string) {
   return {
     data: `qf_members_local_${barrioOrg}`,
     ts: `qf_members_local_ts_${barrioOrg}`,
@@ -40,9 +42,58 @@ function normalizeStatus(status?: unknown): MemberStatus {
   return 'active';
 }
 
+export function normalizeMembersList(raw: Member[]): Member[] {
+  return raw.map((m) => ({ ...m, status: normalizeStatus(m.status) }));
+}
+
+/** Persist members list for the members page local-first cache */
+export function saveMembersLocalCache(barrioOrg: string, list: Member[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    const keys = getMembersLocalCacheKeys(barrioOrg);
+    localStorage.setItem(keys.data, JSON.stringify(list));
+    localStorage.setItem(keys.ts, String(Date.now()));
+  } catch {
+    // quota / private mode — ignore
+  }
+}
+
+/**
+ * Apply server members onto the page-local cache with a merge:
+ * only rewrite localStorage when something actually changed.
+ * Returns the merged list and whether the cache was written.
+ */
+export function applyServerMembersToLocalCache(
+  barrioOrg: string,
+  serverList: Member[]
+): { list: Member[]; hasChanges: boolean } {
+  if (typeof window === 'undefined') {
+    return { list: serverList, hasChanges: true };
+  }
+
+  let cached: Member[] = [];
+  try {
+    const keys = getMembersLocalCacheKeys(barrioOrg);
+    const dataRaw = localStorage.getItem(keys.data);
+    if (dataRaw) {
+      cached = normalizeMembersList(JSON.parse(dataRaw) as Member[]);
+    }
+  } catch {
+    cached = [];
+  }
+
+  const merged = mergeMembersCache(cached, serverList);
+  if (merged.hasChanges) {
+    // Only rewrite the parts that changed: persist the full merged list
+    // (unchanged members kept; new/updated/removed reflected).
+    saveMembersLocalCache(barrioOrg, merged.list);
+  }
+  // If nothing new: leave cache keys and timestamp untouched
+  return { list: merged.list, hasChanges: merged.hasChanges };
+}
+
 export function useMembersLocal(): UseMembersLocalReturn {
   const { user, loading: authLoading, barrioOrg } = useAuth();
-  const { toast } = useToast();
 
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,14 +107,14 @@ export function useMembersLocal(): UseMembersLocalReturn {
   const loadFromLocal = useCallback((): { members: Member[]; ts: number } | null => {
     if (!barrioOrg || typeof window === 'undefined') return null;
     try {
-      const keys = getCacheKeys(barrioOrg);
+      const keys = getMembersLocalCacheKeys(barrioOrg);
       const tsRaw = localStorage.getItem(keys.ts);
       const dataRaw = localStorage.getItem(keys.data);
       if (!tsRaw || !dataRaw) return null;
       const ts = Number(tsRaw);
       if (Number.isNaN(ts)) return null;
       const list = JSON.parse(dataRaw) as Member[];
-      return { members: list.map((m) => ({ ...m, status: normalizeStatus(m.status) })), ts };
+      return { members: normalizeMembersList(list), ts };
     } catch {
       return null;
     }
@@ -72,43 +123,51 @@ export function useMembersLocal(): UseMembersLocalReturn {
   /** Guarda miembros en localStorage */
   const saveToLocal = useCallback(
     (list: Member[]) => {
-      if (!barrioOrg || typeof window === 'undefined') return;
-      try {
-        const keys = getCacheKeys(barrioOrg);
-        localStorage.setItem(keys.data, JSON.stringify(list));
-        localStorage.setItem(keys.ts, String(Date.now()));
-      } catch {
-        // quota / private mode — ignore
-      }
+      if (!barrioOrg) return;
+      saveMembersLocalCache(barrioOrg, list);
     },
     [barrioOrg]
   );
 
-  /** Sincroniza desde el servidor */
-  const syncFromServer = useCallback(async () => {
-    if (!user || !barrioOrg || inFlight.current) return;
+  /**
+   * Sincroniza desde el servidor (manual o primera carga sin cache).
+   * Compara con el cache: solo reescribe localStorage y el estado si hay cambios.
+   */
+  const syncFromServer = useCallback(async (): Promise<boolean> => {
+    if (!user || !barrioOrg || inFlight.current) return false;
     inFlight.current = true;
     setSyncStatus('syncing');
     try {
-      const url = `/api/members?barrioOrg=${encodeURIComponent(barrioOrg)}`;
-      const response = await fetch(url, { cache: 'no-store' });
+      const url = `/api/members?barrioOrg=${encodeURIComponent(barrioOrg)}&t=${Date.now()}`;
+      const response = await fetch(url, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const raw = (await response.json()) as Member[];
-      const list = raw.map((m: Member) => ({ ...m, status: normalizeStatus(m.status) }));
-      setMembers(list);
-      setLastSyncTime(new Date());
-      saveToLocal(list);
+      const serverList = normalizeMembersList(raw);
+
+      const { list, hasChanges } = applyServerMembersToLocalCache(barrioOrg, serverList);
+
+      if (hasChanges) {
+        setMembers(list);
+        setLastSyncTime(new Date());
+      }
+      // Sin cambios: se conserva el cache y el lastSyncTime previo
       setSyncStatus('idle');
+      return hasChanges;
     } catch (error) {
       console.error('[useMembersLocal] syncFromServer error', error);
       setSyncStatus('error');
-      // Mantener datos locales si falla
+      // Mantener datos locales si falla — no borrar cache
+      return false;
     } finally {
       inFlight.current = false;
     }
-  }, [user, barrioOrg, saveToLocal]);
+  }, [user, barrioOrg]);
 
-  // Carga inicial: siempre de localStorage primero, sincroniza si TTL expiró
+  // Carga inicial: localStorage primero. Solo va al servidor si NO hay cache.
+  // No hay auto-refresh por TTL: el usuario debe usar el icono de actualizar.
   useEffect(() => {
     if (authLoading || initialLoadDone.current) return;
     if (!user || !barrioOrg) {
@@ -120,24 +179,21 @@ export function useMembersLocal(): UseMembersLocalReturn {
 
     initialLoadDone.current = true;
 
-    // 1. Cargar de localStorage inmediatamente
     const cached = loadFromLocal();
     if (cached) {
       setMembers(cached.members);
       setLastSyncTime(new Date(cached.ts));
       setLoading(false);
-
-      const age = Date.now() - cached.ts;
-      // 2. Si el cache expiró (>1 hora), sincronizar en background
-      if (age > CACHE_TTL_MS) {
-        syncFromServer().catch(() => {});
-      }
-    } else {
-      // Sin cache local: ir al servidor
-      setLoading(true);
-      syncFromServer().finally(() => setLoading(false));
+      return;
     }
+
+    setLoading(true);
+    syncFromServer().finally(() => setLoading(false));
   }, [authLoading, user, barrioOrg, loadFromLocal, syncFromServer]);
+
+  // Tras un refresh manual del header, MembersProvider actualiza el cache local
+  // y main remonta esta página (refreshGeneration), por lo que se relee localStorage.
+  // No hay auto-sync por TTL: el usuario debe pulsar el icono de actualizar.
 
   const addToLocal = useCallback(
     (member: Member) => {
@@ -180,7 +236,7 @@ export function useMembersLocal(): UseMembersLocalReturn {
 
   const clearLocalCache = useCallback(() => {
     if (!barrioOrg || typeof window === 'undefined') return;
-    const keys = getCacheKeys(barrioOrg);
+    const keys = getMembersLocalCacheKeys(barrioOrg);
     localStorage.removeItem(keys.data);
     localStorage.removeItem(keys.ts);
   }, [barrioOrg]);

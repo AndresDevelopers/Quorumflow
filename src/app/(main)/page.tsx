@@ -31,13 +31,12 @@ import type { Annotation, Member, TempleOrdinance } from "@/lib/types";
 import { TempleOrdinanceLabels } from "@/lib/types";
 import {
   doc,
-  getDocs,
   query,
   updateDoc,
   where,
   deleteDoc,
-  Timestamp,
-} from 'firebase/firestore';
+  Timestamp} from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import { annotationsCollection, membersCollection } from "@/lib/collections";
 import logger from "@/lib/logger";
 import { useAuth } from "@/contexts/auth-context";

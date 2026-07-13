@@ -3,8 +3,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { getDocs, Timestamp } from 'firebase/firestore';
-import { membersCollection } from '@/lib/collections';
 import type { Member } from '@/lib/types';
 import {
   Card,

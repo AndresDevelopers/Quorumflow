@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useEffect, useTransition, useRef, useCallback } from 'react';
-import { getDocs, query, orderBy, addDoc, serverTimestamp, deleteDoc, updateDoc, doc } from 'firebase/firestore';
+import { query, orderBy, addDoc, serverTimestamp, deleteDoc, updateDoc, doc } from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import {
   familySearchTrainingsCollection,
   familySearchTasksCollection,

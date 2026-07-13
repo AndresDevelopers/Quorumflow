@@ -1,10 +1,10 @@
-
 "use client";
 
 import { type ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Heart, LogOut, Settings } from "lucide-react";
+import { Heart, LogOut, Settings, RefreshCw, Shield, CheckCircle } from "lucide-react";
+import { format } from "date-fns";
 import {
   Sidebar,
   SidebarContent,
@@ -28,10 +28,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import Image from "next/image";
 import { useI18n } from "@/contexts/i18n-context";
 import { useAuth } from "@/contexts/auth-context";
+import { useRefresh } from "@/contexts/refresh-context";
 import { auth } from "@/lib/firebase";
 import OfflineIndicator from "@/components/offline-indicator";
 import { PushForegroundListener } from "@/components/push-foreground-listener";
@@ -43,8 +50,9 @@ import { NotificationBell } from "./notification-bell";
 import { ChangelogDialog } from "./changelog-dialog";
 import { InstallPrompt } from "@/components/install-prompt";
 import { PushOnboardingGuide } from "@/components/push-onboarding-guide";
+import { OfflineSyncBootstrap } from "@/components/offline-sync-bootstrap";
+import { DataSyncListener } from "@/components/data-sync-listener";
 import { navigationItems } from "@/lib/navigation";
-import { Shield } from "lucide-react";
 import { isAdmin } from "@/lib/roles";
 import { getAppName, getAppLogo } from "@/lib/app-config";
 
@@ -155,11 +163,77 @@ function UserNav() {
   );
 }
 
+function RefreshControls() {
+  const { t } = useI18n();
+  const { isRefreshing, requestRefresh, lastSyncTime } = useRefresh();
+  const label =
+    t("mainLayout.refreshTooltip") ||
+    "Actualizar datos (respaldo si falla la sincronización automática)";
+
+  const timeLabel = lastSyncTime ? format(lastSyncTime, "HH:mm") : null;
+  const updatedLabel =
+    lastSyncTime &&
+    (t("syncStatus.updated", { time: timeLabel! }) || `Actualizado ${timeLabel}`);
+
+  return (
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      {isRefreshing ? (
+        <span className="inline-flex items-center gap-1 text-xs text-blue-600">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          <span className="hidden sm:inline">
+            {t("syncStatus.syncing") || "Sincronizando…"}
+          </span>
+        </span>
+      ) : lastSyncTime ? (
+        <span
+          className="inline-flex max-w-[9.5rem] items-center gap-1 truncate text-xs text-green-600 sm:max-w-none"
+          title={format(lastSyncTime, "dd/MM/yyyy HH:mm:ss")}
+        >
+          <CheckCircle className="h-3 w-3 shrink-0" />
+          <span className="sm:hidden">{timeLabel}</span>
+          <span className="hidden sm:inline">{updatedLabel}</span>
+        </span>
+      ) : null}
+
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                void requestRefresh();
+              }}
+              disabled={isRefreshing}
+              aria-label={label}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>
+              {label}
+              {lastSyncTime
+                ? ` · ${t("syncStatus.updated", { time: format(lastSyncTime, "HH:mm") }) || format(lastSyncTime, "HH:mm")}`
+                : ""}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
+}
+
 export function MainLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const { setOpenMobile } = useSidebar();
   const { userRole, visiblePages } = useAuth();
+  const { refreshGeneration } = useRefresh();
   const [version, setVersion] = useState("");
   const showAdminLink = isAdmin(userRole);
 
@@ -264,17 +338,23 @@ export function MainLayout({ children }: { children: ReactNode }) {
         >
           <SidebarTrigger />
           <div className="ml-auto flex items-center gap-2">
+            <RefreshControls />
             <NotificationBell />
             <UserNav />
           </div>
         </header>
-        <main className="page-shell">{children}</main>
+        {/* refreshGeneration remounts the page so client data loaders re-run after manual refresh */}
+        <main className="page-shell" key={refreshGeneration}>
+          {children}
+        </main>
         <ErrorBoundary>
           <OfflineIndicator />
         </ErrorBoundary>
         <PushForegroundListener />
         <ServiceWorkerRegistration />
         <PushOnboardingGuide />
+        <OfflineSyncBootstrap />
+        <DataSyncListener />
       </SidebarInset>
     </>
   );

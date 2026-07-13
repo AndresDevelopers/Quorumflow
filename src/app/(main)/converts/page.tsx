@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  getDocs,
   getDocsFromServer,
   query,
   orderBy,
@@ -18,8 +17,8 @@ import {
   setDoc,
   addDoc,
   updateDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
+  serverTimestamp} from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import { membersCollection, ministeringCollection, newConvertFriendsCollection } from '@/lib/collections';
 import type { Member, NewConvertFriendship, Companionship } from '@/lib/types';
 import { normalizeMemberStatus, getMembersForSelector } from '@/lib/members-data';

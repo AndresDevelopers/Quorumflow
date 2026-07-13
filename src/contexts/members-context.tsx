@@ -13,20 +13,28 @@ import {
 import type { Member, MemberStatus } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { getAppStoragePrefix } from '@/lib/app-config';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
+import { saveMembersLocalCache } from '@/hooks/use-members-local';
+import { mergeMembersCache } from '@/lib/members-cache-merge';
+import { isBrowserOnline } from '@/lib/network';
 
 interface MembersContextValue {
   members: Member[];
   loading: boolean;
   lastSyncTime: Date | null;
-  /** Refresh members from API. forceRefresh bypasses local TTL. */
-  refreshMembers: (forceRefresh?: boolean) => Promise<void>;
+  /**
+   * Refresh members from API.
+   * forceRefresh hits the network; without force uses local cache only.
+   * On network load, cache is merged (only changed members rewritten).
+   * Returns whether the in-memory/cache data actually changed.
+   */
+  refreshMembers: (forceRefresh?: boolean) => Promise<boolean>;
   clearCache: () => void;
   getByStatus: (status: MemberStatus) => Member[];
 }
 
 const MembersContext = createContext<MembersContextValue | undefined>(undefined);
 
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const prefix = typeof window !== 'undefined' ? getAppStoragePrefix() : 'sionflow';
 
 function cacheKeys(barrioOrg: string) {
@@ -45,12 +53,21 @@ function normalizeStatus(status?: unknown): MemberStatus {
   return 'active';
 }
 
+function normalizeList(raw: Member[]): Member[] {
+  return raw.map((m) => ({
+    ...m,
+    status: normalizeStatus(m.status),
+  }));
+}
+
 export function MembersProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading, barrioOrg } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const inFlight = useRef(false);
+  const membersRef = useRef<Member[]>([]);
+  membersRef.current = members;
 
   const clearCache = useCallback(() => {
     if (!barrioOrg || typeof window === 'undefined') return;
@@ -59,16 +76,17 @@ export function MembersProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(keys.ts);
   }, [barrioOrg]);
 
-  const loadFromLocalCache = useCallback((): Member[] | null => {
+  /** Load any cached list (no TTL — stale is fine until the user presses refresh). */
+  const loadFromLocalCache = useCallback((): { list: Member[]; ts: number } | null => {
     if (!barrioOrg || typeof window === 'undefined') return null;
     try {
       const keys = cacheKeys(barrioOrg);
       const tsRaw = localStorage.getItem(keys.ts);
       const dataRaw = localStorage.getItem(keys.data);
-      if (!tsRaw || !dataRaw) return null;
-      const age = Date.now() - Number(tsRaw);
-      if (Number.isNaN(age) || age > CACHE_TTL_MS) return null;
-      return JSON.parse(dataRaw) as Member[];
+      if (!dataRaw) return null;
+      const ts = tsRaw ? Number(tsRaw) : Date.now();
+      if (Number.isNaN(ts)) return null;
+      return { list: normalizeList(JSON.parse(dataRaw) as Member[]), ts };
     } catch {
       return null;
     }
@@ -89,44 +107,72 @@ export function MembersProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshMembers = useCallback(
-    async (forceRefresh = false) => {
-      if (authLoading || !user || !barrioOrg) return;
-      if (inFlight.current && !forceRefresh) return;
+    async (forceRefresh = false): Promise<boolean> => {
+      if (authLoading || !user || !barrioOrg) return false;
+      if (inFlight.current && !forceRefresh) return false;
 
-      if (!forceRefresh) {
+      // Without force, or offline: prefer any local cache (app usable without internet)
+      if (!forceRefresh || !isBrowserOnline()) {
         const cached = loadFromLocalCache();
         if (cached) {
-          setMembers(cached);
-          setLastSyncTime(new Date());
+          setMembers(cached.list);
+          setLastSyncTime(new Date(cached.ts));
           setLoading(false);
-          return;
+          // Offline force refresh: keep cache only, skip network
+          if (!isBrowserOnline()) return false;
+          if (!forceRefresh) return false;
+        } else if (!isBrowserOnline()) {
+          setLoading(false);
+          return false;
         }
       }
 
       inFlight.current = true;
-      setLoading(true);
+      // Only show full loading skeleton when we have nothing to display yet
+      if (membersRef.current.length === 0) {
+        setLoading(true);
+      }
       try {
-        const url = `/api/members?barrioOrg=${encodeURIComponent(barrioOrg)}`;
+        const cacheBuster = forceRefresh ? `&t=${Date.now()}` : '';
+        const url = `/api/members?barrioOrg=${encodeURIComponent(barrioOrg)}${cacheBuster}`;
         const response = await fetch(url, {
           cache: forceRefresh ? 'no-store' : 'default',
+          headers: forceRefresh ? { 'Cache-Control': 'no-cache' } : undefined,
         });
         if (!response.ok) {
           throw new Error(`Failed to fetch members: ${response.status}`);
         }
         const raw = (await response.json()) as Member[];
-        const list = raw.map((m) => ({
-          ...m,
-          status: normalizeStatus(m.status),
-        }));
-        setMembers(list);
-        setLastSyncTime(new Date());
-        saveToLocalCache(list);
+        const serverList = normalizeList(raw);
+
+        // Merge against current in-memory list (or localStorage if empty)
+        const previous =
+          membersRef.current.length > 0
+            ? membersRef.current
+            : loadFromLocalCache()?.list ?? [];
+
+        const merged = mergeMembersCache(previous, serverList);
+
+        if (merged.hasChanges) {
+          setMembers(merged.list);
+          setLastSyncTime(new Date());
+          // Only rewrite caches when something actually changed
+          // (unchanged members kept; new/updated/removed applied — never a blind wipe)
+          saveToLocalCache(merged.list);
+          saveMembersLocalCache(barrioOrg, merged.list);
+        }
+        // If nothing new: keep previous members + cache intact (no wipe, no rewrite)
+
+        return merged.hasChanges;
       } catch (error) {
         console.error('[MembersProvider] fetch failed', error);
+        // On error keep whatever we already have — never clear cache
         const cached = loadFromLocalCache();
-        if (cached) {
-          setMembers(cached);
+        if (cached && membersRef.current.length === 0) {
+          setMembers(cached.list);
+          setLastSyncTime(new Date(cached.ts));
         }
+        return false;
       } finally {
         inFlight.current = false;
         setLoading(false);
@@ -135,7 +181,8 @@ export function MembersProvider({ children }: { children: ReactNode }) {
     [authLoading, user, barrioOrg, loadFromLocalCache, saveToLocalCache]
   );
 
-  // Prefetch once per barrioOrg session (queueMicrotask avoids sync setState-in-effect lint)
+  // Initial load once per barrioOrg: cache first, network only if empty.
+  // No polling / TTL auto-refresh — user must press the header refresh icon.
   useEffect(() => {
     if (authLoading) return;
     if (!user || !barrioOrg) {
@@ -149,6 +196,13 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       void refreshMembers(false);
     });
   }, [authLoading, user, barrioOrg, refreshMembers]);
+
+  // Manual refresh from header icon — merge only what is new into cache
+  const forceRefresh = useCallback(async () => {
+    return refreshMembers(true);
+  }, [refreshMembers]);
+
+  useOnManualRefresh(forceRefresh);
 
   const getByStatus = useCallback(
     (status: MemberStatus) => members.filter((m) => m.status === status),

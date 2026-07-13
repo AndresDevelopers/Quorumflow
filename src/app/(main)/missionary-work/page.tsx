@@ -67,7 +67,8 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { getDocs, query, orderBy, where, Timestamp } from 'firebase/firestore';
+import { query, orderBy, where, Timestamp } from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import {
   Accordion,
   AccordionContent,

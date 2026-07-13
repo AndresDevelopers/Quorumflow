@@ -3,8 +3,6 @@
 import {
   collection,
   doc,
-  getDocs,
-  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -14,10 +12,11 @@ import {
   orderBy,
   Timestamp,
   QueryConstraint,
-  getFirestore,
-} from 'firebase/firestore';
+  getFirestore} from 'firebase/firestore';
+import { getDocs, getDoc } from '@/lib/firestore-query';
 import { initializeApp, getApps } from 'firebase/app';
-import { ref, uploadBytes, getDownloadURL, deleteObject, getStorage } from 'firebase/storage';
+import { ref, deleteObject, getStorage } from 'firebase/storage';
+import { uploadBytesOfflineAware } from '@/lib/storage-offline-queue';
 import { firebaseConfig } from '@/firebaseConfig';
 import type { Member, MemberStatus, Ordinance, TempleOrdinance } from './types';
 import { compressProfileImage, compressGalleryImage } from './image-compression';
@@ -672,20 +671,22 @@ function assertValidImageFile(file: File): void {
   }
 }
 
-// Upload member photo to storage (compressed client-side)
+// Upload member photo to storage (compressed client-side).
+// Offline: queues in IndexedDB via Firebase-aware helper and returns a local preview URL.
 export async function uploadMemberPhoto(file: File, userId: string): Promise<string> {
   try {
     assertValidImageFile(file);
-    const storage = getStorageInstance();
+    getStorageInstance(); // ensure storage ready when online
     const optimized = await compressProfileImage(file);
 
     const timestamp = new Date().getTime();
     const safeName = optimized.name.replace(/[^\w.\-]+/g, '_');
     const fileName = `members/${userId}/${timestamp}_${safeName}`;
 
-    const storageRef = ref(storage, fileName);
-    const snapshot = await uploadBytes(storageRef, optimized, { contentType: optimized.type });
-    return await getDownloadURL(snapshot.ref);
+    const result = await uploadBytesOfflineAware(fileName, optimized, {
+      contentType: optimized.type,
+    });
+    return result.url;
   } catch (error) {
     console.error('Error uploading member photo:', error);
 
@@ -716,9 +717,10 @@ export async function uploadBaptismPhotos(files: File[], userId: string): Promis
       const safeName = optimized.name.replace(/[^\w.\-]+/g, '_');
       const fileName = `baptism_photos/${userId}/${timestamp}_${index}_${safeName}`;
 
-      const storageRef = ref(storage, fileName);
-      const snapshot = await uploadBytes(storageRef, optimized, { contentType: optimized.type });
-      return getDownloadURL(snapshot.ref);
+      const result = await uploadBytesOfflineAware(fileName, optimized, {
+        contentType: optimized.type,
+      });
+      return result.url;
     });
 
     return await Promise.all(uploadPromises);

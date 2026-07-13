@@ -8,6 +8,10 @@ import Docxtemplater from "docxtemplater";
 import ModernImageModule from "./modules/modern-image-module";
 import axios from "axios";
 import { NotificationDispatcher } from "./modules/notification-dispatcher";
+import {
+  createCollectionSyncHandler,
+  publishSyncSignal,
+} from "./modules/data-sync-publisher";
 import * as webp from "webp-wasm";
 import { PNG } from "pngjs";
 
@@ -798,7 +802,7 @@ async function buildAnnualReport(
     const snapshotResults = await Promise.all([...baptismQueries, answersDoc]);
     const reportAnswersDoc = snapshotResults.pop() as admin.firestore.DocumentSnapshot;
     const [baptismsSnapshot, futureMembersSnapshot, convertsSnapshot, membersSnapshot] =
-        snapshotResults as [
+        snapshotResults as unknown as [
             admin.firestore.QuerySnapshot,
             admin.firestore.QuerySnapshot,
             admin.firestore.QuerySnapshot,
@@ -2527,3 +2531,74 @@ export const councilNotifications = functions.pubsub
         functions.logger.log("councilNotifications: done.");
         return null;
     });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data sync: DB write → Cloud Function → c_sync_signals (+ silent FCM)
+// Clients auto-refresh. Manual refresh button = fallback only.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const makeDataSyncFn = (collectionName: string, docPath: string) =>
+    functions.firestore
+        .document(docPath)
+        .onWrite(createCollectionSyncHandler(firestore, messaging, functions.logger, collectionName));
+
+export const syncOnMembersWrite = makeDataSyncFn("c_miembros", "c_miembros/{docId}");
+export const syncOnAnnotationsWrite = makeDataSyncFn("c_anotaciones", "c_anotaciones/{docId}");
+export const syncOnMinisteringWrite = makeDataSyncFn("c_ministracion", "c_ministracion/{docId}");
+export const syncOnMinisteringDistrictsWrite = makeDataSyncFn(
+    "c_ministracion_distritos",
+    "c_ministracion_distritos/{docId}"
+);
+export const syncOnActivitiesWrite = makeDataSyncFn("c_actividades", "c_actividades/{docId}");
+export const syncOnServicesWrite = makeDataSyncFn("c_servicios", "c_servicios/{docId}");
+export const syncOnMissionaryAssignmentsWrite = makeDataSyncFn(
+    "c_obra_misional_asignaciones",
+    "c_obra_misional_asignaciones/{docId}"
+);
+export const syncOnInvestigatorsWrite = makeDataSyncFn(
+    "c_obra_misional_investigadores",
+    "c_obra_misional_investigadores/{docId}"
+);
+export const syncOnNewConvertFriendsWrite = makeDataSyncFn(
+    "c_obra_misional_amigos_conversos",
+    "c_obra_misional_amigos_conversos/{docId}"
+);
+export const syncOnHealthConcernsWrite = makeDataSyncFn(
+    "c_observaciones_salud",
+    "c_observaciones_salud/{docId}"
+);
+export const syncOnBirthdaysWrite = makeDataSyncFn("c_cumpleanos", "c_cumpleanos/{docId}");
+export const syncOnBaptismsWrite = makeDataSyncFn("c_bautismos", "c_bautismos/{docId}");
+export const syncOnFsTrainingsWrite = makeDataSyncFn(
+    "c_fs_capacitaciones",
+    "c_fs_capacitaciones/{docId}"
+);
+export const syncOnFsAnnotationsWrite = makeDataSyncFn(
+    "c_fs_anotaciones",
+    "c_fs_anotaciones/{docId}"
+);
+export const syncOnConvertsWrite = makeDataSyncFn("c_conversos", "c_conversos/{docId}");
+export const syncOnFutureMembersWrite = makeDataSyncFn(
+    "c_futuros_miembros",
+    "c_futuros_miembros/{docId}"
+);
+export const syncOnUsersWrite = makeDataSyncFn("c_users", "c_users/{docId}");
+
+/** Callable: re-broadcast a sync signal (rare; header refresh is the client fallback). */
+export const requestDataSyncSignal = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Auth required");
+    }
+    const barrioOrg = typeof data?.barrioOrg === "string" ? data.barrioOrg.trim() : "";
+    if (!barrioOrg) {
+        throw new functions.https.HttpsError("invalid-argument", "barrioOrg required");
+    }
+    await publishSyncSignal(firestore, messaging, functions.logger, {
+        barrioOrg,
+        collection: typeof data?.collection === "string" ? data.collection : "manual",
+        docId: typeof data?.docId === "string" ? data.docId : "manual",
+        changeType: "write",
+        notifyDevices: true,
+    });
+    return { ok: true };
+});

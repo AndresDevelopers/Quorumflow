@@ -7,10 +7,10 @@ import { usersCollection } from "@/lib/collections";
 import {
   deleteDoc,
   doc,
-  getDocs,
   updateDoc,
   Timestamp,
 } from "firebase/firestore";
+import { getDocs } from "@/lib/firestore-query";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/contexts/i18n-context";
 import logger from "@/lib/logger";
@@ -20,6 +20,7 @@ import {
   normalizeRole,
   normalizePermission,
   getDefaultPermission,
+  resolvePermissionForRoleChange,
   type UserRole,
   type UserPermission,
   PERMISSION_META,
@@ -191,19 +192,25 @@ export default function AdminUsersPage() {
     setIsSaving(userId);
     try {
       const normalized = normalizeRole(newRole);
-      const defaultPerm = getDefaultPermission(normalized);
-      const defaultPages = getDefaultVisiblePages(normalized);
       const target = users.find((u) => u.uid === userId);
+      const previousRole = target?.role ?? "user";
+      // Preserve custom Lectura/Todo when moving between leadership roles
+      const nextPermission = resolvePermissionForRoleChange(
+        previousRole,
+        normalized,
+        target?.permission
+      );
+      const defaultPages = getDefaultVisiblePages(normalized);
       await updateDoc(doc(usersCollection, userId), {
         role: normalized,
-        permission: defaultPerm,
+        permission: nextPermission,
         visiblePages: defaultPages,
         updatedAt: Timestamp.now(),
       });
       setUsers((prev) =>
         prev.map((u) =>
           u.uid === userId
-            ? { ...u, role: normalized, permission: defaultPerm, visiblePages: defaultPages }
+            ? { ...u, role: normalized, permission: nextPermission, visiblePages: defaultPages }
             : u
         )
       );
@@ -214,7 +221,11 @@ export default function AdminUsersPage() {
           actorName: firebaseUser.displayName || undefined,
           targetId: userId,
           targetName: target?.name,
-          details: { newRole: normalized, previousRole: target?.role },
+          details: {
+            newRole: normalized,
+            previousRole,
+            permission: nextPermission,
+          },
           barrioOrg,
         });
       }
@@ -238,12 +249,14 @@ export default function AdminUsersPage() {
     setIsSaving(userId);
     try {
       const target = users.find((u) => u.uid === userId);
+      // Always persist the canonical value (read | all)
+      const permission = normalizePermission(newPermission);
       await updateDoc(doc(usersCollection, userId), {
-        permission: newPermission,
+        permission,
         updatedAt: Timestamp.now(),
       });
       setUsers((prev) =>
-        prev.map((u) => (u.uid === userId ? { ...u, permission: newPermission } : u))
+        prev.map((u) => (u.uid === userId ? { ...u, permission } : u))
       );
       if (firebaseUser) {
         await logAdminAction({
@@ -252,13 +265,13 @@ export default function AdminUsersPage() {
           actorName: firebaseUser.displayName || undefined,
           targetId: userId,
           targetName: target?.name,
-          details: { newPermission, previousPermission: target?.permission },
+          details: { newPermission: permission, previousPermission: target?.permission },
           barrioOrg,
         });
       }
       toast({
         title: t("admin.users.toast.permissionUpdated"),
-        description: t("admin.users.toast.permissionUpdatedDesc", { permission: t(`permission.${newPermission}`) }),
+        description: t("admin.users.toast.permissionUpdatedDesc", { permission: t(`permission.${permission}`) }),
       });
     } catch (err) {
       logger.error({ error: err, message: "Error updating permission", userId });
@@ -349,22 +362,37 @@ export default function AdminUsersPage() {
     if (!bulkRole || selectedUids.size === 0) return;
     setIsBulkSaving(true);
     try {
-      const defaultPerm = getDefaultPermission(bulkRole);
       const defaultPages = getDefaultVisiblePages(bulkRole);
-      const promises = Array.from(selectedUids).map((uid) =>
-        updateDoc(doc(usersCollection, uid), {
-          role: bulkRole,
-          permission: defaultPerm,
-          visiblePages: defaultPages,
-          updatedAt: Timestamp.now(),
-        })
-      );
-      await Promise.all(promises);
       const targetUids = Array.from(selectedUids);
+      const updates = targetUids.map((uid) => {
+        const target = users.find((u) => u.uid === uid);
+        const nextPermission = resolvePermissionForRoleChange(
+          target?.role ?? "user",
+          bulkRole,
+          target?.permission
+        );
+        return {
+          uid,
+          nextPermission,
+          promise: updateDoc(doc(usersCollection, uid), {
+            role: bulkRole,
+            permission: nextPermission,
+            visiblePages: defaultPages,
+            updatedAt: Timestamp.now(),
+          }),
+        };
+      });
+      await Promise.all(updates.map((u) => u.promise));
+      const permissionByUid = new Map(updates.map((u) => [u.uid, u.nextPermission]));
       setUsers((prev) =>
         prev.map((u) =>
           selectedUids.has(u.uid)
-            ? { ...u, role: bulkRole, permission: defaultPerm, visiblePages: defaultPages }
+            ? {
+                ...u,
+                role: bulkRole,
+                permission: permissionByUid.get(u.uid) ?? getDefaultPermission(bulkRole),
+                visiblePages: defaultPages,
+              }
             : u
         )
       );
@@ -400,30 +428,49 @@ export default function AdminUsersPage() {
     if (!bulkPermission || selectedUids.size === 0) return;
     setIsBulkSaving(true);
     try {
-      const promises = Array.from(selectedUids).map((uid) =>
+      const permission = normalizePermission(bulkPermission);
+      // Role "user" is locked to read in the individual selector; keep bulk consistent
+      const eligibleUids = Array.from(selectedUids).filter((uid) => {
+        const target = users.find((u) => u.uid === uid);
+        return target && target.role !== "user";
+      });
+      if (eligibleUids.length === 0) {
+        toast({
+          title: t("common.error"),
+          description: t("admin.users.toast.errorBulkPermission"),
+          variant: "destructive",
+        });
+        return;
+      }
+      const promises = eligibleUids.map((uid) =>
         updateDoc(doc(usersCollection, uid), {
-          permission: bulkPermission,
+          permission,
           updatedAt: Timestamp.now(),
         })
       );
       await Promise.all(promises);
+      const eligibleSet = new Set(eligibleUids);
       setUsers((prev) =>
-        prev.map((u) => (selectedUids.has(u.uid) ? { ...u, permission: bulkPermission } : u))
+        prev.map((u) => (eligibleSet.has(u.uid) ? { ...u, permission } : u))
       );
       if (firebaseUser) {
         await logAdminAction({
           action: "user.bulk_permission_changed",
           actorUid: firebaseUser.uid,
           actorName: firebaseUser.displayName || undefined,
-          targetId: Array.from(selectedUids).join(","),
-          details: { newPermission: bulkPermission, count: selectedUids.size },
+          targetId: eligibleUids.join(","),
+          details: { newPermission: permission, count: eligibleUids.length },
           barrioOrg,
         });
       }
       toast({
         title: t("admin.users.toast.permissionsUpdated"),
-        description: t("admin.users.toast.permissionsUpdatedDesc", { count: selectedUids.size, permission: t(`permission.${bulkPermission}`) }),
+        description: t("admin.users.toast.permissionsUpdatedDesc", {
+          count: eligibleUids.length,
+          permission: t(`permission.${permission}`),
+        }),
       });
+      setSelectedUids(new Set());
       setBulkPermission("");
     } catch (err) {
       logger.error({ error: err, message: "Error bulk updating permissions" });

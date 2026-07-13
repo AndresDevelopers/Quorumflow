@@ -18,8 +18,14 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/c_users/$(request.auth.uid)).data.barrioOrg;
     }
 
+    // Accept canonical 'all' and legacy Spanish aliases stored in older docs
     function canWrite() {
-      return signedIn() && currentUserPermission() == 'all';
+      let perm = currentUserPermission();
+      return signedIn() && (perm == 'all' || perm == 'todo' || perm == 'todos');
+    }
+
+    function isOwnUserId(userId) {
+      return signedIn() && userId != null && userId == request.auth.uid;
     }
 
     function isSecretary() {
@@ -221,26 +227,37 @@ service cloud.firestore {
       allow delete: if canDeleteInBarrio();
     }
 
+    // Sync signals written by Cloud Functions (Admin SDK). Clients read-only for own barrio.
+    match /c_sync_signals/{document} {
+      allow read: if signedIn() && resource.data.barrioOrg == currentUserBarrioOrg();
+      allow write: if false;
+    }
+
     match /c_notifications/{document} {
-      allow read: if isSameBarrio(resource.data.barrioOrg);
-      allow create: if canCreateInBarrio();
-      allow update: if canUpdateInBarrio();
-      allow delete: if canDeleteInBarrio();
+      // Own notifications (any permission) or same-barrio operational access
+      allow read: if isOwnUserId(resource.data.userId)
+        || isSameBarrio(resource.data.barrioOrg);
+      allow create: if canCreateInBarrio()
+        || (isOwnUserId(request.resource.data.userId)
+          && isSameBarrio(request.resource.data.barrioOrg));
+      // Read-only users must still be able to mark their own notifications as read
+      allow update: if canUpdateInBarrio()
+        || (
+          isOwnUserId(resource.data.userId)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['isRead'])
+        );
+      allow delete: if canDeleteInBarrio()
+        || isOwnUserId(resource.data.userId);
     }
 
     // ── User-scoped collections ──
 
+    // Personal push tokens — independent of Lectura/Todo data permissions
     match /c_push_subscriptions/{document} {
-      allow read: if signedIn()
-        && resource.data.userId != null
-        && resource.data.userId == request.auth.uid;
-      allow create, update: if canWrite()
-        && request.resource.data.userId != null
-        && request.resource.data.userId == request.auth.uid;
-      // delete no tiene request.resource; validar owner del documento existente
-      allow delete: if canWrite()
-        && resource.data.userId != null
-        && resource.data.userId == request.auth.uid;
+      allow read: if isOwnUserId(resource.data.userId);
+      allow create, update: if isOwnUserId(request.resource.data.userId);
+      allow delete: if isOwnUserId(resource.data.userId);
     }
 
     // ── Audit — already properly restricted ──

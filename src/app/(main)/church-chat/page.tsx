@@ -4,7 +4,8 @@ import { type ChangeEvent, type ReactNode, useCallback, useEffect, useMemo, useR
 import { format } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Copy, History, ImagePlus, Loader2, MessageCircle, Mic, Plus, Trash2, Volume2, X } from 'lucide-react';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { getDoc } from '@/lib/firestore-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

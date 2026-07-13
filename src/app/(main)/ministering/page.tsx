@@ -3,7 +3,8 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { getDocs, query, orderBy, where, doc, writeBatch, setDoc, serverTimestamp, addDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { query, orderBy, where, doc, writeBatch, setDoc, serverTimestamp, addDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import { ministeringCollection, ministeringDistrictsCollection } from '@/lib/collections';
 import type { Companionship, Member, MinisteringDistrict } from '@/lib/types';
 import { getMembersByStatus } from '@/lib/members-data';

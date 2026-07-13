@@ -1,4 +1,5 @@
-import { getDocs, orderBy, query, where } from 'firebase/firestore';
+import { orderBy, query, where } from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import { birthdaysCollection, membersCollection } from '@/lib/collections';
 import logger from '@/lib/logger';
 import { normalizeMemberStatus } from '@/lib/members-data';

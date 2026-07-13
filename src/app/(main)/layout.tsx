@@ -7,6 +7,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { MainLayout } from "@/components/main-layout";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { MembersProvider } from "@/contexts/members-context";
+import { RefreshProvider } from "@/contexts/refresh-context";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function PrivateRoute({ children }: { children: ReactNode }) {
@@ -72,11 +73,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <PrivateRoute>
-        <MembersProvider>
-          <SidebarProvider>
-            <MainLayout>{children}</MainLayout>
-          </SidebarProvider>
-        </MembersProvider>
+        <RefreshProvider>
+          <MembersProvider>
+            <SidebarProvider>
+              <MainLayout>{children}</MainLayout>
+            </SidebarProvider>
+          </MembersProvider>
+        </RefreshProvider>
       </PrivateRoute>
     </AuthProvider>
   );

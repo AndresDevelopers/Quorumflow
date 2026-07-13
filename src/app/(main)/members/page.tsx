@@ -56,7 +56,6 @@ import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import { usePermission } from '@/hooks/use-permission';
 import { useMembersLocal } from '@/hooks/use-members-local';
-import { SyncStatus } from '@/components/shared/sync-status';
 import type { Member, MemberStatus } from '@/lib/types';
 import { MemberForm } from '@/components/members/member-form';
 import { updateMember, getMemberById } from '@/lib/members-data';
@@ -93,10 +92,10 @@ export default function MembersPage() {
   const { t } = useI18n();
   const { canWrite } = usePermission();
   const router = useRouter();
-  // Cache local-first: carga instantánea de localStorage, sync al servidor solo si TTL > 1h
+  // Cache local-first; sync manual desde el icono del header
   const {
-    members, loading, syncStatus, lastSyncTime,
-    syncFromServer, addToLocal, updateInLocal, removeFromLocal, clearLocalCache,
+    members, loading, syncStatus,
+    addToLocal, updateInLocal, removeFromLocal,
   } = useMembersLocal();
 
   const resolveOrdinanceLabel = (ordinance: string) =>
@@ -317,12 +316,6 @@ export default function MembersPage() {
           <p className="text-balance text-fluid-subtitle text-muted-foreground">
             {t('members.subtitle')}
           </p>
-          {/* Sync Status Indicator */}
-          <SyncStatus
-            syncStatus={syncStatus}
-            lastSyncTime={lastSyncTime}
-            className="mt-2"
-          />
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

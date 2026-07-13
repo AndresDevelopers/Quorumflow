@@ -30,6 +30,8 @@ export const usersCollection = coll('c_users');
 export const notificationsCollection = coll('c_notifications');
 export const healthConcernsCollection = coll('c_observaciones_salud');
 export const membersCollection = coll('c_miembros');
+/** Per-barrioOrg sync signals written by Cloud Functions when domain data changes */
+export const syncSignalsCollection = coll('c_sync_signals');
 export const adminAuditCollection = coll('c_admin_audit');
 export const barriosCollection = coll('c_barrios');
 export const organizacionesCollection = coll('c_organizaciones');

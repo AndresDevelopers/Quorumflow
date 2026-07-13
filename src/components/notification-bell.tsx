@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { useI18n } from "@/contexts/i18n-context";
 import { useRouter } from "next/navigation";
-import { doc, setDoc, getDocs, query, where, orderBy, limit, writeBatch } from "firebase/firestore";
+import { doc, updateDoc, query, where, orderBy, limit, writeBatch } from "firebase/firestore";
+import { getDocs } from '@/lib/firestore-query';
 import { notificationsCollection } from "@/lib/collections";
 import {
   Popover,
@@ -18,6 +19,7 @@ import type { AppNotification } from "@/lib/types";
 import { formatRelative } from "date-fns";
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Skeleton } from "./ui/skeleton";
+import { useOnManualRefresh } from "@/contexts/refresh-context";
 
 function deduplicateNotifications(items: AppNotification[]): AppNotification[] {
   const grouped = new Map<string, AppNotification>();
@@ -103,6 +105,8 @@ export function NotificationBell() {
     });
   }, [fetchNotifications]);
 
+  useOnManualRefresh(fetchNotifications);
+
   const handleMarkAsRead = async () => {
     if (!user || !hasUnread) return;
 
@@ -175,7 +179,8 @@ export function NotificationBell() {
       if (!notification.isRead) {
         try {
           const docRef = doc(notificationsCollection, notification.id);
-          await setDoc(docRef, { ...notification, isRead: true }, { merge: true });
+          // Only touch isRead so Lectura users pass the owner-update rule
+          await updateDoc(docRef, { isRead: true });
 
           // Update local state
           setNotifications(prev =>

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { getDoc } from '@/lib/firestore-query';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { compressGalleryImage } from '@/lib/image-compression';
 import { v4 as uuidv4 } from 'uuid';

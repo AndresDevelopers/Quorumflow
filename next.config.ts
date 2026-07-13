@@ -6,42 +6,111 @@ const withPWA = withPWAInit({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test',
   sw: 'sw.js',
-  // Manual registration in ServiceWorkerRegistration (login + main layout)
+  // Manual registration (ServiceWorkerRegistration) so we control claim/warmup
   register: false,
   customWorkerSrc: 'worker',
-  // App shell offline: serve last good navigation when the network is down
+  // Critical for App Router offline: cache each client navigation + its JS/CSS
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  cacheStartUrl: true,
+  dynamicStartUrl: true,
+  // Don't force full reload when back online (keeps in-memory offline state)
+  reloadOnOnline: false,
+  // Fallback HTML if a route was never cached
   fallbacks: {
-    document: '/',
+    document: '/~offline',
   },
-  // Keep default Workbox rules (fonts, etc.) and append ours
   extendDefaultRuntimeCaching: true,
   workboxOptions: {
     skipWaiting: true,
     clientsClaim: true,
+    cleanupOutdatedCaches: true,
     runtimeCaching: [
       {
-        // HTML / client navigations — network first, then cache (offline shell)
+        // Override default "pages" — longer retention for offline shell
         urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
         handler: 'NetworkFirst',
         options: {
-          cacheName: 'pages-cache',
+          cacheName: 'pages',
           networkTimeoutSeconds: 3,
           expiration: {
-            maxEntries: 64,
-            maxAgeSeconds: 60 * 60 * 24 * 7,
+            maxEntries: 128,
+            maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
           },
         },
       },
       {
-        // Members list API — last good response usable offline
-        urlPattern: /\/api\/members/i,
+        // Same-origin API reads (members list, icons, etc.)
+        urlPattern: ({ url }: { url: URL }) =>
+          url.pathname.startsWith('/api/') && !url.pathname.includes('auth'),
         handler: 'NetworkFirst',
         options: {
-          cacheName: 'api-members',
+          cacheName: 'apis',
           networkTimeoutSeconds: 5,
           expiration: {
-            maxEntries: 16,
+            maxEntries: 64,
             maxAgeSeconds: 60 * 60 * 24 * 7,
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
+        // Firebase Storage / GCS images — keep for offline avatars & gallery
+        urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'firebase-storage-images',
+          expiration: {
+            maxEntries: 300,
+            maxAgeSeconds: 60 * 60 * 24 * 60, // 60 days
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
+        urlPattern: /^https:\/\/storage\.googleapis\.com\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'gcs-images',
+          expiration: {
+            maxEntries: 200,
+            maxAgeSeconds: 60 * 60 * 24 * 60,
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
+        urlPattern: /^https:\/\/.*\.firebasestorage\.app\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'firebase-app-images',
+          expiration: {
+            maxEntries: 200,
+            maxAgeSeconds: 60 * 60 * 24 * 60,
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
+        // Remote icons / placehold (if any)
+        urlPattern: /^https:\/\/(placehold\.co|picsum\.photos)\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'remote-placeholder-images',
+          expiration: {
+            maxEntries: 32,
+            maxAgeSeconds: 60 * 60 * 24 * 7,
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
           },
         },
       },

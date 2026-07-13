@@ -41,7 +41,8 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { doc, getDoc, updateDoc, deleteDoc, Timestamp, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, Timestamp, setDoc } from 'firebase/firestore';
+import { getDoc } from '@/lib/firestore-query';
 import { usersCollection, storage, membersCollection } from '@/lib/collections';
 import {
   Form,

@@ -29,7 +29,6 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/contexts/i18n-context";
 import { InstallPrompt } from "@/components/install-prompt";
-import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -157,7 +156,6 @@ export default function LoginPage() {
         </div>
       </CardContent>
     </Card>
-    <ServiceWorkerRegistration />
     <InstallPrompt />
     </>
   );

@@ -3,7 +3,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
+import { getDoc } from '@/lib/firestore-query';
 import { birthdaysCollection } from '@/lib/collections';
 import type { Birthday } from '@/lib/types';
 import { BirthdayForm } from '../../BirthdayForm';

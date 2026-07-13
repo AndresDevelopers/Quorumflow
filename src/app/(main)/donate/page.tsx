@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc } from 'firebase/firestore';
+import { getDoc } from '@/lib/firestore-query';
 import { firestore } from "@/lib/firebase";
 import { useI18n } from "@/contexts/i18n-context";
 import { Heart, ExternalLink, Download } from "lucide-react";

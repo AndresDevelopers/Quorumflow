@@ -57,13 +57,15 @@ yarn-error.log*
 eslint-report.json
 src-eslint-report.json
 
-# Service Worker (build artifacts)
+# Service Worker / PWA (build artifacts from next-pwa)
 public/sw.js
 public/sw.js.map
 public/workbox-*.js
 public/workbox-*.js.map
 public/worker-*.js
 public/worker-*.js.map
+public/fallback-*.js
+public/swe-worker-*.js
 
 # Firebase service account keys
 *-firebase-adminsdk-*.json

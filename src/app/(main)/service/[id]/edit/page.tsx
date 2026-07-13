@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
+import { getDoc } from '@/lib/firestore-query';
 import { servicesCollection } from '@/lib/collections';
 import type { Service } from '@/lib/types';
 import { ServiceForm } from '../../ServiceForm';

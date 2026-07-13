@@ -3,7 +3,8 @@
 
 import { useCallback, useEffect, useState, useTransition } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getDoc } from '@/lib/firestore-query';
 import { ministeringCollection } from '@/lib/collections';
 import type { Companionship, Family } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';

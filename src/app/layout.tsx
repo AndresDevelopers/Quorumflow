@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { I18nProvider } from "@/contexts/i18n-context";
 import { JsonLd } from "@/components/seo/json-ld";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { getAppName, getAppDescription, getSiteUrl, getAppIcon } from "@/lib/app-config";
 
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -202,6 +203,8 @@ export default function RootLayout({
         >
           <I18nProvider>
             <JsonLd />
+            {/* SW early: so shell/routes/images can cache even before login */}
+            <ServiceWorkerRegistration />
             {children}
             <Toaster />
             {!isDevelopment && <Analytics />}

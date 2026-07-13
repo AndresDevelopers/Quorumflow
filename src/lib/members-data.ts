@@ -12,36 +12,28 @@ import {
   orderBy,
   Timestamp,
   QueryConstraint,
-  getFirestore} from 'firebase/firestore';
+} from 'firebase/firestore';
 import { getDocs, getDoc } from '@/lib/firestore-query';
-import { initializeApp, getApps } from 'firebase/app';
-import { ref, deleteObject, getStorage } from 'firebase/storage';
+import { firestore, storage as firebaseStorage } from '@/lib/firebase';
+import { ref, deleteObject } from 'firebase/storage';
 import { uploadBytesOfflineAware } from '@/lib/storage-offline-queue';
-import { firebaseConfig } from '@/firebaseConfig';
 import type { Member, MemberStatus, Ordinance, TempleOrdinance } from './types';
 import { compressProfileImage, compressGalleryImage } from './image-compression';
 import logger from './logger';
 
-// Function to get Firestore instance, initializing if necessary
+// Always use the shared client instance (persistentLocalCache / offline)
 function getFirestoreInstance() {
-  let app;
-  if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = getApps()[0];
+  if (!firestore) {
+    throw new Error('Firestore is not available (client-only)');
   }
-  return getFirestore(app);
+  return firestore;
 }
 
-// Function to get Storage instance, initializing if necessary
 function getStorageInstance() {
-  let app;
-  if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = getApps()[0];
+  if (!firebaseStorage) {
+    throw new Error('Storage is not available (client-only)');
   }
-  return getStorage(app);
+  return firebaseStorage;
 }
 
 export const normalizeMemberStatus = (status?: unknown): MemberStatus => {

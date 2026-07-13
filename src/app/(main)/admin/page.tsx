@@ -31,7 +31,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getDocs, getCountFromServer, query, where, orderBy, limit as fbLimit, Timestamp } from "firebase/firestore";
+import { getCountFromServer, query, where, orderBy, limit as fbLimit, Timestamp } from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import {
   usersCollection,
   membersCollection,

@@ -52,14 +52,14 @@ export function ChangelogDialog({ children }: { children: React.ReactNode }) {
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
 
-      <DialogContent className="max-w-[95vw] sm:max-w-[425px] max-h-[85vh] flex flex-col overflow-hidden p-4 sm:p-6">
+      <DialogContent className="max-w-[95vw] sm:max-w-[425px] w-full max-h-[85vh] flex flex-col overflow-hidden p-4 sm:p-6">
         <DialogHeader className="shrink-0">
           <DialogTitle>{t("changelog.title")}</DialogTitle>
           <DialogDescription>{t("changelog.description")}</DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="grid gap-4 py-2">
+        <ScrollArea className="flex-1 min-h-0 min-w-0 w-full">
+          <div className="grid gap-4 py-2 pr-3 max-w-full min-w-0">
             {loading && (
               <p className="text-sm text-muted-foreground">{t("changelog.loading")}</p>
             )}
@@ -69,7 +69,7 @@ export function ChangelogDialog({ children }: { children: React.ReactNode }) {
             )}
 
             {changelog?.entries.map((entry, index) => (
-              <div key={entry.version}>
+              <div key={entry.version} className="min-w-0 max-w-full">
                 <h3 className="font-semibold">
                   v {entry.version}
                   {index === 0 && (
@@ -79,9 +79,14 @@ export function ChangelogDialog({ children }: { children: React.ReactNode }) {
                   )}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-1">{entry.date}</p>
-                <ul className="list-disc list-outside ml-4 text-sm text-muted-foreground space-y-0.5">
+                <ul className="list-disc list-outside pl-5 text-sm text-muted-foreground space-y-1">
                   {(entry.changes[lang] ?? entry.changes.es).map((item, i) => (
-                    <li key={i} className="break-words">{item}</li>
+                    <li
+                      key={i}
+                      className="break-words [overflow-wrap:anywhere] hyphens-auto"
+                    >
+                      {item}
+                    </li>
                   ))}
                 </ul>
               </div>

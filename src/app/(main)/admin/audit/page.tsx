@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getDocs, orderBy, query, limit, where, Timestamp } from "firebase/firestore";
+import { orderBy, query, limit, where, Timestamp } from 'firebase/firestore';
+import { getDocs } from '@/lib/firestore-query';
 import {
   ScrollText,
   UserCog,

@@ -42,7 +42,7 @@ import { useRefresh } from "@/contexts/refresh-context";
 import { auth } from "@/lib/firebase";
 import OfflineIndicator from "@/components/offline-indicator";
 import { PushForegroundListener } from "@/components/push-foreground-listener";
-import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { OfflineCacheWarmup } from "@/components/offline-cache-warmup";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -357,7 +357,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
           <OfflineIndicator />
         </ErrorBoundary>
         <PushForegroundListener />
-        <ServiceWorkerRegistration />
+        <OfflineCacheWarmup />
         <PushOnboardingGuide />
         <OfflineSyncBootstrap />
         <DataSyncListener />

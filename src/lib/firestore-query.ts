@@ -5,12 +5,17 @@
  * With persistentLocalCache, plain getDocs may return IndexedDB data.
  * During a manual sync we prefer getDocsFromServer so notes, council,
  * ministering, missionary work, activities, services, etc. all get fresh DB data.
+ *
+ * Offline: always prefer getDocsFromCache / local persistence — never block the UI
+ * waiting for the network.
  */
 import {
   getDocs as fsGetDocs,
   getDocsFromServer,
+  getDocsFromCache,
   getDoc as fsGetDoc,
   getDocFromServer,
+  getDocFromCache,
   type CollectionReference,
   type DocumentData,
   type DocumentReference,
@@ -18,7 +23,7 @@ import {
   type Query,
   type QuerySnapshot,
 } from 'firebase/firestore';
-import { isBrowserOnline } from '@/lib/network';
+import { isBrowserOnline, isNetworkError } from '@/lib/network';
 
 const FORCE_UNTIL_KEY = 'sionflow_force_server_reads_until';
 
@@ -82,19 +87,50 @@ export function clearAiSuggestionCaches() {
 /**
  * Drop-in for firebase getDocs.
  * - Manual refresh (online): prefer server, then local cache
- * - Offline: always use persistentLocalCache (IndexedDB) — never force network
+ * - Offline: cache-first (IndexedDB), never force network
  */
 export async function getDocs(q: QueryLike): Promise<QuerySnapshot<DocumentData>> {
-  if (isForceServerReads() && isBrowserOnline()) {
+  const offline = !isBrowserOnline();
+
+  if (offline) {
+    try {
+      return await getDocsFromCache(q as Query<DocumentData>);
+    } catch {
+      // No exact cache entry — try multi-tab persistence via default getDocs
+      try {
+        return await fsGetDocs(q);
+      } catch (error) {
+        console.warn('[firestore-query] offline getDocs failed (no cache)', error);
+        throw error;
+      }
+    }
+  }
+
+  if (isForceServerReads()) {
     try {
       return await getDocsFromServer(q);
     } catch (error) {
       console.warn('[firestore-query] getDocsFromServer failed, falling back to cache', error);
-      return fsGetDocs(q);
+      try {
+        return await getDocsFromCache(q as Query<DocumentData>);
+      } catch {
+        return fsGetDocs(q);
+      }
     }
   }
-  // Offline or normal mode: SDK serves from memory/IndexedDB when needed
-  return fsGetDocs(q);
+
+  try {
+    return await fsGetDocs(q);
+  } catch (error) {
+    if (isNetworkError(error)) {
+      try {
+        return await getDocsFromCache(q as Query<DocumentData>);
+      } catch {
+        throw error;
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -103,13 +139,44 @@ export async function getDocs(q: QueryLike): Promise<QuerySnapshot<DocumentData>
 export async function getDoc<T extends DocumentData = DocumentData>(
   ref: DocumentReference<T>
 ): Promise<DocumentSnapshot<T>> {
-  if (isForceServerReads() && isBrowserOnline()) {
+  const offline = !isBrowserOnline();
+
+  if (offline) {
+    try {
+      return await getDocFromCache(ref);
+    } catch {
+      try {
+        return await fsGetDoc(ref);
+      } catch (error) {
+        console.warn('[firestore-query] offline getDoc failed (no cache)', error);
+        throw error;
+      }
+    }
+  }
+
+  if (isForceServerReads()) {
     try {
       return await getDocFromServer(ref);
     } catch (error) {
       console.warn('[firestore-query] getDocFromServer failed, falling back to cache', error);
-      return fsGetDoc(ref);
+      try {
+        return await getDocFromCache(ref);
+      } catch {
+        return fsGetDoc(ref);
+      }
     }
   }
-  return fsGetDoc(ref);
+
+  try {
+    return await fsGetDoc(ref);
+  } catch (error) {
+    if (isNetworkError(error)) {
+      try {
+        return await getDocFromCache(ref);
+      } catch {
+        throw error;
+      }
+    }
+    throw error;
+  }
 }

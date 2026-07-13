@@ -6,20 +6,20 @@
       "date": "2026-07-13",
       "changes": {
         "es": [
-          "Ahora puedes ver cuántos miembros caben en tu barrio y organización, y la app te avisa si intentas asignar más roles de los permitidos.",
-          "La aplicación funciona mejor sin conexión: guarda datos en caché y sincroniza automáticamente cuando vuelves a estar en línea.",
-          "Agregamos una pestaña de 'Futuros miembros' en la página de obra misional, con accesos directos a WhatsApp, SMS y Telegram.",
-          "Mejoramos la página de conversos: ahora puedes agregar nuevos conversos y ver insignias para miembros inactivos o menos activos.",
-          "La app ahora se actualiza automáticamente cuando hay cambios, y puedes forzar una sincronización manual desde el menú principal.",
-          "Corregimos errores menores y eliminamos código antiguo para que todo funcione más rápido."
+          "Ahora puedes usar la aplicación sin conexión a internet gracias al nuevo modo offline.",
+          "Se agregaron límites de miembros según el rol, y la página de administración muestra alertas cuando se alcanza el tope.",
+          "Eliminamos código antiguo y archivos sin usar para que la app sea más rápida y estable.",
+          "Los futuros miembros ahora se gestionan desde la pestaña 'Futuros miembros' en la página de obra misional.",
+          "La aplicación sincroniza automáticamente los datos cuando hay cambios, incluso si estás offline.",
+          "Puedes refrescar los datos manualmente y ver el estado de sincronización con notificaciones."
         ],
         "en": [
-          "You can now see how many member seats are available in your ward and organization, and the app warns you if you try to assign more roles than allowed.",
-          "The app works better offline: it caches data and automatically syncs when you're back online.",
-          "We added a 'Future members' tab to the missionary work page, with quick actions for WhatsApp, SMS, and Telegram.",
-          "The converts page is improved: you can now add new converts and see badges for inactive or less active members.",
-          "The app now updates automatically when changes occur, and you can manually trigger a sync from the main menu.",
-          "Fixed minor bugs and removed old code to make everything run faster."
+          "You can now use the app offline thanks to the new offline mode.",
+          "Role-based member limits have been added, and the admin page shows alerts when limits are reached.",
+          "We removed old, unused code to make the app faster and more stable.",
+          "Future members are now managed in the 'Future Members' tab on the missionary work page.",
+          "The app automatically syncs data when changes occur, even when you're offline.",
+          "You can manually refresh data and see sync status with toast notifications."
         ]
       }
     },

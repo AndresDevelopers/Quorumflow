@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { firestoreAdmin } from '@/lib/firebase-admin';
 import { normalizeRole, ROLE_LIMITS } from '@/lib/roles';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 /**
  * Public capacity check for self-registration (role `user` / miembro).
  * Does not expose user PII — only counts and limits for a barrioOrg.
  */
 export async function GET(request: NextRequest) {
+  const limited = await enforceRateLimit(request, 'auth');
+  if (limited) return limited;
+
   try {
     const barrio = request.nextUrl.searchParams.get('barrio')?.trim() ?? '';
     const organizacion = request.nextUrl.searchParams.get('organizacion')?.trim() ?? '';

@@ -8,6 +8,7 @@ import {
   pushDiagnosticsRequestSchema,
   type PushSubscriptionDiagnostic,
 } from '@/lib/push-diagnostics';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 function getBearerToken(request: NextRequest): string | null {
   const authorization = request.headers.get('authorization');
@@ -40,6 +41,9 @@ function formatEcuadorTime(date: Date): string {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   try {
     const token = getBearerToken(request);
     if (!token) {

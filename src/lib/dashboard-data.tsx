@@ -16,6 +16,18 @@ import { membersToRecentConverts } from '@/lib/converts-from-members';
 import { addDays, format, isAfter, isBefore } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { offlineDataKey, withOfflineData } from '@/lib/offline-data-store';
+import logger from '@/lib/logger';
+
+/** Shared early-warning when a single-barrio members query saturates limit(500). */
+function warnIfMembersLimitHit(barrioOrg: string, queryName: string, size: number) {
+  if (size !== 500) return;
+  logger.warn({
+    message: 'Member query hit limit(500); barrio may be approaching the hard cap',
+    barrioOrg,
+    query: queryName,
+    size,
+  });
+}
 
 function mapMember(docId: string, memberData: Record<string, any>): Member {
   return {
@@ -52,7 +64,9 @@ export function deriveFutureMembers(members: Member[]): Member[] {
 }
 
 export async function getFutureMembers(barrioOrg: string): Promise<Member[]> {
+  // limit(500): assumes single-barrio scope via barrioOrg. Revisit if multi-barrio/stake views are added.
   const snapshot = await getDocs(query(membersCollection, where('barrioOrg', '==', barrioOrg), limit(500)));
+  warnIfMembersLimitHit(barrioOrg, 'getFutureMembers', snapshot.size);
   const members = snapshot.docs.map(doc => mapMember(doc.id, doc.data()));
   return deriveFutureMembers(members);
 }
@@ -76,7 +90,8 @@ export async function getDashboardData(barrioOrg: string) {
       upcomingBaptismsSnapshot,
       activitiesSnapshot,
     ] = await Promise.all([
-      // Single members load for converts-from-members, future, less_active, status cards
+      // Single members load for converts-from-members, future, less_active, status cards.
+      // limit(500): assumes single-barrio scope via barrioOrg. Revisit if multi-barrio/stake views are added.
       getDocs(query(membersCollection, where('barrioOrg', '==', barrioOrg), limit(500))),
       getDocs(query(ministeringCollection, where('barrioOrg', '==', barrioOrg))),
       getDocs(query(
@@ -105,6 +120,7 @@ export async function getDashboardData(barrioOrg: string) {
       )),
     ]);
 
+    warnIfMembersLimitHit(barrioOrg, 'getDashboardData', membersSnapshot.size);
     const members = membersSnapshot.docs.map(doc => mapMember(doc.id, doc.data()));
     const membersAlive = members.filter(m => m.status !== 'deceased');
 
@@ -204,11 +220,13 @@ export async function getDashboardData(barrioOrg: string) {
 }
 
 export async function getMembersByStatus(barrioOrg: string) {
+  // limit(500): assumes single-barrio scope via barrioOrg. Revisit if multi-barrio/stake views are added.
   const membersSnapshot = await getDocs(query(
     membersCollection,
     where('barrioOrg', '==', barrioOrg),
     limit(500)
   ));
+  warnIfMembersLimitHit(barrioOrg, 'getMembersByStatus', membersSnapshot.size);
   const members = membersSnapshot.docs
     .map(doc => mapMember(doc.id, doc.data()))
     .filter(member => member.status !== 'deceased');

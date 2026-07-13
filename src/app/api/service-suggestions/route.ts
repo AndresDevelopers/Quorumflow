@@ -4,6 +4,7 @@ import { getYear } from 'date-fns';
 import { suggestServices, type SuggestedServices } from '@/ai/flows/suggest-services-flow';
 import { activitiesCollection, servicesCollection } from '@/lib/collections-server';
 import logger from '@/lib/logger';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 type TimestampLike = { toDate(): Date };
 type ServiceDoc = { title?: string; date?: TimestampLike };
@@ -61,6 +62,9 @@ const fallbackSuggestions: SuggestedServices = {
 };
 
 export async function GET(request: Request) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   const { searchParams } = new URL(request.url);
   const refresh = searchParams.get('refresh') === 'true';
 

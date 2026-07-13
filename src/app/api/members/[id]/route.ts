@@ -4,6 +4,7 @@ import { firestoreAdmin } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import logger from '@/lib/logger';
 import type { Member } from '@/lib/types';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 function coerceToTimestamp(value: unknown): Timestamp | null | undefined {
   if (value === undefined) return undefined;
@@ -40,6 +41,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   let data: any = null;
   const { id } = await params;
   try {
@@ -98,6 +102,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   const { id } = await params;
   try {
     // Check if member has photo to delete from storage

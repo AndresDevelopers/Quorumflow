@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
 import { authAdmin, firestoreAdmin } from '@/lib/firebase-admin';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 function getBearerToken(request: NextRequest): string | null {
   const authorization = request.headers.get('authorization');
@@ -153,6 +154,9 @@ const getCachedMinisteringData = unstable_cache(
 );
 
 export async function GET(request: NextRequest) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   const resolved = await resolveAuth(request);
   if (resolved instanceof NextResponse) return resolved;
 

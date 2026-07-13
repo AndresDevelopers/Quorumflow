@@ -3,8 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { birthdaysCollection, membersCollection } from '@/lib/collections-server';
 import { getEcuadorDateParts } from '@/lib/date-utils';
 import { sendBirthdayBatchNotifications } from '@/lib/push-notifications-server';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export async function GET(request: NextRequest) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   // Verificación de autenticación para Vercel Cron
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;

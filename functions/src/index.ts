@@ -29,6 +29,12 @@ const notificationDispatcher = new NotificationDispatcher(
 // Ecuador timezone (no DST)
 const ECUADOR_TZ = "America/Guayaquil";
 
+// Conservative instance caps (cost-first). firebase-functions v1 via runWith.
+const MAX_INSTANCES_DEFAULT = 10; // triggers / sync / callables
+const MAX_INSTANCES_SCHEDULED = 2; // cron jobs (single-shot)
+const MAX_INSTANCES_REPORTS = 3; // heavy report generation
+const MAX_INSTANCES_STORAGE = 5; // profile picture cleanup
+
 interface Activity {
     id: string;
     title: string;
@@ -590,7 +596,9 @@ const prepareBaptismsDocData = async (baptisms: Baptism[]): Promise<{
     };
 };
 
-export const cleanupProfilePictures = functions.storage.object().onFinalize(async (object: any) => {
+export const cleanupProfilePictures = functions
+    .runWith({ maxInstances: MAX_INSTANCES_STORAGE })
+    .storage.object().onFinalize(async (object: any) => {
     const filePath = object.name;
     const contentType = object.contentType;
 
@@ -1002,18 +1010,20 @@ function withAuthenticatedReport(
 }
 
 export const generateCompleteReport = functions
-    .runWith({ timeoutSeconds: 540, memory: "1GB" })
+    .runWith({ timeoutSeconds: 540, memory: "1GB", maxInstances: MAX_INSTANCES_REPORTS })
     .https.onCall((data: any, context: any) =>
         withAuthenticatedReport(context, data, COMPLETE_PROFILE, "complete")
     );
 
 export const generateReport = functions
-    .runWith({ timeoutSeconds: 300, memory: "512MB" })
+    .runWith({ timeoutSeconds: 300, memory: "512MB", maxInstances: MAX_INSTANCES_REPORTS })
     .https.onCall((data: any, context: any) =>
         withAuthenticatedReport(context, data, LEGACY_PROFILE, "legacy")
     );
 
-export const onActivityCreated = functions.firestore
+export const onActivityCreated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_actividades/{activityId}")
     .onCreate(async (snapshot, context) => {
         try {
@@ -1070,7 +1080,9 @@ export const onActivityCreated = functions.firestore
         }
     });
 
-export const onActivityUpdated = functions.firestore
+export const onActivityUpdated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_actividades/{activityId}")
     .onUpdate(async (change, context) => {
         try {
@@ -1111,7 +1123,9 @@ export const onActivityUpdated = functions.firestore
         }
     });
 
-export const onActivityDeleted = functions.firestore
+export const onActivityDeleted = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_actividades/{activityId}")
     .onDelete(async (snapshot, context) => {
         try {
@@ -1146,7 +1160,9 @@ export const onActivityDeleted = functions.firestore
         }
     });
 
-export const onServiceCreated = functions.firestore
+export const onServiceCreated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_servicios/{serviceId}")
     .onCreate(async (snapshot, context) => {
         try {
@@ -1183,7 +1199,9 @@ export const onServiceCreated = functions.firestore
         }
     });
 
-export const onServiceUpdated = functions.firestore
+export const onServiceUpdated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_servicios/{serviceId}")
     .onUpdate(async (change, context) => {
         try {
@@ -1220,7 +1238,9 @@ export const onServiceUpdated = functions.firestore
         }
     });
 
-export const onServiceDeleted = functions.firestore
+export const onServiceDeleted = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_servicios/{serviceId}")
     .onDelete(async (snapshot, context) => {
         try {
@@ -1253,7 +1273,9 @@ export const onServiceDeleted = functions.firestore
         }
     });
 
-export const onUrgentFamilyFlagged = functions.firestore
+export const onUrgentFamilyFlagged = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_ministracion/{companionshipId}")
     .onUpdate(async (change, context) => {
         const before = change.before.data() as (Companionship & { barrioOrg?: string }) | undefined;
@@ -1324,7 +1346,9 @@ export const onUrgentFamilyFlagged = functions.firestore
         );
     });
 
-export const onMissionaryAssignmentCreated = functions.firestore
+export const onMissionaryAssignmentCreated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_obra_misional_asignaciones/{assignmentId}")
     .onCreate(async (snapshot, context) => {
         try {
@@ -1437,7 +1461,9 @@ async function notifySecretariesAboutCouncilAnnotation(params: {
     );
 }
 
-export const onCouncilAnnotationCreated = functions.firestore
+export const onCouncilAnnotationCreated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_anotaciones/{annotationId}")
     .onCreate(async (snapshot, context) => {
         try {
@@ -1459,7 +1485,9 @@ export const onCouncilAnnotationCreated = functions.firestore
         }
     });
 
-export const onCouncilAnnotationUpdated = functions.firestore
+export const onCouncilAnnotationUpdated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_anotaciones/{annotationId}")
     .onUpdate(async (change, context) => {
         try {
@@ -1496,7 +1524,9 @@ export const onCouncilAnnotationUpdated = functions.firestore
         }
     });
 
-export const onCouncilAnnotationDeleted = functions.firestore
+export const onCouncilAnnotationDeleted = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_anotaciones/{annotationId}")
     .onDelete(async (snapshot, context) => {
         try {
@@ -1743,7 +1773,9 @@ function getEligibleSecretaries(
 // DAILY NOTIFICATIONS – 09:00 Ecuador (America/Guayaquil)
 // Covers: Birthdays, Future Members, Services, Activities
 // ─────────────────────────────────────────────────────────────────────────────
-export const dailyNotifications = functions.pubsub
+export const dailyNotifications = functions
+    .runWith({ maxInstances: MAX_INSTANCES_SCHEDULED })
+    .pubsub
     .schedule("0 9 * * *")
     .timeZone(ECUADOR_TZ)
     .onRun(async () => {
@@ -2035,7 +2067,9 @@ export const dailyNotifications = functions.pubsub
 // WEEKLY NOTIFICATIONS – Mondays 09:00 Ecuador
 // Covers: Observaciones, Conversos, FamilySearch, Obra Misional
 // ─────────────────────────────────────────────────────────────────────────────
-export const weeklyNotifications = functions.pubsub
+export const weeklyNotifications = functions
+    .runWith({ maxInstances: MAX_INSTANCES_SCHEDULED })
+    .pubsub
     .schedule("0 9 * * 1")
     .timeZone(ECUADOR_TZ)
     .onRun(async () => {
@@ -2447,7 +2481,9 @@ export const weeklyNotifications = functions.pubsub
 // COUNCIL NOTIFICATIONS – Tuesdays & Wednesdays 18:00 Ecuador
 // Covers: Consejo (Necesidades Urgentes, Menos Activos, Ministración)
 // ─────────────────────────────────────────────────────────────────────────────
-export const councilNotifications = functions.pubsub
+export const councilNotifications = functions
+    .runWith({ maxInstances: MAX_INSTANCES_SCHEDULED })
+    .pubsub
     .schedule("0 18 * * 2,3")
     .timeZone(ECUADOR_TZ)
     .onRun(async () => {
@@ -2538,7 +2574,9 @@ export const councilNotifications = functions.pubsub
 // ─────────────────────────────────────────────────────────────────────────────
 
 const makeDataSyncFn = (collectionName: string, docPath: string) =>
-    functions.firestore
+    functions
+        .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+        .firestore
         .document(docPath)
         .onWrite(createCollectionSyncHandler(firestore, messaging, functions.logger, collectionName));
 
@@ -2585,7 +2623,9 @@ export const syncOnFutureMembersWrite = makeDataSyncFn(
 export const syncOnUsersWrite = makeDataSyncFn("c_users", "c_users/{docId}");
 
 /** Callable: re-broadcast a sync signal (rare; header refresh is the client fallback). */
-export const requestDataSyncSignal = functions.https.onCall(async (data, context) => {
+export const requestDataSyncSignal = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import logger from '@/lib/logger';
 import { membersCollection } from '@/lib/collections-server';
 import { sendServerSidePushNotification } from '@/lib/push-notifications-server';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 /**
  * API Endpoint for weekly deceased members ordinances notifications
@@ -42,7 +43,10 @@ function getMissingTempleOrdinances(member: { templeOrdinances?: string[] }) {
   return ALL_TEMPLE_ORDINANCES.filter((ord) => !memberOrdinances.includes(ord));
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   try {
     // Check if today is Monday (for validation)
     const today = new Date();
@@ -145,6 +149,6 @@ export async function GET() {
 }
 
 // Also support POST for manual triggering
-export async function POST() {
-  return GET();
+export async function POST(request: Request) {
+  return GET(request);
 }

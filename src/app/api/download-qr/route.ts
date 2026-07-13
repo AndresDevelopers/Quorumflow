@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
+  const limited = await enforceRateLimit(request, "api");
+  if (limited) return limited;
+
   const url = request.nextUrl.searchParams.get("url");
 
   if (!url) {

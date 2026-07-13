@@ -4,6 +4,7 @@ import { firestoreAdmin } from '@/lib/firebase-admin';
 import { Member, MemberStatus } from '@/lib/types';
 import { createMember } from '@/lib/members-data';
 import { Timestamp } from 'firebase-admin/firestore';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 const normalizeMemberStatus = (status?: unknown): MemberStatus => {
   if (typeof status !== 'string') return 'active';
@@ -124,6 +125,9 @@ function getMembersCached(status?: MemberStatus, barrioOrg?: string, limit?: num
 }
 
 export async function GET(request: Request) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status') as MemberStatus | null;
   const barrioOrg = searchParams.get('barrioOrg') || undefined;
@@ -165,6 +169,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   try {
     const data = await request.json();
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { firestoreAdmin, messagingAdmin } from '@/lib/firebase-admin';
 import { getAppNotificationTag } from '@/lib/app-config';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 // Firestore 'in' operator supports max 30 items
 const FIRESTORE_IN_LIMIT = 30;
@@ -50,6 +51,9 @@ async function getSubscriptionDocsByTokens(tokens: string[]) {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   try {
     const { title, body, url, userId } = await request.json() as {
       title?: string;

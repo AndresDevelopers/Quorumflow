@@ -56,6 +56,11 @@ const messaging = admin.messaging();
 const notificationDispatcher = new notification_dispatcher_1.NotificationDispatcher(firestore, messaging, functions.logger);
 // Ecuador timezone (no DST)
 const ECUADOR_TZ = "America/Guayaquil";
+// Conservative instance caps (cost-first). firebase-functions v1 via runWith.
+const MAX_INSTANCES_DEFAULT = 10; // triggers / sync / callables
+const MAX_INSTANCES_SCHEDULED = 2; // cron jobs (single-shot)
+const MAX_INSTANCES_REPORTS = 3; // heavy report generation
+const MAX_INSTANCES_STORAGE = 5; // profile picture cleanup
 /**
  * Sanitiza el nombre de organización recibido desde el frontend.
  * Evita que valores como undefined, null, "undefined", "null", o vacíos
@@ -410,7 +415,9 @@ const prepareBaptismsDocData = async (baptisms) => {
         baptismsWithImages: baptismGalleries.length,
     };
 };
-exports.cleanupProfilePictures = functions.storage.object().onFinalize(async (object) => {
+exports.cleanupProfilePictures = functions
+    .runWith({ maxInstances: MAX_INSTANCES_STORAGE })
+    .storage.object().onFinalize(async (object) => {
     const filePath = object.name;
     const contentType = object.contentType;
     if (!contentType?.startsWith("image/") || !filePath?.startsWith("profile_pictures/users/")) {
@@ -721,12 +728,14 @@ function withAuthenticatedReport(context, data, profile, label) {
     });
 }
 exports.generateCompleteReport = functions
-    .runWith({ timeoutSeconds: 540, memory: "1GB" })
+    .runWith({ timeoutSeconds: 540, memory: "1GB", maxInstances: MAX_INSTANCES_REPORTS })
     .https.onCall((data, context) => withAuthenticatedReport(context, data, COMPLETE_PROFILE, "complete"));
 exports.generateReport = functions
-    .runWith({ timeoutSeconds: 300, memory: "512MB" })
+    .runWith({ timeoutSeconds: 300, memory: "512MB", maxInstances: MAX_INSTANCES_REPORTS })
     .https.onCall((data, context) => withAuthenticatedReport(context, data, LEGACY_PROFILE, "legacy"));
-exports.onActivityCreated = functions.firestore
+exports.onActivityCreated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_actividades/{activityId}")
     .onCreate(async (snapshot, context) => {
     try {
@@ -773,7 +782,9 @@ exports.onActivityCreated = functions.firestore
         });
     }
 });
-exports.onActivityUpdated = functions.firestore
+exports.onActivityUpdated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_actividades/{activityId}")
     .onUpdate(async (change, context) => {
     try {
@@ -808,7 +819,9 @@ exports.onActivityUpdated = functions.firestore
         });
     }
 });
-exports.onActivityDeleted = functions.firestore
+exports.onActivityDeleted = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_actividades/{activityId}")
     .onDelete(async (snapshot, context) => {
     try {
@@ -837,7 +850,9 @@ exports.onActivityDeleted = functions.firestore
         });
     }
 });
-exports.onServiceCreated = functions.firestore
+exports.onServiceCreated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_servicios/{serviceId}")
     .onCreate(async (snapshot, context) => {
     try {
@@ -868,7 +883,9 @@ exports.onServiceCreated = functions.firestore
         functions.logger.error("Failed to broadcast service creation notification", { error });
     }
 });
-exports.onServiceUpdated = functions.firestore
+exports.onServiceUpdated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_servicios/{serviceId}")
     .onUpdate(async (change, context) => {
     try {
@@ -899,7 +916,9 @@ exports.onServiceUpdated = functions.firestore
         functions.logger.error("Failed to broadcast service update notification", { error });
     }
 });
-exports.onServiceDeleted = functions.firestore
+exports.onServiceDeleted = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_servicios/{serviceId}")
     .onDelete(async (snapshot, context) => {
     try {
@@ -926,7 +945,9 @@ exports.onServiceDeleted = functions.firestore
         functions.logger.error("Failed to broadcast service delete notification", { error });
     }
 });
-exports.onUrgentFamilyFlagged = functions.firestore
+exports.onUrgentFamilyFlagged = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_ministracion/{companionshipId}")
     .onUpdate(async (change, context) => {
     const before = change.before.data();
@@ -980,7 +1001,9 @@ exports.onUrgentFamilyFlagged = functions.firestore
         }
     }));
 });
-exports.onMissionaryAssignmentCreated = functions.firestore
+exports.onMissionaryAssignmentCreated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_obra_misional_asignaciones/{assignmentId}")
     .onCreate(async (snapshot, context) => {
     try {
@@ -1061,7 +1084,9 @@ async function notifySecretariesAboutCouncilAnnotation(params) {
         },
     }, eligible.pushUserIds);
 }
-exports.onCouncilAnnotationCreated = functions.firestore
+exports.onCouncilAnnotationCreated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_anotaciones/{annotationId}")
     .onCreate(async (snapshot, context) => {
     try {
@@ -1082,7 +1107,9 @@ exports.onCouncilAnnotationCreated = functions.firestore
         });
     }
 });
-exports.onCouncilAnnotationUpdated = functions.firestore
+exports.onCouncilAnnotationUpdated = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_anotaciones/{annotationId}")
     .onUpdate(async (change, context) => {
     try {
@@ -1117,7 +1144,9 @@ exports.onCouncilAnnotationUpdated = functions.firestore
         });
     }
 });
-exports.onCouncilAnnotationDeleted = functions.firestore
+exports.onCouncilAnnotationDeleted = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document("c_anotaciones/{annotationId}")
     .onDelete(async (snapshot, context) => {
     try {
@@ -1302,7 +1331,9 @@ function getEligibleSecretaries(users, category, docBarrioOrg) {
 // DAILY NOTIFICATIONS – 09:00 Ecuador (America/Guayaquil)
 // Covers: Birthdays, Future Members, Services, Activities
 // ─────────────────────────────────────────────────────────────────────────────
-exports.dailyNotifications = functions.pubsub
+exports.dailyNotifications = functions
+    .runWith({ maxInstances: MAX_INSTANCES_SCHEDULED })
+    .pubsub
     .schedule("0 9 * * *")
     .timeZone(ECUADOR_TZ)
     .onRun(async () => {
@@ -1536,7 +1567,9 @@ exports.dailyNotifications = functions.pubsub
 // WEEKLY NOTIFICATIONS – Mondays 09:00 Ecuador
 // Covers: Observaciones, Conversos, FamilySearch, Obra Misional
 // ─────────────────────────────────────────────────────────────────────────────
-exports.weeklyNotifications = functions.pubsub
+exports.weeklyNotifications = functions
+    .runWith({ maxInstances: MAX_INSTANCES_SCHEDULED })
+    .pubsub
     .schedule("0 9 * * 1")
     .timeZone(ECUADOR_TZ)
     .onRun(async () => {
@@ -1876,7 +1909,9 @@ exports.weeklyNotifications = functions.pubsub
 // COUNCIL NOTIFICATIONS – Tuesdays & Wednesdays 18:00 Ecuador
 // Covers: Consejo (Necesidades Urgentes, Menos Activos, Ministración)
 // ─────────────────────────────────────────────────────────────────────────────
-exports.councilNotifications = functions.pubsub
+exports.councilNotifications = functions
+    .runWith({ maxInstances: MAX_INSTANCES_SCHEDULED })
+    .pubsub
     .schedule("0 18 * * 2,3")
     .timeZone(ECUADOR_TZ)
     .onRun(async () => {
@@ -1952,7 +1987,9 @@ exports.councilNotifications = functions.pubsub
 // Data sync: DB write → Cloud Function → c_sync_signals (+ silent FCM)
 // Clients auto-refresh. Manual refresh button = fallback only.
 // ─────────────────────────────────────────────────────────────────────────────
-const makeDataSyncFn = (collectionName, docPath) => functions.firestore
+const makeDataSyncFn = (collectionName, docPath) => functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
     .document(docPath)
     .onWrite((0, data_sync_publisher_1.createCollectionSyncHandler)(firestore, messaging, functions.logger, collectionName));
 exports.syncOnMembersWrite = makeDataSyncFn("c_miembros", "c_miembros/{docId}");
@@ -1973,7 +2010,9 @@ exports.syncOnConvertsWrite = makeDataSyncFn("c_conversos", "c_conversos/{docId}
 exports.syncOnFutureMembersWrite = makeDataSyncFn("c_futuros_miembros", "c_futuros_miembros/{docId}");
 exports.syncOnUsersWrite = makeDataSyncFn("c_users", "c_users/{docId}");
 /** Callable: re-broadcast a sync signal (rare; header refresh is the client fallback). */
-exports.requestDataSyncSignal = functions.https.onCall(async (data, context) => {
+exports.requestDataSyncSignal = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }

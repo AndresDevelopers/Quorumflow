@@ -3,6 +3,7 @@ import { z } from 'zod';
 import logger from '@/lib/logger';
 import { fetchLatestChurchNews } from '@/lib/church-news';
 import { getAppName } from '@/lib/app-config';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 const bodySchema = z.object({
   message: z.string().min(2).max(3000).optional(),
@@ -113,6 +114,10 @@ const apiMessages = {
 } as const;
 
 export async function POST(request: Request) {
+  // DeepSeek is the main variable cost — 10 req/min per authenticated uid (or IP fallback).
+  const limited = await enforceRateLimit(request, 'churchChat');
+  if (limited) return limited;
+
   const raw = await request.json().catch(() => null);
   const preLanguage: ChatLanguage =
     raw && typeof raw === 'object' && (raw as { language?: string }).language === 'en' ? 'en' : 'es';

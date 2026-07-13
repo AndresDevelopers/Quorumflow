@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authAdmin, getAdminBucket } from '@/lib/firebase-admin';
 import logger from '@/lib/logger';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -71,6 +72,9 @@ async function requireUid(request: Request): Promise<string> {
  * multipart File objects are Blobs from another realm (silent 400 in production).
  */
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request, 'upload');
+  if (limited) return limited;
+
   try {
     const uid = await requireUid(request);
     const contentType = request.headers.get('content-type') || '';

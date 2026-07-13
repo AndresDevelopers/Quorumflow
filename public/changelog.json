@@ -6,20 +6,20 @@
       "date": "2026-07-13",
       "changes": {
         "es": [
-          "Ahora puedes ver imágenes incluso sin conexión a internet, con carga más rápida y sin pantallas congeladas.",
-          "La aplicación funciona mejor sin conexión: puedes navegar, actualizar contenido y mantener tu sesión iniciada aunque pierdas la señal.",
-          "Agregamos soporte completo para usar la aplicación sin internet, con datos guardados localmente y sincronización automática al reconectarte.",
-          "Ahora los líderes pueden ver y gestionar los límites de miembros por rol, con alertas cuando se alcance el máximo permitido.",
-          "La página de obra misional ahora incluye una pestaña dedicada a futuros miembros, con acceso rápido por WhatsApp, SMS o Telegram.",
-          "Los cambios que hagas se sincronizan automáticamente cuando vuelvas a tener conexión, y puedes forzar la actualización manualmente con un botón."
+          "Añadimos límites de velocidad configurables para proteger la aplicación de uso excesivo y mejoramos la experiencia del chat de la iglesia.",
+          "Ahora puedes añadir miembros manualmente al formulario de compañerismo de ministerio, disponible en inglés y español.",
+          "Mejoramos la experiencia sin conexión: las imágenes se muestran correctamente aunque no tengas internet.",
+          "La aplicación ahora funciona mejor sin conexión: puedes navegar, ver datos y la sesión se mantiene activa incluso si pierdes la señal.",
+          "Implementamos límites de asientos por rol para el registro y la asignación de roles, con alertas visuales cuando se alcanza el límite.",
+          "Movimos la sección de futuros miembros a la página de obra misional y añadimos accesos directos a WhatsApp, SMS y Telegram."
         ],
         "en": [
-          "You can now view images even when offline, with faster loading and no more frozen screens.",
-          "The app works better offline: you can browse, refresh content, and stay logged in even if you lose signal.",
-          "Added full offline support with locally stored data that syncs automatically when you reconnect.",
-          "Leaders can now see and manage member seat limits per role, with alerts when the maximum is reached.",
-          "The missionary work page now has a dedicated tab for future members, with quick access via WhatsApp, SMS, or Telegram.",
-          "Your changes sync automatically when you're back online, and you can manually refresh with a button."
+          "Added configurable rate limiting to protect the app from abuse and improved church chat experience.",
+          "You can now manually add family members to the ministering companionship form, available in English and Spanish.",
+          "Improved offline experience: images now display correctly even without internet.",
+          "The app now works better offline: you can navigate, view data, and your session stays active even if you lose signal.",
+          "Implemented role-based seat limits for registration and role assignment, with visual alerts when limits are reached.",
+          "Moved the future members section to the missionary work page and added quick actions for WhatsApp, SMS, and Telegram."
         ]
       }
     },

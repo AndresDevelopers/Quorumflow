@@ -19,7 +19,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Form, FormField, FormControl, FormItem, FormMessage } from '@/components/ui/form';
-import { PlusCircle, Trash2, UserCheck } from 'lucide-react';
+import { PlusCircle, Trash2, UserCheck, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -43,6 +43,8 @@ const createCompanionshipSchema = (t: (key: string, params?: Record<string, stri
     families: z.array(z.object({
       value: z.string().min(1, t('ministering.validation.nameRequired')),
       memberId: z.string().optional(),
+      /** Per-row: automatic select vs free-text name (not persisted) */
+      entryMode: z.enum(['manual', 'automatic']),
     })).min(1, { message: t('ministering.validation.minFamilies') }),
   });
 
@@ -63,9 +65,8 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
 
    const isEditMode = !!companionship;
 
-   // All entry modes use automatic mode - no manual entry allowed
+   // Companions remain automatic; each family row can be automatic or manual independently
    const companionEntryMode: 'automatic' = 'automatic';
-   const familyEntryMode: 'automatic' = 'automatic';
    const [members, setMembers] = useState<Member[]>([]);
   const [companionships, setCompanionships] = useState<Companionship[]>([]);
    const [districts, setDistricts] = useState<MinisteringDistrict[]>([]);
@@ -76,11 +77,16 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
   const defaultValues = isEditMode
   ? {
       companions: companionship.companions.map(c => ({ value: c, memberId: '' })),
-      families: companionship.families.map(f => ({ value: f.name, memberId: f.memberId ?? '' })),
+      // Keep automatic when linked to a member; otherwise open that row as manual so the name is editable
+      families: companionship.families.map(f => ({
+        value: f.name,
+        memberId: f.memberId ?? '',
+        entryMode: (f.memberId ? 'automatic' : 'manual') as 'manual' | 'automatic',
+      })),
     }
   : {
       companions: [{ value: '', memberId: '' }, { value: '', memberId: '' }],
-      families: [{ value: '', memberId: '' }],
+      families: [{ value: '', memberId: '', entryMode: 'automatic' as const }],
     };
 
   // Load members for automatic mode
@@ -272,6 +278,39 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
     return member?.id ?? '';
   };
 
+  // After members load in edit mode: mark linked families as automatic, unlinked as manual
+  useEffect(() => {
+    if (!isEditMode || members.length === 0) return;
+    const currentFamilies = form.getValues('families');
+    currentFamilies.forEach((family, index) => {
+      const linkedById = Boolean(family.memberId && members.some((m) => m.id === family.memberId));
+      const linkedByName = Boolean(family.value && getFamilyMemberId(family.value));
+      const nextMode: 'manual' | 'automatic' = linkedById || linkedByName ? 'automatic' : 'manual';
+      if (family.entryMode !== nextMode) {
+        form.setValue(`families.${index}.entryMode`, nextMode);
+      }
+      if (!family.memberId && linkedByName) {
+        form.setValue(`families.${index}.memberId`, getFamilyMemberId(family.value));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run when members finish loading for edit
+  }, [isEditMode, members.length]);
+
+  /** Change mode for a single family row without touching the others */
+  const handleFamilyRowModeChange = (index: number, mode: 'manual' | 'automatic') => {
+    form.setValue(`families.${index}.entryMode`, mode, { shouldDirty: true });
+    if (mode === 'manual') {
+      // Keep the displayed name; drop the member link so free-text is authoritative
+      form.setValue(`families.${index}.memberId`, '', { shouldDirty: true });
+      return;
+    }
+    // Switching to automatic: re-link if the name matches a member; otherwise leave empty for Select
+    const familyName = form.getValues(`families.${index}.value`);
+    if (familyName) {
+      const memberId = getFamilyMemberId(familyName);
+      form.setValue(`families.${index}.memberId`, memberId || '', { shouldDirty: true });
+    }
+  };
 
   const {
     fields: companionFields,
@@ -563,74 +602,100 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
               </Button>
             </div>
 
-            {/* Family Entry Mode Selection */}
-            <div className="space-y-4">
+            {/* Families: each row can be automatic (select member) or manual (type name) independently */}
+            <div className="space-y-2">
               <div>
-                <Label className="text-base font-medium">{t('ministering.familyEntryMethod')}</Label>
+                <Label className="text-base font-medium">{t('ministering.assignedFamiliesRequired')}</Label>
                 <p className="text-sm text-muted-foreground">{t('ministering.familyEntryMethodHelp')}</p>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <UserCheck className="h-4 w-4" />
-                <span>{t('ministering.automaticSelectExisting')}</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>{t('ministering.assignedFamiliesRequired')}</Label>
               {familyFields.map((field, index) => (
                  <FormField
                   key={field.id}
                   control={form.control}
                   name={`families.${index}.value`}
-                  render={({ field }) => {
+                  render={({ field: valueField }) => {
                     const familyMemberId = form.watch(`families.${index}.memberId`);
+                    const rowMode = form.watch(`families.${index}.entryMode`) ?? 'automatic';
                     return (
                     <FormItem>
-                      <div className="flex items-center gap-2">
-                        {familyEntryMode === 'automatic' ? (
-                          <>
-                            <Select
-                              value={familyMemberId || getFamilyMemberId(field.value)}
-                              onValueChange={(value) => {
-                                const member = members.find(m => m.id === value);
-                                if (member) {
-                                  field.onChange(`Familia ${member.lastName}`);
-                                  form.setValue(`families.${index}.memberId`, member.id, { shouldDirty: true });
-                                }
-                              }}
-                              disabled={loadingMembers}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={loadingMembers ? t('common.loading') : t('ministering.selectFamilyN', { n: index + 1 })} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {availableFamilyMembers.map((member) => (
-                                  <SelectItem key={member.id} value={member.id}>
-                                    <div className="flex items-center gap-2">
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarImage src={member.photoURL} />
-                                        <AvatarFallback className="text-xs">
-                                          {member.firstName.charAt(0)}{member.lastName.charAt(0)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      {t('ministering.familyOptionLabel', { lastName: member.lastName })}
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <input type="hidden" {...field} />
-                          </>
-                        ) : (
-                          <FormControl>
-                            <Input {...field} placeholder={t('ministering.selectFamilyN', { n: index + 1 })} />
-                          </FormControl>
-                        )}
-                        <Button type="button" variant="outline" size="icon" onClick={() => handleRemoveFamily(index)} disabled={familyFields.length <= 1}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Select
+                          value={rowMode}
+                          onValueChange={(value: 'manual' | 'automatic') => handleFamilyRowModeChange(index, value)}
+                        >
+                          <SelectTrigger className="w-full sm:w-[10.5rem] shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="automatic">
+                              <span className="flex items-center gap-2">
+                                <UserCheck className="h-3.5 w-3.5" />
+                                {t('ministering.familyModeAutomatic')}
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="manual">
+                              <span className="flex items-center gap-2">
+                                <UserPlus className="h-3.5 w-3.5" />
+                                {t('ministering.familyModeManual')}
+                              </span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex flex-1 items-center gap-2 min-w-0">
+                          {rowMode === 'automatic' ? (
+                            <>
+                              <Select
+                                value={familyMemberId || getFamilyMemberId(valueField.value)}
+                                onValueChange={(value) => {
+                                  const member = members.find(m => m.id === value);
+                                  if (member) {
+                                    valueField.onChange(`Familia ${member.lastName}`);
+                                    form.setValue(`families.${index}.memberId`, member.id, { shouldDirty: true });
+                                    form.setValue(`families.${index}.entryMode`, 'automatic', { shouldDirty: true });
+                                  }
+                                }}
+                                disabled={loadingMembers}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={loadingMembers ? t('common.loading') : t('ministering.selectFamilyN', { n: index + 1 })} />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {availableFamilyMembers.map((member) => (
+                                    <SelectItem key={member.id} value={member.id}>
+                                      <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarImage src={member.photoURL} />
+                                          <AvatarFallback className="text-xs">
+                                            {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        {t('ministering.familyOptionLabel', { lastName: member.lastName })}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <input type="hidden" {...valueField} />
+                            </>
+                          ) : (
+                            <FormControl>
+                              <Input
+                                {...valueField}
+                                placeholder={t('ministering.manualFamilyPlaceholder')}
+                                onChange={(e) => {
+                                  valueField.onChange(e);
+                                  form.setValue(`families.${index}.memberId`, '', { shouldDirty: true });
+                                }}
+                              />
+                            </FormControl>
+                          )}
+                          <Button type="button" variant="outline" size="icon" onClick={() => handleRemoveFamily(index)} disabled={familyFields.length <= 1}>
+                              <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                       <FormMessage />
                     </FormItem>
@@ -638,10 +703,26 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
                   }}
                 />
               ))}
-              <Button type="button" variant="outline" size="sm" onClick={() => appendFamily({ value: '', memberId: '' })}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                {t('ministering.addFamily')}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => appendFamily({ value: '', memberId: '', entryMode: 'automatic' })}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  {t('ministering.addFamily')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => appendFamily({ value: '', memberId: '', entryMode: 'manual' })}
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {t('ministering.addFamilyManual')}
+                </Button>
+              </div>
             </div>
 
             {/* District Selection */}

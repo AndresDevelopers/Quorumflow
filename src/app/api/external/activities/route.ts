@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
 import { authAdmin, firestoreAdmin } from '@/lib/firebase-admin';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 function getBearerToken(request: NextRequest): string | null {
   const authorization = request.headers.get('authorization');
@@ -86,6 +87,9 @@ const getCachedActivitiesData = unstable_cache(
 );
 
 export async function GET(request: NextRequest) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   const barrioOrg = await resolveBarrioOrg(request);
   if (barrioOrg instanceof NextResponse) return barrioOrg;
 

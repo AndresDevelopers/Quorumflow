@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authAdmin } from '@/lib/firebase-admin';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 /**
  * Verifica si un correo existe en Firebase Auth antes de permitir el envío
@@ -7,6 +8,9 @@ import { authAdmin } from '@/lib/firebase-admin';
  * (protección de enumeración), así que la validación se hace con Admin SDK.
  */
 export async function POST(request: NextRequest) {
+  const limited = await enforceRateLimit(request, 'auth');
+  if (limited) return limited;
+
   try {
     const body = await request.json().catch(() => null);
     const email =

@@ -365,7 +365,7 @@ function FormattedMessage({ content }: { content: string }) {
 
 export default function ChurchChatPage() {
   const { toast } = useToast();
-  const { user, organizacion } = useAuth();
+  const { user, firebaseUser, organizacion } = useAuth();
   const { t, language } = useI18n();
   const [sessions, setSessions] = useState<ChatSession[]>(() => [makeSession()]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
@@ -724,9 +724,14 @@ export default function ChurchChatPage() {
           content: resolveMessageContent(message, t),
         }));
 
+      // Prefer authenticated uid for server-side rate limiting (10 req/min).
+      const idToken = await firebaseUser?.getIdToken().catch(() => null);
       const response = await fetch('/api/church-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({
           ...(trimmed.length >= 2 ? { message: trimmed } : {}),
           ...(imageToSend ? { imageDataUrl: imageToSend.dataUrl } : {}),

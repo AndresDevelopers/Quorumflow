@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { firestoreAdmin } from '@/lib/firebase-admin';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   try {
     const { title, body, url } = await request.json();
 

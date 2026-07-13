@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { getAppIcon } from "@/lib/app-config";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const revalidate = 86400;
 
 export async function GET(request: Request) {
+  const limited = await enforceRateLimit(request, "api");
+  if (limited) return limited;
+
   const iconUrl = getAppIcon();
 
   if (!iconUrl || iconUrl === "/icono-app.png") {

@@ -4,6 +4,7 @@ import { suggestActivities, type SuggestedActivities } from '@/ai/flows/suggest-
 import { activitiesCollection } from '@/lib/collections-server';
 import logger from '@/lib/logger';
 import { getYear } from 'date-fns';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 type TimestampLike = { toDate(): Date };
 type ActivityDoc = { title?: string; date?: TimestampLike };
@@ -31,6 +32,9 @@ const getSuggestionsCached = unstable_cache(
 );
 
 export async function GET(request: Request) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   const { searchParams } = new URL(request.url);
   const refresh = searchParams.get('refresh') === 'true';
 

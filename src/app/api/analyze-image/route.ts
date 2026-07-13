@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { describeImage } from '@/lib/vision';
 import logger from '@/lib/logger';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 /** Allow enough time for Gemini + optional DeepSeek polish */
@@ -16,6 +17,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request, 'api');
+  if (limited) return limited;
+
   try {
     const raw = await request.json().catch(() => null);
     const parsed = bodySchema.safeParse(raw);

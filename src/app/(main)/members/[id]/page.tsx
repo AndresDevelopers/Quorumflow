@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
 import { ArrowLeft, User, Phone, Calendar, MapPin, Users, FileText, Camera } from 'lucide-react';
 import {
   Card,
@@ -181,7 +181,7 @@ export default function MemberProfilePage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <div className="flex-shrink-0">
               {member.photoURL ? (
-                <Image
+                <OfflineImage
                   src={member.photoURL}
                   alt={`${member.firstName} ${member.lastName}`}
                   width={96}
@@ -346,7 +346,7 @@ export default function MemberProfilePage() {
                   </label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     {member.baptismPhotos.map((photo, index) => (
-                      <Image
+                      <OfflineImage
                         key={index}
                         src={photo}
                         alt={t('memberProfile.baptismPhotoAlt', { index: index + 1 })}

@@ -20,7 +20,7 @@ import {
   clearAiSuggestionCaches,
   clearForceServerReads,
 } from '@/lib/firestore-query';
-import { isBrowserOnline } from '@/lib/network';
+import { canReachNetwork, isBrowserOnline, withTimeout } from '@/lib/network';
 import { flushOfflineSync } from '@/lib/firebase-offline-sync';
 
 /**
@@ -50,6 +50,7 @@ interface RefreshContextValue {
    * Refresh page data from server/cache.
    * Auto path (Cloud Function signal): `{ silent: true }`.
    * Header button (fallback): default / `{ silent: false }`.
+   * Offline / no connectivity: keeps cache, never blocks the UI.
    */
   requestRefresh: (options?: RequestRefreshOptions) => Promise<void>;
   /** Update header clock (e.g. after Cloud Function auto-sync). */
@@ -60,6 +61,13 @@ const RefreshContext = createContext<RefreshContextValue | undefined>(undefined)
 
 /** Custom event name for optional loose coupling outside React tree */
 export const APP_DATA_REFRESH_EVENT = 'sionflow:data-refresh';
+
+/** Per-handler timeout so one stuck page cannot freeze the spinner forever */
+const HANDLER_TIMEOUT_MS = 6_000;
+/** Soft budget for the whole offline refresh pass */
+const OFFLINE_REFRESH_BUDGET_MS = 2_500;
+/** Soft budget when online but network is flaky */
+const ONLINE_REFRESH_BUDGET_MS = 15_000;
 
 function lastSyncStorageKey(barrioOrg: string) {
   const prefix = typeof window !== 'undefined' ? getAppStoragePrefix() : 'sionflow';
@@ -88,6 +96,31 @@ function writeStoredLastSync(barrioOrg: string, date: Date) {
   }
 }
 
+async function runHandlersSafely(
+  handlers: RefreshHandler[],
+  perHandlerMs: number
+): Promise<boolean> {
+  if (handlers.length === 0) return false;
+
+  const results = await Promise.all(
+    handlers.map(async (handler) => {
+      try {
+        const result = await withTimeout(
+          Promise.resolve().then(() => handler()),
+          perHandlerMs,
+          'refresh-handler'
+        );
+        return result === true;
+      } catch (error) {
+        console.warn('[RefreshProvider] handler failed or timed out', error);
+        return false;
+      }
+    })
+  );
+
+  return results.some(Boolean);
+}
+
 export function RefreshProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -97,6 +130,7 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [refreshGeneration, setRefreshGeneration] = useState(0);
   const handlersRef = useRef(new Set<RefreshHandler>());
+  const inFlightRef = useRef(false);
 
   // Restore last sync time for this ward/org (so user always sees when they last synced)
   useEffect(() => {
@@ -122,42 +156,86 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
   );
 
   const requestRefresh = useCallback(async (options?: RequestRefreshOptions) => {
-    if (isRefreshing) return;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     const silent = options?.silent === true;
     setIsRefreshing(true);
-    try {
-      const online = isBrowserOnline();
 
+    try {
+      // 1) Fast local flag
+      let online = isBrowserOnline();
+
+      // 2) If the browser says online, verify real connectivity (mobile often lies)
       if (online) {
-        await flushOfflineSync();
-        beginForceServerReads(20_000);
-        clearAiSuggestionCaches();
-      } else {
-        clearForceServerReads();
+        online = await canReachNetwork(2_000);
       }
 
       const handlers = Array.from(handlersRef.current);
-      const results = await Promise.all(
-        handlers.map(async (handler) => {
-          try {
-            return await handler();
-          } catch (error) {
-            console.error('[RefreshProvider] handler failed', error);
-            return false;
-          }
-        })
-      );
 
-      const anyDataChanged = results.some((r) => r === true);
+      // ── OFFLINE / NO CONNECTIVITY: keep cache, never remount, never hang ──
+      if (!online) {
+        clearForceServerReads();
 
-      // Always stamp the header clock after a completed online sync
-      // (manual button OR Cloud Function auto-sync)
-      const now = new Date();
-      if (online) {
-        setLastSyncTime(now);
-        if (barrioOrg) {
-          writeStoredLastSync(barrioOrg, now);
+        // Best-effort: re-hydrate from localStorage / Firestore IndexedDB with a hard budget
+        try {
+          await withTimeout(
+            runHandlersSafely(handlers, 1_500),
+            OFFLINE_REFRESH_BUDGET_MS,
+            'offline-refresh'
+          );
+        } catch {
+          // ignore — cache already on screen
         }
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent(APP_DATA_REFRESH_EVENT, {
+              detail: {
+                hasChanges: false,
+                lastSyncTime: lastSyncTime?.toISOString() ?? null,
+                offline: true,
+                silent,
+              },
+            })
+          );
+        }
+
+        if (!silent) {
+          toast({
+            title: t('offline.refresh.cacheTitle') || 'Modo sin conexión',
+            description:
+              t('offline.refresh.cacheDescription') ||
+              'Sin internet: se mantienen los datos en cache. Se sincronizará al recuperar la red.',
+          });
+        }
+        return;
+      }
+
+      // ── ONLINE: sync + force server window + remount pages ──
+      try {
+        await withTimeout(flushOfflineSync(), 8_000, 'flushOfflineSync');
+      } catch (error) {
+        console.warn('[RefreshProvider] flushOfflineSync timed out', error);
+      }
+
+      beginForceServerReads(20_000);
+      clearAiSuggestionCaches();
+
+      let anyDataChanged = false;
+      try {
+        anyDataChanged = await withTimeout(
+          runHandlersSafely(handlers, HANDLER_TIMEOUT_MS),
+          ONLINE_REFRESH_BUDGET_MS,
+          'online-refresh'
+        );
+      } catch (error) {
+        console.warn('[RefreshProvider] online handlers budget exceeded', error);
+      }
+
+      const now = new Date();
+      setLastSyncTime(now);
+      if (barrioOrg) {
+        writeStoredLastSync(barrioOrg, now);
       }
 
       if (typeof window !== 'undefined') {
@@ -166,31 +244,23 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
             detail: {
               hasChanges: anyDataChanged,
               lastSyncTime: now.toISOString(),
-              offline: !online,
+              offline: false,
               silent,
             },
           })
         );
       }
 
-      // CRITICAL offline: never call router.refresh() — App Router re-fetches RSC
-      // over the network and tears down the shell (mobile shows "sin internet").
-      // Also avoid remounting pages so in-memory + local cache stay visible.
-      if (online) {
+      // Only remount when we actually have connectivity — never offline
+      try {
         router.refresh();
-        setRefreshGeneration((g) => g + 1);
+      } catch {
+        // ignore
       }
+      setRefreshGeneration((g) => g + 1);
 
-      // Toasts only for manual fallback (or offline feedback)
       if (!silent) {
-        if (!online) {
-          toast({
-            title: t('offline.refresh.cacheTitle') || 'Modo sin conexión',
-            description:
-              t('offline.refresh.cacheDescription') ||
-              'Mostrando datos en cache. Los cambios se enviarán al recuperar internet.',
-          });
-        } else if (anyDataChanged) {
+        if (anyDataChanged) {
           toast({
             title: t('mainLayout.refreshSuccessTitle') || 'Datos actualizados',
             description:
@@ -208,19 +278,33 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('[RefreshProvider] requestRefresh failed', error);
+      // On total failure, still never leave the user blocked — prefer cache message
+      clearForceServerReads();
       if (!silent) {
-        toast({
-          title: t('common.error') || 'Error',
-          description:
-            t('mainLayout.refreshErrorDescription') ||
-            'No se pudieron actualizar los datos.',
-          variant: 'destructive',
-        });
+        if (!isBrowserOnline()) {
+          toast({
+            title: t('offline.refresh.cacheTitle') || 'Modo sin conexión',
+            description:
+              t('offline.refresh.cacheDescription') ||
+              'Sin internet: se mantienen los datos en cache.',
+          });
+        } else {
+          toast({
+            title: t('common.error') || 'Error',
+            description:
+              t('mainLayout.refreshErrorDescription') ||
+              'No se pudieron actualizar los datos. Se mantiene el cache.',
+            variant: 'destructive',
+          });
+        }
       }
     } finally {
+      // Do NOT clear force-server window here on success — remounted pages
+      // need ~20s of getDocsFromServer (TTL in beginForceServerReads).
+      inFlightRef.current = false;
       setIsRefreshing(false);
     }
-  }, [isRefreshing, router, toast, t, barrioOrg]);
+  }, [router, toast, t, barrioOrg, lastSyncTime]);
 
   const value = useMemo(
     () => ({

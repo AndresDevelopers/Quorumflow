@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
 import { PlusCircle, Trash2, UserPlus, Users } from 'lucide-react';
 import { MemberSelector } from '@/components/members/member-selector';
 import type { Convert, Member, NewConvertFriendship, Ordinance } from '@/lib/types';
@@ -214,7 +214,7 @@ export function ConvertInfoSheet({
                 getMemberPhotoURL(convert);
               if (photo) {
                 return (
-                  <Image
+                  <OfflineImage
                     src={photo}
                     alt={convert.name}
                     width={48}

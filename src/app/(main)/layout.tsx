@@ -18,8 +18,21 @@ function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading, profileLoaded, userRole, mainPage, visiblePages } = useAuth();
   const router = useRouter();
   const [offlineAuthGaveUp, setOfflineAuthGaveUp] = useState(false);
+  // Keep SSR + first client paint identical; only read navigator after mount.
+  const [isOffline, setIsOffline] = useState(false);
 
   const isRestricted = userRole === "user";
+
+  useEffect(() => {
+    const syncOnline = () => setIsOffline(!isBrowserOnline());
+    syncOnline();
+    window.addEventListener("online", syncOnline);
+    window.addEventListener("offline", syncOnline);
+    return () => {
+      window.removeEventListener("online", syncOnline);
+      window.removeEventListener("offline", syncOnline);
+    };
+  }, []);
 
   useEffect(() => {
     if (loading || user) {
@@ -77,7 +90,7 @@ function PrivateRoute({ children }: { children: ReactNode }) {
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-4/5" />
           </div>
-          {!isBrowserOnline() && (
+          {isOffline && (
             <p className="text-xs text-muted-foreground text-center max-w-xs">
               Sin conexión — restaurando sesión y datos en cache…
             </p>
@@ -88,7 +101,7 @@ function PrivateRoute({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    if (!isBrowserOnline() && offlineAuthGaveUp) {
+    if (isOffline && offlineAuthGaveUp) {
       return (
         <div className="flex h-svh w-full flex-col items-center justify-center gap-4 px-6 text-center">
           <WifiOff className="h-10 w-10 text-red-600" />

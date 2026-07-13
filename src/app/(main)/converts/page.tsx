@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
 import {
   getDocsFromServer,
   query,
@@ -73,7 +73,7 @@ function ConvertAvatar({
   const src = typeof photoURL === 'string' && photoURL.trim() ? photoURL.trim() : undefined;
   if (src) {
     return (
-      <Image
+      <OfflineImage
         src={src}
         alt={name}
         width={size}

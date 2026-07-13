@@ -27,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,
@@ -44,6 +44,8 @@ import OfflineIndicator from "@/components/offline-indicator";
 import { PushForegroundListener } from "@/components/push-foreground-listener";
 import { OfflineCacheWarmup } from "@/components/offline-cache-warmup";
 import { OfflineRouteCache } from "@/components/offline-route-cache";
+import { OfflineShellPrecache } from "@/components/offline-shell-precache";
+import { OfflineContentBanner } from "@/components/offline-content-banner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -113,14 +115,10 @@ function UserNav() {
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
             {user?.photoURL && (
-              <Image
+              <AvatarImage
                 src={user.photoURL}
                 alt={user.displayName ?? "User Avatar"}
-                fill
-                sizes="32px"
-                className="rounded-full"
-                data-ai-hint="profile picture"
-                priority
+                className="rounded-full object-cover"
               />
             )}
             <AvatarFallback>{user?.initials}</AvatarFallback>
@@ -207,9 +205,12 @@ function RefreshControls() {
               size="icon"
               className="h-8 w-8"
               onClick={() => {
+                // Always allow click; requestRefresh is re-entrant-safe and
+                // offline path finishes in ~2s without blocking the UI forever.
                 void requestRefresh();
               }}
               disabled={isRefreshing}
+              aria-busy={isRefreshing}
               aria-label={label}
             >
               <RefreshCw
@@ -341,9 +342,9 @@ export function MainLayout({ children }: { children: ReactNode }) {
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="h-svh max-h-svh overflow-hidden">
         <header
-          className="sticky top-0 z-10 flex min-h-[3.5rem] items-center gap-3 border-b bg-background/95 px-4 py-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6 md:gap-4"
+          className="sticky top-0 z-30 flex shrink-0 min-h-[3.5rem] items-center gap-3 border-b bg-background/95 px-4 py-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6 md:gap-4"
         >
           <SidebarTrigger />
           <div className="ml-auto flex items-center gap-2">
@@ -353,14 +354,18 @@ export function MainLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         {/* refreshGeneration remounts the page so client data loaders re-run after manual refresh.
-            Offline refreshes do NOT bump generation (see refresh-context) so the UI stays put. */}
-        <main className="page-shell" key={refreshGeneration}>
+            Offline refreshes do NOT bump generation (see refresh-context) so the UI stays put.
+            Scroll lives here so the header above stays fixed while the page content moves. */}
+        <main className="page-shell min-h-0 flex-1 overflow-y-auto overscroll-y-contain" key={refreshGeneration}>
+          <OfflineContentBanner />
           {children}
         </main>
         <ErrorBoundary>
           <OfflineIndicator />
         </ErrorBoundary>
         <PushForegroundListener />
+        {/* Shells in background; photos; content caches when each page is visited */}
+        <OfflineShellPrecache />
         <OfflineCacheWarmup />
         <OfflineRouteCache />
         <PushOnboardingGuide />

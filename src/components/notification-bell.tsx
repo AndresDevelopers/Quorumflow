@@ -61,6 +61,7 @@ export function NotificationBell() {
       // Query by user only, then filter client-side by barrioOrg.
       // Firestore equality on barrioOrg would hide legacy notifications that
       // were saved without the field (and Cloud Functions may still emit those).
+      // Offline: getDocs uses cache with timeout (never hangs the refresh spinner).
       const q = query(
         notificationsCollection,
         where("userId", "==", user.uid),
@@ -94,9 +95,11 @@ export function NotificationBell() {
       }).length;
       setHasUnread(unreadCount > 0);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      // Offline / timeout: keep previous notifications visible
+      console.warn("Error fetching notifications (cache may be empty offline):", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user, barrio, organizacion]);
 
   useEffect(() => {

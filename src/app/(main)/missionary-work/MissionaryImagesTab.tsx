@@ -7,8 +7,10 @@
  * AI:     JSON → POST /api/analyze-image (Gemini)
  * Never use Next.js Server Actions for either path.
  */
-import { useRef, useState, useTransition } from 'react';
-import Image from 'next/image';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { OfflineImage } from '@/components/offline-image';
+import { cacheImages } from '@/lib/image-offline-cache';
+import { isBrowserOnline } from '@/lib/network';
 import {
   Card,
   CardContent,
@@ -132,6 +134,13 @@ export function MissionaryImagesTab({
   const [isPending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<PendingImage[]>([]);
+
+  // Cache saved missionary images for offline viewing
+  useEffect(() => {
+    if (!isBrowserOnline() || images.length === 0) return;
+    const urls = images.map((img) => img.imageUrl).filter(Boolean);
+    void cacheImages(urls, { concurrency: 3, limit: 100 });
+  }, [images]);
 
   const updatePending = (id: string, patch: Partial<PendingImage>) => {
     setUploadedFiles((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -489,13 +498,12 @@ export function MissionaryImagesTab({
                   {uploadedFiles.map((item) => (
                     <Card key={item.id}>
                       <CardContent className="p-4">
-                        <Image
+                        <OfflineImage
                           src={item.url ?? item.previewUrl}
                           alt="Uploaded"
                           width={480}
                           height={128}
                           className="w-full h-32 object-cover rounded mb-2"
-                          unoptimized
                           style={{ width: '100%', height: '8rem' }}
                         />
                         {item.status === 'uploading' && (
@@ -565,13 +573,12 @@ export function MissionaryImagesTab({
                   {images.map((item) => (
                     <Card key={item.id}>
                       <CardContent className="p-4">
-                        <Image
+                        <OfflineImage
                           src={item.imageUrl}
                           alt="Missionary"
                           width={480}
                           height={128}
                           className="w-full h-32 object-cover rounded mb-2"
-                          unoptimized
                           style={{ width: '100%', height: '8rem' }}
                         />
                         <Textarea

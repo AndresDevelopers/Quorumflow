@@ -3,37 +3,63 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { isBrowserOnline } from '@/lib/network';
+import { markPageContentSeen } from '@/lib/offline-cache-warm';
 
 /**
- * While online, re-fetch the current document URL so Workbox / custom SW
- * always has a fresh HTML shell for this path (critical after client navigations).
- * Without this, pull-to-refresh offline often hits a URL never put in Cache Storage.
+ * When the user visits a route online:
+ * - Refresh document + RSC in Cache Storage for this path (hard offline open)
+ * - Mark content as "seen" so offline UX knows data should exist
  */
 export function OfflineRouteCache() {
   const pathname = usePathname();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!isBrowserOnline()) return;
     if (!pathname) return;
 
     const url = window.location.href;
     const controller = new AbortController();
 
-    // Debounce rapid navigations
     const timer = window.setTimeout(() => {
+      if (!isBrowserOnline()) return;
+
       void (async () => {
         try {
-          await fetch(url, {
+          // Document shell for this exact URL
+          const docRes = await fetch(url, {
             credentials: 'same-origin',
             cache: 'reload',
             signal: controller.signal,
+            headers: { Accept: 'text/html' },
           });
+          if (docRes.ok && 'caches' in window) {
+            const cache = await caches.open('pages');
+            await cache.put(url, docRes.clone());
+            await cache.put(pathname, docRes.clone());
+          }
         } catch {
           // ignore
         }
 
-        // Also ask SW warm cache for this path
+        try {
+          // RSC for soft client navigation offline
+          const rscRes = await fetch(url, {
+            credentials: 'same-origin',
+            cache: 'reload',
+            signal: controller.signal,
+            headers: {
+              RSC: '1',
+              'Next-Router-Prefetch': '1',
+            },
+          });
+          if (rscRes.ok && 'caches' in window) {
+            const cache = await caches.open('pages-rsc');
+            await cache.put(url, rscRes.clone());
+          }
+        } catch {
+          // ignore
+        }
+
         try {
           const reg = await navigator.serviceWorker?.getRegistration('/');
           const worker = reg?.active ?? reg?.waiting;
@@ -44,8 +70,11 @@ export function OfflineRouteCache() {
         } catch {
           // ignore
         }
+
+        // User stayed on page online → content loaders likely ran
+        markPageContentSeen(pathname);
       })();
-    }, 400);
+    }, 500);
 
     return () => {
       window.clearTimeout(timer);
@@ -53,11 +82,8 @@ export function OfflineRouteCache() {
     };
   }, [pathname]);
 
-  // When going offline mid-session, block hard reloads from leaving the SPA
-  // if we can't guarantee the document is cached (best-effort UX).
   useEffect(() => {
     const onOffline = () => {
-      // Soft-notify via custom event for indicators; do not reload
       window.dispatchEvent(new CustomEvent('sionflow:went-offline'));
     };
     window.addEventListener('offline', onOffline);

@@ -44,7 +44,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import type { Activity } from '@/lib/types';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
 import { useAuth } from '@/contexts/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useI18n } from '@/contexts/i18n-context';
@@ -444,7 +444,7 @@ export function ActivityForm({ activity }: ActivityFormProps) {
               <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                 {previewUrls.map((url, index) => (
                    <div key={index} className="relative group">
-                      <Image src={url} alt={t('reports.activityForm.imageAlt', { index: index + 1 })} width={100} height={100} className="w-full h-24 object-cover rounded-md" data-ai-hint="activity image" />
+                      <OfflineImage src={url} alt={t('reports.activityForm.imageAlt', { index: index + 1 })} width={100} height={100} className="w-full h-24 object-cover rounded-md" data-ai-hint="activity image" />
                       <button
                         type="button"
                         onClick={() => removeImage(url)}

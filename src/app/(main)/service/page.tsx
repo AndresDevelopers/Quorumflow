@@ -53,7 +53,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PlusCircle, Trash2, Pencil, Image as ImageIcon, ArrowRightLeft, RefreshCw, Wand2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
+import { cacheImages } from '@/lib/image-offline-cache';
+import { isBrowserOnline } from '@/lib/network';
 
 type SuggestedServices = {
   quorumCare: string[];
@@ -108,6 +110,11 @@ export default function ServicePage() {
     getServicesForYear(selectedYear, barrioOrg)
         .then(data => {
             setServices(data);
+            // Prefetch service photos into local Cache Storage for offline viewing
+            if (isBrowserOnline()) {
+              const urls = data.flatMap((s) => s.imageUrls ?? []);
+              void cacheImages(urls, { concurrency: 3, limit: 80 });
+            }
         })
         .catch(err => {
             logger.error({ error: err, message: "Failed to fetch services" });
@@ -399,7 +406,7 @@ export default function ServicePage() {
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
                               {item.imageUrls.map((url, index) => (
                                 <div key={index} className="relative">
-                                  <Image
+                                  <OfflineImage
                                     src={url}
                                     alt={`Imagen ${index + 1} del servicio ${item.title}`}
                                     width={200}

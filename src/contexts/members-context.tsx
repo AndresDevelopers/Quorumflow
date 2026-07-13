@@ -16,7 +16,7 @@ import { getAppStoragePrefix } from '@/lib/app-config';
 import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { saveMembersLocalCache } from '@/hooks/use-members-local';
 import { mergeMembersCache } from '@/lib/members-cache-merge';
-import { isBrowserOnline } from '@/lib/network';
+import { isBrowserOnline, withTimeout } from '@/lib/network';
 
 interface MembersContextValue {
   members: Member[];
@@ -111,17 +111,18 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       if (authLoading || !user || !barrioOrg) return false;
       if (inFlight.current && !forceRefresh) return false;
 
-      // Without force, or offline: prefer any local cache (app usable without internet)
-      if (!forceRefresh || !isBrowserOnline()) {
+      const offline = !isBrowserOnline();
+
+      // Offline or soft load: always prefer local cache — never hit network offline
+      if (offline || !forceRefresh) {
         const cached = loadFromLocalCache();
         if (cached) {
           setMembers(cached.list);
           setLastSyncTime(new Date(cached.ts));
           setLoading(false);
-          // Offline force refresh: keep cache only, skip network
-          if (!isBrowserOnline()) return false;
-          if (!forceRefresh) return false;
-        } else if (!isBrowserOnline()) {
+          // Offline / non-force: stop here (manual online refresh continues only if force)
+          if (offline || !forceRefresh) return false;
+        } else if (offline) {
           setLoading(false);
           return false;
         }
@@ -132,13 +133,22 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       if (membersRef.current.length === 0) {
         setLoading(true);
       }
+
+      const controller = new AbortController();
+      const abortTimer = setTimeout(() => controller.abort(), 8_000);
+
       try {
         const cacheBuster = forceRefresh ? `&t=${Date.now()}` : '';
         const url = `/api/members?barrioOrg=${encodeURIComponent(barrioOrg)}${cacheBuster}`;
-        const response = await fetch(url, {
-          cache: forceRefresh ? 'no-store' : 'default',
-          headers: forceRefresh ? { 'Cache-Control': 'no-cache' } : undefined,
-        });
+        const response = await withTimeout(
+          fetch(url, {
+            cache: forceRefresh ? 'no-store' : 'default',
+            headers: forceRefresh ? { 'Cache-Control': 'no-cache' } : undefined,
+            signal: controller.signal,
+          }),
+          8_500,
+          'members-fetch'
+        );
         if (!response.ok) {
           throw new Error(`Failed to fetch members: ${response.status}`);
         }
@@ -168,12 +178,15 @@ export function MembersProvider({ children }: { children: ReactNode }) {
         console.error('[MembersProvider] fetch failed', error);
         // On error keep whatever we already have — never clear cache
         const cached = loadFromLocalCache();
-        if (cached && membersRef.current.length === 0) {
-          setMembers(cached.list);
-          setLastSyncTime(new Date(cached.ts));
+        if (cached) {
+          if (membersRef.current.length === 0 || forceRefresh) {
+            setMembers(cached.list);
+            setLastSyncTime(new Date(cached.ts));
+          }
         }
         return false;
       } finally {
+        clearTimeout(abortTimer);
         inFlight.current = false;
         setLoading(false);
       }

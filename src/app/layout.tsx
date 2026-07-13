@@ -169,31 +169,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning translate="no">
-      <head>
-        {/* Solo en desarrollo: limpiar SW/caches viejos que sirven bundles obsoletos.
-            En producción NO se tocan: son necesarios para que la PWA funcione offline. */}
-        {isDevelopment && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-(function () {
-  try {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        regs.forEach(function (r) { r.unregister(); });
-      });
-    }
-    if ('caches' in window) {
-      caches.keys().then(function (keys) {
-        keys.forEach(function (k) { caches.delete(k); });
-      });
-    }
-  } catch (e) {}
-})();`,
-            }}
-          />
-        )}
-      </head>
       <body className={`${ptSans.className} antialiased`}>
         <ThemeProvider
           attribute="class"
@@ -203,7 +178,9 @@ export default function RootLayout({
         >
           <I18nProvider>
             <JsonLd />
-            {/* SW early: so shell/routes/images can cache even before login */}
+            {/* SW early: so shell/routes/images can cache even before login.
+                In development, ServiceWorkerRegistration also unregisters SW/caches
+                (do not inject a raw <script> here — React 19 never executes it on the client). */}
             <ServiceWorkerRegistration />
             {children}
             <Toaster />

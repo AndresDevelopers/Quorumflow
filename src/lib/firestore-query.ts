@@ -6,8 +6,7 @@
  * During a manual sync we prefer getDocsFromServer so notes, council,
  * ministering, missionary work, activities, services, etc. all get fresh DB data.
  *
- * Offline: always prefer getDocsFromCache / local persistence — never block the UI
- * waiting for the network.
+ * Offline / flaky mobile: always prefer cache and NEVER hang waiting for network.
  */
 import {
   getDocs as fsGetDocs,
@@ -23,9 +22,16 @@ import {
   type Query,
   type QuerySnapshot,
 } from 'firebase/firestore';
-import { isBrowserOnline, isNetworkError } from '@/lib/network';
+import { isBrowserOnline, isNetworkError, withTimeout } from '@/lib/network';
 
 const FORCE_UNTIL_KEY = 'sionflow_force_server_reads_until';
+
+/** Max wait for cache reads (should be local IndexedDB). */
+const CACHE_READ_MS = 2_500;
+/** Max wait for server reads during manual refresh. */
+const SERVER_READ_MS = 8_000;
+/** Max wait for default getDocs/getDoc when online. */
+const DEFAULT_READ_MS = 10_000;
 
 /** AI suggestion localStorage keys cleared on manual refresh */
 export const AI_SUGGESTION_CACHE_KEYS = [
@@ -84,52 +90,69 @@ export function clearAiSuggestionCaches() {
   }
 }
 
+async function readDocsFromCache(q: QueryLike): Promise<QuerySnapshot<DocumentData>> {
+  return withTimeout(
+    getDocsFromCache(q as Query<DocumentData>),
+    CACHE_READ_MS,
+    'getDocsFromCache'
+  );
+}
+
+async function readDocFromCache<T extends DocumentData>(
+  ref: DocumentReference<T>
+): Promise<DocumentSnapshot<T>> {
+  return withTimeout(getDocFromCache(ref), CACHE_READ_MS, 'getDocFromCache');
+}
+
 /**
  * Drop-in for firebase getDocs.
- * - Manual refresh (online): prefer server, then local cache
- * - Offline: cache-first (IndexedDB), never force network
+ * - Offline: cache only (never wait on network)
+ * - Manual refresh (online): server with timeout, then cache
+ * - Normal online: default SDK with timeout, then cache
  */
 export async function getDocs(q: QueryLike): Promise<QuerySnapshot<DocumentData>> {
   const offline = !isBrowserOnline();
 
   if (offline) {
+    // CRITICAL: do not call fsGetDocs offline — it can hang waiting for the server.
     try {
-      return await getDocsFromCache(q as Query<DocumentData>);
-    } catch {
-      // No exact cache entry — try multi-tab persistence via default getDocs
-      try {
-        return await fsGetDocs(q);
-      } catch (error) {
-        console.warn('[firestore-query] offline getDocs failed (no cache)', error);
-        throw error;
-      }
+      return await readDocsFromCache(q);
+    } catch (error) {
+      console.warn('[firestore-query] offline getDocs: no local cache', error);
+      throw error;
     }
   }
 
   if (isForceServerReads()) {
     try {
-      return await getDocsFromServer(q);
+      return await withTimeout(getDocsFromServer(q), SERVER_READ_MS, 'getDocsFromServer');
     } catch (error) {
-      console.warn('[firestore-query] getDocsFromServer failed, falling back to cache', error);
+      console.warn('[firestore-query] getDocsFromServer failed/timed out → cache', error);
       try {
-        return await getDocsFromCache(q as Query<DocumentData>);
+        return await readDocsFromCache(q);
       } catch {
-        return fsGetDocs(q);
+        // Last resort: short default read (may still use persistence)
+        return withTimeout(fsGetDocs(q), 3_000, 'getDocs-fallback');
       }
     }
   }
 
   try {
-    return await fsGetDocs(q);
+    return await withTimeout(fsGetDocs(q), DEFAULT_READ_MS, 'getDocs');
   } catch (error) {
-    if (isNetworkError(error)) {
+    if (isNetworkError(error) || !isBrowserOnline()) {
       try {
-        return await getDocsFromCache(q as Query<DocumentData>);
+        return await readDocsFromCache(q);
       } catch {
         throw error;
       }
     }
-    throw error;
+    // Timeout or other: still try cache before failing
+    try {
+      return await readDocsFromCache(q);
+    } catch {
+      throw error;
+    }
   }
 }
 
@@ -143,40 +166,40 @@ export async function getDoc<T extends DocumentData = DocumentData>(
 
   if (offline) {
     try {
-      return await getDocFromCache(ref);
-    } catch {
-      try {
-        return await fsGetDoc(ref);
-      } catch (error) {
-        console.warn('[firestore-query] offline getDoc failed (no cache)', error);
-        throw error;
-      }
+      return await readDocFromCache(ref);
+    } catch (error) {
+      console.warn('[firestore-query] offline getDoc: no local cache', error);
+      throw error;
     }
   }
 
   if (isForceServerReads()) {
     try {
-      return await getDocFromServer(ref);
+      return await withTimeout(getDocFromServer(ref), SERVER_READ_MS, 'getDocFromServer');
     } catch (error) {
-      console.warn('[firestore-query] getDocFromServer failed, falling back to cache', error);
+      console.warn('[firestore-query] getDocFromServer failed/timed out → cache', error);
       try {
-        return await getDocFromCache(ref);
+        return await readDocFromCache(ref);
       } catch {
-        return fsGetDoc(ref);
+        return withTimeout(fsGetDoc(ref), 3_000, 'getDoc-fallback');
       }
     }
   }
 
   try {
-    return await fsGetDoc(ref);
+    return await withTimeout(fsGetDoc(ref), DEFAULT_READ_MS, 'getDoc');
   } catch (error) {
-    if (isNetworkError(error)) {
+    if (isNetworkError(error) || !isBrowserOnline()) {
       try {
-        return await getDocFromCache(ref);
+        return await readDocFromCache(ref);
       } catch {
         throw error;
       }
     }
-    throw error;
+    try {
+      return await readDocFromCache(ref);
+    } catch {
+      throw error;
+    }
   }
 }

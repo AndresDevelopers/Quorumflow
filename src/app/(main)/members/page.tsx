@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
 import { Plus, Search, Filter, Edit, Trash2, Users, UserCheck, UserX, Eye, ChevronUp, AlertTriangle, IdCard } from 'lucide-react';
 import {
   Card,
@@ -528,7 +528,7 @@ export default function MembersPage() {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-3">
                             {member.photoURL ? (
-                              <Image
+                              <OfflineImage
                                 src={member.photoURL}
                                 alt={`${member.firstName} ${member.lastName}`}
                                 width={32}
@@ -701,7 +701,7 @@ export default function MembersPage() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           {member.photoURL ? (
-                            <Image
+                            <OfflineImage
                               src={member.photoURL}
                               alt={`${member.firstName} ${member.lastName}`}
                               width={40}
@@ -920,7 +920,7 @@ export default function MembersPage() {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {member.photoURL ? (
-                        <Image
+                        <OfflineImage
                           src={member.photoURL}
                           alt={`${member.firstName} ${member.lastName}`}
                           width={32}

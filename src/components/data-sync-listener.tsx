@@ -10,6 +10,7 @@ import {
   SYNC_SIGNALS_COLLECTION,
   type SyncSignalPayload,
 } from '@/lib/sync-signal';
+import { isBrowserOnline } from '@/lib/network';
 
 const DEBOUNCE_MS = 1_200;
 
@@ -68,6 +69,8 @@ export function DataSyncListener() {
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
           if (isRefreshingRef.current) return;
+          // Offline: ignore CF signals — refresh would only spin and re-read cache
+          if (!isBrowserOnline()) return;
           console.log('[DataSyncListener] auto-refresh from CF signal', {
             barrioOrg,
             version,
@@ -96,6 +99,7 @@ export function DataSyncListener() {
       if (barrioOrg && data.barrioOrg && data.barrioOrg !== barrioOrg) return;
       markLastSyncTime(new Date());
       if (isRefreshingRef.current) return;
+      if (!isBrowserOnline()) return;
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         void requestRefresh({ silent: true });
@@ -112,6 +116,7 @@ export function DataSyncListener() {
       if (barrioOrg && detail?.barrioOrg && detail.barrioOrg !== barrioOrg) return;
       markLastSyncTime(new Date());
       if (isRefreshingRef.current) return;
+      if (!isBrowserOnline()) return;
       void requestRefresh({ silent: true });
     };
     window.addEventListener('sionflow:data-sync', onCustom);

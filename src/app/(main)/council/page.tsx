@@ -12,7 +12,7 @@ import type { Member, FutureMember, Companionship, Family, Annotation, Service, 
 import { getLessActiveMembers, getUrgentMembers, normalizeMemberStatus, updateMember, getDeceasedMembers, getInactiveMembers } from '@/lib/members-data';
 import { createNotificationsForAll } from '@/lib/notification-helpers';
 import { useCallback, useEffect, useState } from 'react';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
 import Link from 'next/link';
 import { firestore } from '@/lib/firebase';
 
@@ -768,7 +768,7 @@ export default function CouncilPage() {
                     <div className="flex flex-wrap items-center justify-between w-full pr-4 gap-2">
                       <div className="flex items-center gap-3 min-w-0">
                         {member.photoURL ? (
-                          <Image
+                          <OfflineImage
                             src={member.photoURL}
                             alt={`${member.firstName} ${member.lastName}`}
                             width={36}
@@ -845,7 +845,7 @@ export default function CouncilPage() {
                       <TableRow key={item.id} className={item.councilCompleted ? 'bg-green-500/10' : ''}>
                         <TableCell>
                           {item.photoURL ? (
-                            <Image
+                            <OfflineImage
                               src={item.photoURL}
                               alt={t("council.photoAlt", { name: `${item.firstName} ${item.lastName}` })}
                               width={40}
@@ -906,7 +906,7 @@ export default function CouncilPage() {
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                         <div className="flex items-center gap-3">
                           {item.photoURL ? (
-                            <Image
+                            <OfflineImage
                               src={item.photoURL}
                               alt={t("council.photoAlt", { name: `${item.firstName} ${item.lastName}` })}
                               width={48}
@@ -1353,7 +1353,7 @@ export default function CouncilPage() {
                       <div className="flex flex-wrap items-center justify-between w-full pr-4 gap-2">
                         <div className="flex items-center gap-3 min-w-0">
                           {member.photoURL ? (
-                            <Image
+                            <OfflineImage
                               src={member.photoURL}
                               alt={t("council.photoAlt", { name: `${member.firstName} ${member.lastName}` })}
                               width={36}

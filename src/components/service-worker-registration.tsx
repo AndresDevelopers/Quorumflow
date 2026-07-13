@@ -78,11 +78,12 @@ export function ServiceWorkerRegistration() {
           }
         }
 
-        // Warm shell routes while online so offline open works
+        // Light warm of start URL only — full shell precache is OfflineShellPrecache
+        // (avoids double network storm on every SW registration).
         if (isBrowserOnline()) {
           window.setTimeout(() => {
-            void warmOfflineCaches();
-          }, 1500);
+            void warmOfflineCaches([], { forceShells: false });
+          }, 8000);
         }
       } catch (error) {
         console.warn('[sw] registration failed', error);

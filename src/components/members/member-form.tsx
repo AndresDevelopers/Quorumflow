@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
 import * as z from 'zod';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
 import { Upload, X, CalendarIcon, MapPin, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
@@ -1389,7 +1389,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                   {baptismPhotoPreviews.map((preview, index) => (
                     <div key={index} className="relative group">
                       <div className="relative w-full h-24 rounded-md border overflow-hidden">
-                        <Image
+                        <OfflineImage
                           src={preview}
                           alt={t('memberForm.baptismPhotoAlt', { index: index + 1 })}
                           fill

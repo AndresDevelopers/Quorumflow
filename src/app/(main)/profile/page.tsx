@@ -9,7 +9,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
 import { useI18n } from '@/contexts/i18n-context';
 import { useAuth } from '@/contexts/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -302,7 +302,7 @@ export default function ProfilePage() {
                         <div className="relative">
                             <Avatar className="h-24 w-24 mb-4">
                                 {displayPhoto ? (
-                                    <Image
+                                    <OfflineImage
                                         src={displayPhoto}
                                         alt={displayName}
                                         width={100}

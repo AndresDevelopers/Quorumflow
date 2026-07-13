@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { OfflineImage } from '@/components/offline-image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { orderBy, query, Timestamp, where, deleteDoc, doc, addDoc } from 'firebase/firestore';
 import { getDocs } from '@/lib/firestore-query';
@@ -373,7 +373,7 @@ export default function ActivitiesPage() {
                                   <CarouselContent>
                                     {item.imageUrls.map((url, index) => (
                                       <CarouselItem key={index}>
-                                        <Image
+                                        <OfflineImage
                                           src={url}
                                           alt={t('reports.activities.imageAlt', { index: index + 1, title: item.title })}
                                           width={800}

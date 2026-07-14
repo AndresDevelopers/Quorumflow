@@ -15,6 +15,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           "/api/",
           "/admin/",
+          "/app-admin/",
           "/_next/",
           "/no-permission",
         ],

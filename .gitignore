@@ -9,8 +9,10 @@ out/
 
 # Environment variables
 .env
+.env.*
 .env.*.local
 .env.local
+.env.production
 
 # Firebase
 firebase-debug.log

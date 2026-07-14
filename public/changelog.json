@@ -6,20 +6,20 @@
       "date": "2026-07-14",
       "changes": {
         "es": [
-          "Eliminamos el sistema de informes anuales antiguo para simplificar la navegación y la aplicación.",
-          "Ahora puedes activar o desactivar las notificaciones push por dispositivo, en lugar de una configuración general para toda la cuenta.",
-          "Mejoramos la sincronización de datos para que funcione correctamente con diferentes tipos de eventos.",
-          "Corregimos problemas de rendimiento y seguridad al aislar los datos de cada barrio, evitando fugas de información entre organizaciones.",
-          "Añadimos protección multiinquilino para que todos los datos se guarden correctamente asociados a tu barrio u organización.",
-          "Reforzamos la seguridad y estandarizamos las rutas de almacenamiento para proteger tus archivos y datos."
+          "Ahora los administradores tienen un panel dedicado separado del resto de la aplicación, con acceso seguro a gestión de usuarios y configuración del sistema.",
+          "Eliminamos el antiguo sistema de informes anuales para simplificar la navegación y mejorar el rendimiento.",
+          "Las notificaciones push ahora se activan por dispositivo, dándote más control sobre qué dispositivos reciben alertas.",
+          "Mejoramos la sincronización de datos para que funcione correctamente con todos los tipos de eventos, evitando errores.",
+          "Ahora los datos de tu barrio están completamente aislados de otros barrios, garantizando que solo veas la información de tu propia unidad.",
+          "Optimizamos el sistema de notificaciones para evitar duplicados y mostrar solo las notificaciones relevantes a tu barrio."
         ],
         "en": [
-          "We removed the old annual reporting system to simplify navigation and the app.",
-          "You can now turn push notifications on or off per device, instead of a single account-wide setting.",
-          "Improved data syncing to work correctly with different event types.",
-          "Fixed performance and security issues by isolating data per ward, preventing information leaks between organizations.",
-          "Added multi-tenant protection so all data is properly saved under your ward or organization.",
-          "Strengthened security and standardized storage paths to protect your files and data."
+          "Admins now have a dedicated panel separate from the rest of the app, with secure access to user management and system settings.",
+          "We removed the old annual reporting system to simplify navigation and improve performance.",
+          "Push notifications are now enabled per device, giving you more control over which devices receive alerts.",
+          "Improved data sync to work correctly with all event types, preventing errors.",
+          "Your ward's data is now fully isolated from other wards, ensuring you only see information from your own unit.",
+          "Optimized the notification system to avoid duplicates and show only notifications relevant to your ward."
         ]
       }
     },

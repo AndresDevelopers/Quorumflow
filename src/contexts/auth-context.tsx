@@ -32,6 +32,11 @@ interface AuthContextType {
   barrio: string;
   organizacion: string;
   barrioOrg: string;
+  /**
+   * Admin general de la plataforma (isAppAdmin).
+   * No debe usar la app principal — solo /app-admin.
+   */
+  isAppAdmin: boolean;
   refreshAuth: () => Promise<void>;
 }
 
@@ -48,6 +53,7 @@ interface CachedAuthProfile {
   photoURL: string | null;
   email: string | null;
   displayName: string | null;
+  isAppAdmin?: boolean;
   savedAt: number;
 }
 
@@ -121,6 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [barrio, setBarrio] = useState<string>('');
   const [organizacion, setOrganizacion] = useState<string>('');
   const [barrioOrg, setBarrioOrg] = useState<string>('');
+  const [isAppAdmin, setIsAppAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const { setTheme } = useTheme();
@@ -142,6 +149,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       photoURL?: string | null;
       email?: string | null;
       displayName?: string | null;
+      isAppAdmin?: boolean;
+      barrioOrg?: string;
     }, options?: { persistUid?: string }) => {
       const role = normalizeRole(data.role);
       const permission = normalizePermission(data.permission);
@@ -167,6 +176,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         data.theme === 'light' || data.theme === 'dark' || data.theme === 'system'
           ? data.theme
           : 'system';
+      const nextIsAppAdmin =
+        data.isAppAdmin === true || nextBarrioOrg === "__system__|__app_admin__";
 
       setUserRole(role);
       setUserPermission(permission);
@@ -175,6 +186,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setBarrio(barrioVal);
       setOrganizacion(orgVal);
       setBarrioOrg(nextBarrioOrg);
+      setIsAppAdmin(nextIsAppAdmin);
       setUserTheme(theme);
       setTheme(theme);
 
@@ -196,6 +208,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           barrio: barrioVal,
           organizacion: orgVal,
           barrioOrg: nextBarrioOrg,
+          isAppAdmin: nextIsAppAdmin,
           photoURL: typeof data.photoURL === "string" ? data.photoURL : existing?.photoURL ?? null,
           email: data.email ?? existing?.email ?? null,
           displayName: data.displayName ?? existing?.displayName ?? null,
@@ -233,8 +246,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       visiblePages: cached.visiblePages,
       barrio: cached.barrio,
       organizacion: cached.organizacion,
+      barrioOrg: cached.barrioOrg,
       theme: cached.theme,
       photoURL: cached.photoURL,
+      isAppAdmin: cached.isAppAdmin === true,
     });
     profileAppliedFromCache.current = true;
     setProfileLoaded(true);
@@ -269,10 +284,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             visiblePages: cached.visiblePages,
             barrio: cached.barrio,
             organizacion: cached.organizacion,
+            barrioOrg: cached.barrioOrg,
             theme: cached.theme,
             photoURL: cached.photoURL,
             email: currentUser.email,
             displayName: currentUser.displayName,
+            isAppAdmin: cached.isAppAdmin === true,
           });
           if (cached.photoURL || currentUser.photoURL) {
             setUser((prev) =>
@@ -335,6 +352,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setBarrio('');
         setOrganizacion('');
         setBarrioOrg('');
+        setIsAppAdmin(false);
         setProfileLoaded(true);
         profileAppliedFromCache.current = false;
       }
@@ -375,8 +393,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 visiblePages: cached.visiblePages,
                 barrio: cached.barrio,
                 organizacion: cached.organizacion,
+                barrioOrg: cached.barrioOrg,
                 theme: cached.theme,
                 photoURL: cached.photoURL,
+                isAppAdmin: cached.isAppAdmin === true,
               });
             } else {
               applyProfile({});
@@ -397,8 +417,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           visiblePages: cached.visiblePages,
           barrio: cached.barrio,
           organizacion: cached.organizacion,
+          barrioOrg: cached.barrioOrg,
           theme: cached.theme,
           photoURL: cached.photoURL,
+          isAppAdmin: cached.isAppAdmin === true,
         });
       } else if (!profileAppliedFromCache.current) {
         applyProfile({});
@@ -414,6 +436,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             {
               email: firebaseUser.email,
               displayName: firebaseUser.displayName,
+              isAppAdmin: false,
             },
             { persistUid: firebaseUser.uid }
           );
@@ -430,10 +453,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             visiblePages: data.visiblePages,
             barrio: data.barrio,
             organizacion: data.organizacion,
+            barrioOrg: data.barrioOrg,
             theme: data.theme,
             photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
+            isAppAdmin: data.isAppAdmin === true,
           },
           { persistUid: firebaseUser.uid }
         );
@@ -450,8 +475,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               visiblePages: cached.visiblePages,
               barrio: cached.barrio,
               organizacion: cached.organizacion,
+              barrioOrg: cached.barrioOrg,
               theme: cached.theme,
               photoURL: cached.photoURL,
+              isAppAdmin: cached.isAppAdmin === true,
             });
           } else {
             applyProfile({});
@@ -512,6 +539,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     barrio,
     organizacion,
     barrioOrg,
+    isAppAdmin,
     refreshAuth,
   };
 

@@ -30,7 +30,11 @@ export async function GET(request: NextRequest) {
 
     let memberCount = 0;
     snap.forEach((doc) => {
-      if (normalizeRole(doc.data().role) === 'user') {
+      const data = doc.data();
+      // Exclude platform app-admin from seat counts
+      if (data.isAppAdmin === true) return;
+      if (data.barrioOrg === '__system__|__app_admin__') return;
+      if (normalizeRole(data.role) === 'user') {
         memberCount += 1;
       }
     });

@@ -14,7 +14,9 @@
     "changelog": "node scripts/generate-changelog.js",
     "setup-hooks": "node scripts/setup-hooks.js",
     "test:roles": "tsx --test scripts/test-roles.ts",
-    "check:i18n": "node scripts/check-i18n-keys.mjs"
+    "check:i18n": "node scripts/check-i18n-keys.mjs",
+    "firebase:use:prod": "firebase use prod",
+    "firebase:use:dev": "firebase use dev"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

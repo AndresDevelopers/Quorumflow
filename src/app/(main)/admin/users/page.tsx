@@ -146,6 +146,9 @@ export default function AdminUsersPage() {
         const list: UserData[] = [];
         snap.forEach((d) => {
           const data = d.data();
+          // Admin general de la app: no listar en admin → users del barrio
+          if (data.isAppAdmin === true) return;
+          if (data.barrioOrg === "__system__|__app_admin__") return;
           list.push({
             uid: d.id,
             name: data.name || t("admin.users.noName"),

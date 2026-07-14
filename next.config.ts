@@ -150,12 +150,23 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
 
   // Legacy Spanish route → multi-language council page
+  // Admin general: /admin/login|panel chocaba con (main)/admin → redirige a /app-admin/*
   async redirects() {
     return [
       {
         source: "/consejo",
         destination: "/council",
         permanent: true,
+      },
+      {
+        source: "/admin/login",
+        destination: "/app-admin/login",
+        permanent: false,
+      },
+      {
+        source: "/admin/panel",
+        destination: "/app-admin/panel",
+        permanent: false,
       },
     ];
   },

@@ -15,7 +15,15 @@ import { Button } from "@/components/ui/button";
 import { getAppName } from "@/lib/app-config";
 
 function PrivateRoute({ children }: { children: ReactNode }) {
-  const { user, loading, profileLoaded, userRole, mainPage, visiblePages } = useAuth();
+  const {
+    user,
+    loading,
+    profileLoaded,
+    userRole,
+    mainPage,
+    visiblePages,
+    isAppAdmin,
+  } = useAuth();
   const router = useRouter();
   const [offlineAuthGaveUp, setOfflineAuthGaveUp] = useState(false);
   // Keep SSR + first client paint identical; only read navigator after mount.
@@ -52,16 +60,30 @@ function PrivateRoute({ children }: { children: ReactNode }) {
     router.push('/login');
   }, [user, loading, router]);
 
+  // Super admin: solo panel /app-admin (no app principal ni admin de barrio)
   useEffect(() => {
-    if (!loading && profileLoaded && user && isRestricted) {
+    if (!loading && profileLoaded && user && isAppAdmin) {
+      router.replace("/app-admin/panel");
+    }
+  }, [loading, profileLoaded, user, isAppAdmin, router]);
+
+  useEffect(() => {
+    if (!loading && profileLoaded && user && !isAppAdmin && isRestricted) {
       router.replace('/no-permission');
     }
-  }, [profileLoaded, isRestricted, loading, router, user]);
+  }, [profileLoaded, isRestricted, loading, router, user, isAppAdmin]);
 
   // Redirect to user's main page if currently on the root path — uses auth context (no extra Firestore read).
   // Skip while offline: client navigations need RSC network and can blank the shell on mobile.
   useEffect(() => {
-    if (!loading && profileLoaded && user && !isRestricted && window.location.pathname === '/') {
+    if (
+      !loading &&
+      profileLoaded &&
+      user &&
+      !isAppAdmin &&
+      !isRestricted &&
+      window.location.pathname === '/'
+    ) {
       if (!isBrowserOnline()) return;
 
       const normalizedVisible = visiblePages.map((p) =>
@@ -79,7 +101,7 @@ function PrivateRoute({ children }: { children: ReactNode }) {
         router.replace(savedMainPage === '/' ? savedMainPage : savedMainPage);
       }
     }
-  }, [loading, user, profileLoaded, isRestricted, router, mainPage, visiblePages]);
+  }, [loading, user, profileLoaded, isRestricted, isAppAdmin, router, mainPage, visiblePages]);
 
   if (loading || (user && !profileLoaded)) {
     return (
@@ -119,6 +141,20 @@ function PrivateRoute({ children }: { children: ReactNode }) {
       );
     }
     return null;
+  }
+
+  // Super admin no renderiza la shell principal
+  if (isAppAdmin) {
+    return (
+      <div className="flex h-svh w-full items-center justify-center">
+        <div className="flex flex-col items-center gap-4 px-4">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <p className="text-sm text-muted-foreground">
+            Redirigiendo al panel de admin…
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (isRestricted) {

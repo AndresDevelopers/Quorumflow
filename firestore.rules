@@ -276,14 +276,57 @@ service cloud.firestore {
     }
 
     // Users — own profile always; peers only same barrioOrg (never global list)
+    //
+    // Super-admin (panel /app-admin):
+    //   - Se crea solo con Admin SDK (bootstrap / API server).
+    //   - El cliente NUNCA puede poner isAppAdmin ni el tenant __system__|__app_admin__.
+    //   - El doc del super-admin no se borra ni se "promueve" desde la app de barrio.
+    //   - Lectura global de usuarios del panel usa Admin SDK (estas rules no la permiten).
+    function isSystemAppAdminBarrioOrg(value) {
+      return value == '__system__|__app_admin__';
+    }
+
+    function resourceIsAppAdminUser() {
+      return resource.data.get('isAppAdmin', false) == true
+        || isSystemAppAdminBarrioOrg(resource.data.get('barrioOrg', ''));
+    }
+
+    function requestClaimsAppAdmin() {
+      return request.resource.data.get('isAppAdmin', false) == true
+        || isSystemAppAdminBarrioOrg(request.resource.data.get('barrioOrg', ''))
+        || request.resource.data.get('barrio', '') == '__system__'
+        || request.resource.data.get('organizacion', '') == '__app_admin__';
+    }
+
+    // Create: no auto-promoción a super-admin
+    function clientCannotSetAppAdminOnCreate() {
+      return requestClaimsAppAdmin() == false;
+    }
+
+    // Update: no tocar flag/tenant de super-admin ni elevar el doc resultante
+    function clientCannotChangeOrClaimAppAdmin() {
+      return !request.resource.data.diff(resource.data).changedKeys()
+          .hasAny(['isAppAdmin'])
+        && requestClaimsAppAdmin() == false
+        // Tampoco se puede "desproteger" mutando el perfil del super-admin desde cliente
+        && resourceIsAppAdminUser() == false;
+    }
+
     match /c_users/{document} {
       allow read: if signedIn()
         && (
           document == request.auth.uid
-          || isSameBarrio(resource.data.barrioOrg)
+          || (
+            isSameBarrio(resource.data.barrioOrg)
+            // Peers no leen el doc del super-admin aunque compartieran algo raro
+            && resourceIsAppAdminUser() == false
+          )
         );
-      allow create: if signedIn() && document == request.auth.uid;
+      allow create: if signedIn()
+        && document == request.auth.uid
+        && clientCannotSetAppAdminOnCreate();
       allow update: if signedIn()
+        && clientCannotChangeOrClaimAppAdmin()
         && (
           (
             // Leadership can manage roles only within their own barrio
@@ -292,10 +335,18 @@ service cloud.firestore {
           )
           || (
             document == request.auth.uid
-            && !request.resource.data.diff(resource.data).changedKeys().hasAny(['role', 'permission', 'barrioOrg', 'barrio', 'organizacion'])
+            && !request.resource.data.diff(resource.data).changedKeys().hasAny([
+              'role',
+              'permission',
+              'barrioOrg',
+              'barrio',
+              'organizacion'
+            ])
           )
         );
-      allow delete: if isSecretaryInSameBarrio(resource.data.barrioOrg);
+      // Nunca borrar al super-admin desde el cliente
+      allow delete: if isSecretaryInSameBarrio(resource.data.barrioOrg)
+        && resourceIsAppAdminUser() == false;
     }
 
     // ── Reference data — public read (names only for registration) ──

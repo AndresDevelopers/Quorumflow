@@ -52,7 +52,33 @@ export default function LoginPage() {
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const cred = await signInWithEmailAndPassword(
+        auth,
+        values.email,
+        values.password
+      );
+
+      // Super admin solo usa el panel /app-admin
+      try {
+        const token = await cred.user.getIdToken();
+        const meRes = await fetch("/api/app-admin/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (meRes.ok) {
+          const me = (await meRes.json()) as { ok?: boolean };
+          if (me.ok) {
+            toast({
+              title: t("login.toastSuccessTitle"),
+              description: "Redirigiendo al panel de admin general…",
+            });
+            router.replace("/app-admin/panel");
+            return;
+          }
+        }
+      } catch {
+        // si falla la comprobación, continúa al flujo normal de la app
+      }
+
       toast({
           title: t('login.toastSuccessTitle'),
           description: t('login.toastSuccessDescription'),

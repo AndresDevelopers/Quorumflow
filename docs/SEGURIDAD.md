@@ -15,7 +15,7 @@ Documento de políticas operativas. Para el checklist técnico de hallazgos y re
 
 | Rol | Permiso | Acceso |
 |---|---|---|
-| `secretary` | Todo | Control total: admin, ajustes, gestión de roles, reportes |
+| `secretary` | Todo | Control total: admin, ajustes y gestión de roles |
 | `president` | Todo | Módulos operativos + panel de admin |
 | `counselor` | Todo | Seguimiento de familias y asignaciones |
 | `other` | Lectura | Solo lectura de datos |

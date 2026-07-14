@@ -32,26 +32,16 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requestDataSyncSignal = exports.syncOnUsersWrite = exports.syncOnFutureMembersWrite = exports.syncOnConvertsWrite = exports.syncOnFsAnnotationsWrite = exports.syncOnFsTrainingsWrite = exports.syncOnBaptismsWrite = exports.syncOnBirthdaysWrite = exports.syncOnHealthConcernsWrite = exports.syncOnNewConvertFriendsWrite = exports.syncOnInvestigatorsWrite = exports.syncOnMissionaryAssignmentsWrite = exports.syncOnServicesWrite = exports.syncOnActivitiesWrite = exports.syncOnMinisteringDistrictsWrite = exports.syncOnMinisteringWrite = exports.syncOnAnnotationsWrite = exports.syncOnMembersWrite = exports.councilNotifications = exports.weeklyNotifications = exports.dailyNotifications = exports.onCouncilAnnotationDeleted = exports.onCouncilAnnotationUpdated = exports.onCouncilAnnotationCreated = exports.onMissionaryAssignmentCreated = exports.onUrgentFamilyFlagged = exports.onServiceDeleted = exports.onServiceUpdated = exports.onServiceCreated = exports.onActivityDeleted = exports.onActivityUpdated = exports.onActivityCreated = exports.generateReport = exports.generateCompleteReport = exports.cleanupProfilePictures = void 0;
+exports.requestDataSyncSignal = exports.syncOnUsersWrite = exports.syncOnFutureMembersWrite = exports.syncOnConvertsWrite = exports.syncOnFsAnnotationsWrite = exports.syncOnFsTrainingsWrite = exports.syncOnBaptismsWrite = exports.syncOnBirthdaysWrite = exports.syncOnHealthConcernsWrite = exports.syncOnNewConvertFriendsWrite = exports.syncOnInvestigatorsWrite = exports.syncOnMissionaryAssignmentsWrite = exports.syncOnServicesWrite = exports.syncOnActivitiesWrite = exports.syncOnMinisteringDistrictsWrite = exports.syncOnMinisteringWrite = exports.syncOnAnnotationsWrite = exports.syncOnMembersWrite = exports.councilNotifications = exports.weeklyNotifications = exports.dailyNotifications = exports.onNewUserRegistered = exports.onCouncilAnnotationDeleted = exports.onCouncilAnnotationUpdated = exports.onCouncilAnnotationCreated = exports.onMissionaryAssignmentCreated = exports.onUrgentFamilyFlagged = exports.onServiceDeleted = exports.onServiceUpdated = exports.onServiceCreated = exports.onActivityDeleted = exports.onActivityUpdated = exports.onActivityCreated = exports.cleanupProfilePictures = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const date_fns_1 = require("date-fns");
 const locale_1 = require("date-fns/locale");
-const pizzip_1 = __importDefault(require("pizzip"));
-const docxtemplater_1 = __importDefault(require("docxtemplater"));
-const modern_image_module_1 = __importDefault(require("./modules/modern-image-module"));
-const axios_1 = __importDefault(require("axios"));
 const notification_dispatcher_1 = require("./modules/notification-dispatcher");
 const data_sync_publisher_1 = require("./modules/data-sync-publisher");
-const webp = __importStar(require("webp-wasm"));
-const pngjs_1 = require("pngjs");
 admin.initializeApp();
 const firestore = admin.firestore();
-const storage = admin.storage();
 const messaging = admin.messaging();
 const notificationDispatcher = new notification_dispatcher_1.NotificationDispatcher(firestore, messaging, functions.logger);
 // Ecuador timezone (no DST)
@@ -59,23 +49,7 @@ const ECUADOR_TZ = "America/Guayaquil";
 // Conservative instance caps (cost-first). firebase-functions v1 via runWith.
 const MAX_INSTANCES_DEFAULT = 10; // triggers / sync / callables
 const MAX_INSTANCES_SCHEDULED = 2; // cron jobs (single-shot)
-const MAX_INSTANCES_REPORTS = 3; // heavy report generation
 const MAX_INSTANCES_STORAGE = 5; // profile picture cleanup
-/**
- * Sanitiza el nombre de organización recibido desde el frontend.
- * Evita que valores como undefined, null, "undefined", "null", o vacíos
- * lleguen a la plantilla DOCX.
- */
-const sanitizeOrgName = (value) => {
-    if (typeof value !== "string" || value.trim().length === 0) {
-        return "Quórum de Élderes";
-    }
-    const lower = value.trim().toLowerCase();
-    if (lower === "undefined" || lower === "null") {
-        return "Quórum de Élderes";
-    }
-    return value.trim();
-};
 function resolveDateValue(value) {
     if (!value)
         return null;
@@ -120,301 +94,12 @@ const buildBirthdayDedupKey = (name, memberId) => {
     const normalizedName = normalizePersonName(name);
     return memberId ? `member:${memberId}` : `name:${normalizedName}`;
 };
-const MAX_DOC_IMAGE_WIDTH = 450;
-const MAX_DOC_IMAGE_HEIGHT = 300;
 const slugify = (value) => value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-const normalizeUrlKey = (value) => value.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
-const countNonEmptyUrls = (urls) => Array.isArray(urls) ? urls.filter((url) => typeof url === "string" && url.trim().length > 0).length : 0;
-const isWebpBuffer = (buffer) => {
-    if (buffer.length < 12)
-        return false;
-    return buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP";
-};
-const convertWebpToPngBuffer = async (buffer) => {
-    const decoded = await webp.decode(buffer);
-    const png = new pngjs_1.PNG({ width: decoded.width, height: decoded.height });
-    png.data = Buffer.from(decoded.data);
-    return pngjs_1.PNG.sync.write(png);
-};
-const normalizeImageForDocx = async (buffer) => {
-    if (buffer.length === 0)
-        return buffer;
-    if (isWebpBuffer(buffer)) {
-        try {
-            return await convertWebpToPngBuffer(buffer);
-        }
-        catch (error) {
-            functions.logger.error("Error converting WEBP to PNG for report", { error });
-            return buffer;
-        }
-    }
-    return buffer;
-};
-const pickPreferredBaptism = (existing, candidate, sourcePriority) => {
-    if (!existing)
-        return candidate;
-    const existingPhotos = countNonEmptyUrls(existing.baptismPhotos);
-    const candidatePhotos = countNonEmptyUrls(candidate.baptismPhotos);
-    if (candidatePhotos !== existingPhotos) {
-        return candidatePhotos > existingPhotos ? candidate : existing;
-    }
-    const existingPriority = sourcePriority[existing.source] ?? Number.MAX_SAFE_INTEGER;
-    const candidatePriority = sourcePriority[candidate.source] ?? Number.MAX_SAFE_INTEGER;
-    if (candidatePriority !== existingPriority) {
-        return candidatePriority < existingPriority ? candidate : existing;
-    }
-    return existing;
-};
-const createImageModuleFromUrls = async (urls) => {
-    const buffers = await fetchImageBuffers(urls);
-    return new modern_image_module_1.default({
-        centered: true,
-        getImage: (tagValue) => {
-            if (typeof tagValue !== "string" || !tagValue) {
-                return Buffer.alloc(0);
-            }
-            return buffers.get(normalizeUrlKey(tagValue)) ?? Buffer.alloc(0);
-        },
-        getSize: () => {
-            return [MAX_DOC_IMAGE_WIDTH, MAX_DOC_IMAGE_HEIGHT];
-        },
-    });
-};
-/**
- * Extrae la ruta del archivo de Storage desde una URL de Firebase Storage.
- * Soporta URLs con formato:
- * - https://firebasestorage.googleapis.com/v0/b/BUCKET/o/PATH?token=...
- * - gs://BUCKET/PATH
- */
-const extractStorageLocationFromUrl = (url) => {
-    try {
-        const normalizedUrl = normalizeUrlKey(url);
-        if (normalizedUrl.startsWith("gs://")) {
-            const parts = normalizedUrl.replace("gs://", "").split("/");
-            const bucket = parts.shift() ?? null;
-            const path = parts.join("/");
-            if (!bucket || !path)
-                return null;
-            return { bucket, path };
-        }
-        // Formato: https://firebasestorage.googleapis.com/v0/b/BUCKET/o/ENCODED_PATH?...
-        if (url.includes("firebasestorage.googleapis.com")) {
-            const match = normalizedUrl.match(/\/v0\/b\/([^/]+)\/o\/([^?]+)/);
-            if (match) {
-                const bucket = match[1] ?? null;
-                const encodedPath = match[2];
-                const decodedPath = decodeURIComponent(encodedPath);
-                if (!decodedPath)
-                    return null;
-                functions.logger.debug("Extracted storage location", { bucket, encodedPath, decodedPath });
-                return { bucket, path: decodedPath };
-            }
-        }
-        try {
-            const parsed = new URL(normalizedUrl);
-            if (parsed.hostname === "storage.googleapis.com" || parsed.hostname === "storage.cloud.google.com") {
-                const pathname = parsed.pathname.replace(/^\/+/, "");
-                const [bucket, ...rest] = pathname.split("/");
-                const path = rest.join("/");
-                if (!bucket || !path)
-                    return null;
-                return { bucket, path };
-            }
-        }
-        catch {
-            // ignore
-        }
-        return null;
-    }
-    catch (error) {
-        functions.logger.error("Error extracting storage location", { url, error });
-        return null;
-    }
-};
-const fetchImageBuffers = async (urls) => {
-    if (urls.length === 0) {
-        return new Map();
-    }
-    const entries = await Promise.all(urls.map(async (url) => {
-        const normalizedUrl = normalizeUrlKey(url);
-        try {
-            // Intentar extraer la ruta del Storage desde la URL
-            const location = extractStorageLocationFromUrl(normalizedUrl);
-            if (location?.path) {
-                // Descargar directamente usando Firebase Admin SDK (acceso privilegiado)
-                const targetBucket = location.bucket ? storage.bucket(location.bucket) : storage.bucket();
-                const file = targetBucket.file(location.path);
-                const [exists] = await file.exists();
-                if (exists) {
-                    const [buffer] = await file.download();
-                    const normalizedBuffer = await normalizeImageForDocx(buffer);
-                    functions.logger.info("Image downloaded via Admin SDK", { storagePath: location.path });
-                    return [normalizedUrl, normalizedBuffer];
-                }
-                else {
-                    functions.logger.warn("File not found in Storage", { storagePath: location.path, url: normalizedUrl });
-                }
-            }
-            // Fallback: usar axios para URLs externas o si no se pudo extraer la ruta
-            const response = await axios_1.default.get(normalizedUrl, {
-                responseType: "arraybuffer",
-                headers: {
-                    Accept: "image/*",
-                },
-                timeout: 30000, // 30 segundos de timeout
-            });
-            functions.logger.info("Image downloaded via HTTP", { url: normalizedUrl });
-            const buffer = Buffer.from(response.data);
-            const normalizedBuffer = await normalizeImageForDocx(buffer);
-            return [normalizedUrl, normalizedBuffer];
-        }
-        catch (error) {
-            functions.logger.error("Error downloading image for report", { url: normalizedUrl, error });
-            return [normalizedUrl, Buffer.alloc(0)];
-        }
-    }));
-    return new Map(entries);
-};
-const prepareActivitiesDocData = async (items) => {
-    const activitiesData = items.map((activity) => {
-        const activityDate = activity.date.toDate();
-        const dateStr = (0, date_fns_1.format)(activityDate, "dd/MM/yyyy", { locale: locale_1.es });
-        const fullDate = (0, date_fns_1.format)(activityDate, "dd 'de' MMMM 'de' yyyy", { locale: locale_1.es });
-        const timeStr = activity.time ? ` ${activity.time}` : "";
-        let fullDescription = activity.description || "";
-        if (activity.additionalText) {
-            fullDescription += `\n\nTexto Adicional: ${activity.additionalText}`;
-        }
-        const images = (activity.imageUrls ?? [])
-            .filter((url) => !!url)
-            .map((url, index) => ({
-            image: url,
-            caption: `${activity.title} - ${fullDate}`,
-            title: activity.title,
-            date: fullDate,
-            order: index + 1,
-            description: fullDescription,
-            location: activity.location || "",
-        }));
-        const primaryImage = images[0] ?? null;
-        return {
-            id: activity.id,
-            title: activity.title,
-            date: `${dateStr}${timeStr}`,
-            fullDate,
-            time: activity.time || "",
-            description: fullDescription,
-            additionalText: activity.additionalText || "",
-            location: activity.location || "",
-            context: activity.context || "",
-            learning: activity.learning || "",
-            hasImages: images.length > 0,
-            imageCount: images.length,
-            primaryImage,
-            images,
-            separator: "─────────────────────────────────────────────────────", // Separador visual
-        };
-    });
-    const totalImages = activitiesData.reduce((sum, activity) => sum + activity.imageCount, 0);
-    const galleries = activitiesData
-        .filter((activity) => activity.hasImages)
-        .map((activity) => ({
-        titulo: activity.title,
-        fecha: activity.fullDate,
-        descripcion: activity.description,
-        cantidad: activity.imageCount,
-        imagen_principal: activity.primaryImage,
-        imagenes: activity.images,
-    }));
-    return {
-        activitiesData,
-        totalImages,
-        galleries,
-        activitiesWithImages: galleries.length,
-    };
-};
-const prepareBaptismsDocData = async (baptisms) => {
-    functions.logger.info("prepareBaptismsDocData called", {
-        totalBaptisms: baptisms.length,
-        sampleBaptism: baptisms[0] ? {
-            name: baptisms[0].name,
-            hasPhotoURL: !!baptisms[0].photoURL,
-            photoURL: baptisms[0].photoURL,
-            hasBaptismPhotos: !!baptisms[0].baptismPhotos,
-            baptismPhotosLength: baptisms[0].baptismPhotos?.length || 0
-        } : null
-    });
-    const baptismsData = baptisms.map((baptism) => {
-        const baptismDate = baptism.date.toDate();
-        const fullDate = (0, date_fns_1.format)(baptismDate, "dd 'de' MMMM 'de' yyyy", { locale: locale_1.es });
-        const shortDate = (0, date_fns_1.format)(baptismDate, "dd/MM/yyyy", { locale: locale_1.es });
-        const dayOfWeek = (0, date_fns_1.format)(baptismDate, "EEEE", { locale: locale_1.es });
-        const month = (0, date_fns_1.format)(baptismDate, "MMMM", { locale: locale_1.es });
-        // Solo usar las fotos específicas del bautismo (baptismPhotos)
-        // NO incluir la foto de perfil (photoURL) en el reporte
-        const allImageUrls = [];
-        // Agregar solo las fotos del bautismo
-        if (baptism.baptismPhotos && baptism.baptismPhotos.length > 0) {
-            functions.logger.info("Adding baptismPhotos for baptism", {
-                name: baptism.name,
-                count: baptism.baptismPhotos.length,
-                photos: baptism.baptismPhotos
-            });
-            allImageUrls.push(...baptism.baptismPhotos.filter((url) => !!url));
-        }
-        if (allImageUrls.length === 0 && baptism.photoURL && baptism.photoURL.trim()) {
-            allImageUrls.push(baptism.photoURL.trim());
-        }
-        const images = allImageUrls.map((url, index) => ({
-            image: url,
-            caption: `Bautismo de ${baptism.name} - ${fullDate}`,
-            name: baptism.name,
-            date: fullDate,
-            order: index + 1,
-        }));
-        functions.logger.info("Processed baptism", {
-            name: baptism.name,
-            totalImages: images.length,
-            hasImages: images.length > 0
-        });
-        return {
-            id: baptism.id,
-            nombre: baptism.name,
-            fecha: fullDate,
-            fecha_corta: shortDate,
-            dia_semana: dayOfWeek,
-            origen: baptism.source,
-            mes: month,
-            hasImages: images.length > 0,
-            imageCount: images.length,
-            photoURL: baptism.photoURL || "",
-            images,
-            separator: "─────────────────────────────────────────────────────", // Separador visual
-        };
-    });
-    const totalBaptismImages = baptismsData.reduce((sum, baptism) => sum + baptism.imageCount, 0);
-    const baptismGalleries = baptismsData
-        .filter((baptism) => baptism.hasImages)
-        .map((baptism) => ({
-        nombre: baptism.nombre,
-        fecha: baptism.fecha,
-        origen: baptism.origen,
-        cantidad: baptism.imageCount,
-        foto_perfil: baptism.photoURL,
-        imagenes: baptism.images,
-    }));
-    return {
-        baptismsData,
-        totalBaptismImages,
-        baptismGalleries,
-        baptismsWithImages: baptismGalleries.length,
-    };
-};
 exports.cleanupProfilePictures = functions
     .runWith({ maxInstances: MAX_INSTANCES_STORAGE })
     .storage.object().onFinalize(async (object) => {
@@ -439,353 +124,6 @@ exports.cleanupProfilePictures = functions
     await Promise.all(deletePromises);
     return null;
 });
-function dedupeBaptisms(rawBaptisms, sourcePriority) {
-    const baptismMap = new Map();
-    rawBaptisms.forEach(baptism => {
-        const normalizedName = baptism.name.trim().toLowerCase().replace(/\s+/g, ' ');
-        const dateKey = baptism.date.toDate().toISOString().split('T')[0];
-        const key = `${normalizedName}|${dateKey}`;
-        const existing = baptismMap.get(key);
-        const preferred = pickPreferredBaptism(existing, baptism, sourcePriority);
-        if (preferred !== existing) {
-            baptismMap.set(key, preferred);
-        }
-    });
-    return Array.from(baptismMap.values())
-        .sort((a, b) => b.date.toMillis() - a.date.toMillis());
-}
-function buildMonthlyActivities(activitiesData, activitiesByMonth) {
-    const activitiesDataMap = new Map(activitiesData.map(a => [a.id, a]));
-    return Object.entries(activitiesByMonth)
-        .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-        .map(([month, activities]) => ({
-        month,
-        count: activities.length,
-        activities: activities.map(activity => {
-            const docActivity = activitiesDataMap.get(activity.id);
-            const activityDate = activity.date.toDate();
-            return {
-                title: docActivity?.title ?? activity.title,
-                date: (0, date_fns_1.format)(activityDate, "dd 'de' MMMM", { locale: locale_1.es }),
-                fullDate: docActivity?.fullDate ?? (0, date_fns_1.format)(activityDate, "dd 'de' MMMM 'de' yyyy", { locale: locale_1.es }),
-                time: docActivity?.time ?? activity.time ?? "",
-                description: docActivity?.description ?? activity.description,
-                additionalText: docActivity?.additionalText ?? activity.additionalText ?? "",
-                location: docActivity?.location ?? activity.location ?? "",
-                context: docActivity?.context ?? activity.context ?? "",
-                learning: docActivity?.learning ?? activity.learning ?? "",
-                hasImages: docActivity?.hasImages ?? (activity.imageUrls ? activity.imageUrls.length > 0 : false),
-                imageCount: docActivity?.imageCount ?? (activity.imageUrls ? activity.imageUrls.length : 0),
-                images: docActivity?.images ?? (activity.imageUrls ?? []).map((url, index) => ({
-                    image: url,
-                    caption: `${activity.title} - ${(0, date_fns_1.format)(activityDate, "dd 'de' MMMM 'de' yyyy", { locale: locale_1.es })}`,
-                    title: activity.title,
-                    date: (0, date_fns_1.format)(activityDate, "dd 'de' MMMM 'de' yyyy", { locale: locale_1.es }),
-                    order: index + 1,
-                    description: activity.description,
-                    location: activity.location || "",
-                })),
-            };
-        }),
-    }));
-}
-function collectAllImageUrls(activitiesData, baptismsData) {
-    const allImageUrls = new Set();
-    activitiesData.forEach(a => a.images.forEach(img => allImageUrls.add(img.image)));
-    baptismsData.forEach(b => {
-        if (b.photoURL)
-            allImageUrls.add(b.photoURL);
-        b.images.forEach(img => allImageUrls.add(img.image));
-    });
-    return Array.from(allImageUrls);
-}
-async function buildAnnualReport(req, profile) {
-    const start = (0, date_fns_1.startOfYear)(new Date(req.year, 0, 1));
-    const end = (0, date_fns_1.endOfYear)(new Date(req.year, 11, 31));
-    const startTimestamp = admin.firestore.Timestamp.fromDate(start);
-    const endTimestamp = admin.firestore.Timestamp.fromDate(end);
-    const barrioOrg = req.barrioOrg;
-    // 1. Load activities / services (scoped to caller's barrioOrg)
-    let allActivities;
-    let activitiesToProcess;
-    if (profile.includeServices) {
-        const activitiesQuery = req.includeAllActivities
-            ? firestore.collection("c_actividades")
-                .where("barrioOrg", "==", barrioOrg)
-                .orderBy("date", "desc")
-            : firestore.collection("c_actividades")
-                .where("barrioOrg", "==", barrioOrg)
-                .where("date", ">=", startTimestamp)
-                .where("date", "<=", endTimestamp)
-                .orderBy("date", "desc");
-        const servicesQuery = req.includeAllActivities
-            ? firestore.collection("c_servicios")
-                .where("barrioOrg", "==", barrioOrg)
-                .orderBy("date", "desc")
-            : firestore.collection("c_servicios")
-                .where("barrioOrg", "==", barrioOrg)
-                .where("date", ">=", startTimestamp)
-                .where("date", "<=", endTimestamp)
-                .orderBy("date", "desc");
-        const [activitiesSnapshot, servicesSnapshot] = await Promise.all([
-            activitiesQuery.get(),
-            servicesQuery.get(),
-        ]);
-        allActivities = activitiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const allServices = servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const servicesWithImages = allServices.filter(s => s.imageUrls && s.imageUrls.length > 0 && s.imageUrls.some(url => url && url.trim() !== ''));
-        const combined = [...allActivities, ...servicesWithImages];
-        activitiesToProcess = req.includeAllActivities
-            ? combined
-            : combined.filter(a => a.date.toDate() >= start && a.date.toDate() <= end);
-    }
-    else {
-        const activitiesSnapshot = await firestore.collection("c_actividades")
-            .where("barrioOrg", "==", barrioOrg)
-            .orderBy("date", "desc")
-            .get();
-        allActivities = activitiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const currentYearActivities = allActivities.filter(a => a.date.toDate() >= start && a.date.toDate() <= end);
-        activitiesToProcess = req.includeAllActivities ? allActivities : currentYearActivities;
-    }
-    // 2. Load baptisms (scoped to caller's barrioOrg)
-    const baptismQueries = [
-        firestore.collection("c_bautismos")
-            .where("barrioOrg", "==", barrioOrg)
-            .where("date", ">=", startTimestamp)
-            .where("date", "<=", endTimestamp)
-            .get(),
-        firestore.collection("c_futuros_miembros")
-            .where("barrioOrg", "==", barrioOrg)
-            .where("baptismDate", ">=", startTimestamp)
-            .where("baptismDate", "<=", endTimestamp)
-            .get(),
-        firestore.collection("c_nuevos_conversos")
-            .where("barrioOrg", "==", barrioOrg)
-            .where("baptismDate", ">=", startTimestamp)
-            .where("baptismDate", "<=", endTimestamp)
-            .get(),
-    ];
-    if (profile.includeMemberBaptisms) {
-        baptismQueries.push(firestore.collection("c_miembros")
-            .where("barrioOrg", "==", barrioOrg)
-            .where("baptismDate", ">=", startTimestamp)
-            .where("baptismDate", "<=", endTimestamp)
-            .get());
-    }
-    // Report answers are multi-tenant: prefer doc id "year|barrioOrg", fall back to legacy "year"
-    const reportAnswersId = `${req.year}|${barrioOrg}`;
-    const answersDoc = firestore.collection("c_reporte_anual").doc(reportAnswersId).get()
-        .then(async (snap) => {
-        if (snap.exists)
-            return snap;
-        // Legacy single-doc-per-year (may mix barrios) — only use if it matches barrioOrg
-        const legacy = await firestore.collection("c_reporte_anual").doc(String(req.year)).get();
-        if (legacy.exists) {
-            const legacyData = legacy.data() || {};
-            if (legacyData.barrioOrg && legacyData.barrioOrg !== barrioOrg) {
-                // Wrong barrio — treat as empty answers
-                return { exists: false, data: () => ({}) };
-            }
-        }
-        return legacy;
-    });
-    const snapshotResults = await Promise.all([...baptismQueries, answersDoc]);
-    const reportAnswersDoc = snapshotResults.pop();
-    const [baptismsSnapshot, futureMembersSnapshot, convertsSnapshot, membersSnapshot] = snapshotResults;
-    const rawBaptisms = [
-        ...futureMembersSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return { id: doc.id, name: data.name || "Sin nombre", date: data.baptismDate, source: "Futuro Miembro", photoURL: data.photoURL, baptismPhotos: data.baptismPhotos || [] };
-        }),
-        ...convertsSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return { id: doc.id, name: data.name || "Sin nombre", date: data.baptismDate, source: "Nuevo Converso", photoURL: data.photoURL, baptismPhotos: data.baptismPhotos || [] };
-        }),
-        ...baptismsSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return { id: doc.id, name: data.name || "Sin nombre", date: data.date, source: "Manual", photoURL: data.photoURL, baptismPhotos: data.baptismPhotos || [] };
-        }),
-        ...(membersSnapshot ? membersSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return { id: doc.id, name: `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Sin nombre", date: data.baptismDate, source: "Automático", photoURL: data.photoURL, baptismPhotos: data.baptismPhotos || [] };
-        }) : []),
-    ].filter(b => b.date);
-    const baptisms = dedupeBaptisms(rawBaptisms, profile.sourcePriority);
-    const answers = (reportAnswersDoc.data() || {});
-    // 3. Media preparation
-    const { activitiesData, totalImages, galleries, activitiesWithImages } = await prepareActivitiesDocData(activitiesToProcess);
-    const { baptismsData, totalBaptismImages, baptismGalleries, baptismsWithImages } = await prepareBaptismsDocData(baptisms);
-    // 4. Image module
-    const imageModule = await createImageModuleFromUrls(collectAllImageUrls(activitiesData, baptismsData));
-    // 5. Monthly breakdown
-    const activitiesByMonth = activitiesToProcess.reduce((acc, activity) => {
-        const month = (0, date_fns_1.format)(activity.date.toDate(), "MMMM yyyy", { locale: locale_1.es });
-        if (!acc[month])
-            acc[month] = [];
-        acc[month].push(activity);
-        return acc;
-    }, {});
-    const monthlyActivities = buildMonthlyActivities(activitiesData, activitiesByMonth);
-    const baptismsText = baptismsData.map(b => `${b.nombre} (${b.fecha})`).join("\n");
-    // 6. Build template data via profile
-    const ctx = {
-        req, start, end, allActivities, activitiesToProcess, baptisms, answers,
-        activitiesByMonth, activitiesData, totalImages, galleries, activitiesWithImages,
-        baptismsData, totalBaptismImages, baptismGalleries, baptismsWithImages,
-        baptismsText, monthlyActivities,
-    };
-    const templateData = profile.buildTemplateData(ctx);
-    // 7. Render DOCX
-    const bucket = storage.bucket();
-    const templateFile = bucket.file("template/reporte.docx");
-    const [templateBuffer] = await templateFile.download();
-    const zip = new pizzip_1.default(templateBuffer);
-    const doc = new docxtemplater_1.default(zip, { paragraphLoop: true, linebreaks: true, modules: [imageModule] });
-    doc.render(templateData);
-    const buffer = doc.getZip().generate({ type: "nodebuffer" });
-    return { fileContents: buffer.toString("base64") };
-}
-// ── Profiles ─────────────────────────────────────────────────────────────────
-const COMPLETE_PROFILE = {
-    includeServices: true,
-    includeMemberBaptisms: true,
-    sourcePriority: { "Manual": 1, "Nuevo Converso": 2, "Futuro Miembro": 3, "Automático": 4 },
-    buildTemplateData(ctx) {
-        const { req, start, end, allActivities, activitiesToProcess, baptisms, answers, activitiesByMonth, activitiesData, totalImages, galleries, activitiesWithImages, baptismsData, totalBaptismImages, baptismGalleries, baptismsWithImages, baptismsText, monthlyActivities } = ctx;
-        const currentYearActivities = allActivities.filter(a => a.date.toDate() >= start && a.date.toDate() <= end);
-        const summary = {
-            total_actividades_ano: currentYearActivities.length,
-            total_bautismos_ano: baptisms.length,
-            total_actividades_registradas: allActivities.length,
-            actividades_incluidas: activitiesToProcess.length,
-            periodo_cubierto: `${(0, date_fns_1.format)(start, "d 'de' MMMM", { locale: locale_1.es })} al ${(0, date_fns_1.format)(end, "d 'de' MMMM 'de' yyyy", { locale: locale_1.es })}`,
-            meses_con_actividades: Object.keys(activitiesByMonth).length,
-            distribucion_bautismos: baptisms.reduce((acc, b) => {
-                if (!acc[b.source])
-                    acc[b.source] = 0;
-                acc[b.source]++;
-                return acc;
-            }, {}),
-        };
-        return {
-            org: req.organizacion,
-            anho_reporte: req.year,
-            fecha_reporte: (0, date_fns_1.format)(new Date(), "d 'de' MMMM 'de' yyyy", { locale: locale_1.es }),
-            fecha_generacion: (0, date_fns_1.format)(new Date(), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: locale_1.es }),
-            periodo_informe: summary.periodo_cubierto,
-            resumen_ejecutivo: summary,
-            respuesta_p1: answers.p1 || "",
-            respuesta_p2: answers.p2 || "",
-            respuesta_p3: answers.p3 || "",
-            respuesta_p4: answers.p4 || "",
-            respuesta_p5: answers.p5 || "",
-            respuesta_p6: answers.p6 || "",
-            lista_actividades: activitiesData,
-            lista_bautismos: baptismsText,
-            total_actividades: activitiesToProcess.length,
-            total_bautismos: baptisms.length,
-            total_actividades_ano_actual: currentYearActivities.length,
-            total_actividades_totales: allActivities.length,
-            incluye_todas_actividades: req.includeAllActivities ? "Sí" : "No (solo del año actual)",
-            actividades_por_mes: monthlyActivities,
-            resumen_bautismos: baptismsData,
-            galeria_actividades: galleries,
-            galeria_bautismos: baptismGalleries,
-            total_imagenes: totalImages,
-            total_imagenes_bautismos: totalBaptismImages,
-            total_imagenes_todas: totalImages + totalBaptismImages,
-            actividades_con_imagenes: activitiesWithImages,
-            bautismos_con_imagenes: baptismsWithImages,
-            distribucion_bautismos_por_fuente: Object.entries(summary.distribucion_bautismos).map(([fuente, cantidad]) => ({ fuente, cantidad })),
-            tabla_actividades: activitiesToProcess.map(a => ({
-                titulo: a.title,
-                fecha: (0, date_fns_1.format)(a.date.toDate(), "dd/MM/yyyy", { locale: locale_1.es }),
-                descripcion: (a.description || "").substring(0, 100) + ((a.description || "").length > 100 ? "..." : ""),
-                tiene_imagenes: a.imageUrls && a.imageUrls.length > 0 ? "Sí" : "No",
-                cantidad_imagenes: a.imageUrls ? a.imageUrls.length : 0,
-            })),
-            tabla_bautismos: baptismsData,
-        };
-    },
-};
-const LEGACY_PROFILE = {
-    includeServices: false,
-    includeMemberBaptisms: false,
-    sourcePriority: { "Manual": 1, "Nuevo Converso": 2, "Futuro Miembro": 3 },
-    buildTemplateData(ctx) {
-        const { req, activitiesToProcess, baptisms, answers, activitiesData, totalImages, galleries, activitiesWithImages, baptismsData, totalBaptismImages, baptismGalleries, baptismsWithImages, baptismsText, monthlyActivities } = ctx;
-        return {
-            org: req.organizacion,
-            anho_reporte: req.year,
-            fecha_reporte: (0, date_fns_1.format)(new Date(), "d MMMM yyyy", { locale: locale_1.es }),
-            respuesta_p1: answers.p1 || "",
-            respuesta_p2: answers.p2 || "",
-            respuesta_p3: answers.p3 || "",
-            respuesta_p4: answers.p4 || "",
-            respuesta_p5: answers.p5 || "",
-            respuesta_p6: answers.p6 || "",
-            lista_actividades: activitiesData,
-            lista_bautismos: baptismsText,
-            total_actividades: activitiesToProcess.length,
-            total_bautismos: baptisms.length,
-            actividades_por_mes: monthlyActivities,
-            resumen_bautismos: baptismsData,
-            galeria_actividades: galleries,
-            galeria_bautismos: baptismGalleries,
-            total_imagenes: totalImages,
-            total_imagenes_bautismos: totalBaptismImages,
-            total_imagenes_todas: totalImages + totalBaptismImages,
-            actividades_con_imagenes: activitiesWithImages,
-            bautismos_con_imagenes: baptismsWithImages,
-            fecha_generacion: (0, date_fns_1.format)(new Date(), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: locale_1.es }),
-        };
-    },
-};
-// ── Authenticated wrappers ───────────────────────────────────────────────────
-async function withAuthenticatedReport(context, data, profile, label) {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "The function must be called while authenticated.");
-    }
-    // Resolve barrioOrg from c_users — never trust client for data filtering, never default ward
-    const userDoc = await firestore.collection("c_users").doc(context.auth.uid).get();
-    if (!userDoc.exists) {
-        throw new functions.https.HttpsError("failed-precondition", "Usuario sin barrio asignado.");
-    }
-    const userData = userDoc.data() || {};
-    let barrioOrg = "";
-    if (typeof userData.barrioOrg === "string") {
-        const explicit = userData.barrioOrg.trim();
-        if (explicit.includes("|") && !explicit.startsWith("|") && !explicit.endsWith("|")) {
-            barrioOrg = explicit;
-        }
-    }
-    if (!barrioOrg) {
-        const barrio = typeof userData.barrio === "string" ? userData.barrio.trim() : "";
-        const organizacionField = typeof userData.organizacion === "string" ? userData.organizacion.trim() : "";
-        if (!barrio || !organizacionField) {
-            throw new functions.https.HttpsError("failed-precondition", "Usuario sin barrio asignado.");
-        }
-        barrioOrg = `${barrio}|${organizacionField}`;
-    }
-    const req = {
-        year: data.year || (0, date_fns_1.getYear)(new Date()),
-        includeAllActivities: data.includeAllActivities || false,
-        // Client organizacion is visual label only; data is filtered by barrioOrg
-        organizacion: sanitizeOrgName(data.organizacion),
-        barrioOrg,
-    };
-    return buildAnnualReport(req, profile).catch(error => {
-        functions.logger.error(`Error generating ${label} report:`, error);
-        throw new functions.https.HttpsError("internal", `Error generating ${label} report: ` + error);
-    });
-}
-exports.generateCompleteReport = functions
-    .runWith({ timeoutSeconds: 540, memory: "1GB", maxInstances: MAX_INSTANCES_REPORTS })
-    .https.onCall((data, context) => withAuthenticatedReport(context, data, COMPLETE_PROFILE, "complete"));
-exports.generateReport = functions
-    .runWith({ timeoutSeconds: 300, memory: "512MB", maxInstances: MAX_INSTANCES_REPORTS })
-    .https.onCall((data, context) => withAuthenticatedReport(context, data, LEGACY_PROFILE, "legacy"));
 exports.onActivityCreated = functions
     .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
     .firestore
@@ -1385,13 +723,13 @@ async function getAllUsersNotificationData() {
 /** Firestore `in` operator supports at most 30 values. */
 const FIRESTORE_IN_LIMIT = 30;
 /**
- * Unique barrioOrg values that have at least one user with notifications active
- * (inAppEnabled or pushEnabled). Used to scope scheduled notification reads.
+ * Unique barrioOrg values that have users. Used to scope scheduled notification reads.
+ * Push delivery is later filtered by per-device FCM tokens.
  */
 function getActiveBarrioOrgs(users) {
     const set = new Set();
     for (const u of users) {
-        if ((u.inAppEnabled || u.pushEnabled) && u.barrioOrg) {
+        if (u.barrioOrg) {
             set.add(u.barrioOrg);
         }
     }
@@ -1457,13 +795,14 @@ function userHasCategoryPage(visiblePages, page) {
     const target = page.split("?")[0];
     const normalizedVisible = visiblePages.map((p) => {
         const path = p.split("?")[0];
-        return path === "/future-members" ? "/missionary-work" : path;
+        if (path === "/future-members")
+            return "/missionary-work";
+        // Legacy reports page removed; treat as activities
+        if (path === "/reports")
+            return "/reports/activities";
+        return path;
     });
     if (normalizedVisible.includes(target)) {
-        return true;
-    }
-    // /reports grants activities reminders when the dedicated activities page is not listed
-    if (target === "/reports/activities" && normalizedVisible.includes("/reports")) {
         return true;
     }
     return false;
@@ -1533,7 +872,10 @@ function getEligibleUsers(users, category, docBarrioOrg) {
         const pushCat = u.notificationPrefs.push[category] !== false;
         if (u.inAppEnabled && inAppCat)
             inAppUserIds.push(u.userId);
-        if (u.pushEnabled && pushCat)
+        // Push is per-device: include users by category preference; FCM only
+        // reaches devices with an active c_push_subscriptions token.
+        // Account pushEnabled is derived/diagnostic and must not hide other devices.
+        if (pushCat)
             pushUserIds.push(u.userId);
     }
     return { inAppUserIds, pushUserIds };
@@ -1546,6 +888,19 @@ function isSecretaryRole(role) {
     return normalized === "secretary" || normalized === "admin";
 }
 /**
+ * Roles that see Administración in the sidebar (matches frontend isAdmin).
+ * Includes legacy "admin" and Spanish "presidente".
+ */
+function isAdminMenuRole(role) {
+    if (!role)
+        return false;
+    const normalized = role.trim().toLowerCase();
+    return (normalized === "secretary" ||
+        normalized === "admin" ||
+        normalized === "president" ||
+        normalized === "presidente");
+}
+/**
  * Eligible users for a category, restricted to the secretary role
  * (includes legacy "admin" role).
  */
@@ -1553,6 +908,121 @@ function getEligibleSecretaries(users, category, docBarrioOrg) {
     const secretaries = users.filter((u) => isSecretaryRole(u.role));
     return getEligibleUsers(secretaries, category, docBarrioOrg);
 }
+/**
+ * Admins (president / secretary / legacy admin) in the same barrioOrg who
+ * should be told that a new self-registered member needs a role assignment.
+ * In-app respects the global in-app toggle; push is attempted for all
+ * matching roles (FCM only reaches devices with an active token).
+ */
+function getEligibleAdminsForNewRegistration(users, docBarrioOrg, excludeUserId) {
+    const scope = normalizeDocBarrioOrg(docBarrioOrg);
+    const inAppUserIds = [];
+    const pushUserIds = [];
+    if (!scope) {
+        functions.logger.warn("getEligibleAdminsForNewRegistration: skipped — missing barrioOrg", {
+            docBarrioOrg: docBarrioOrg ?? null,
+        });
+        return { inAppUserIds, pushUserIds };
+    }
+    for (const u of users) {
+        if (excludeUserId && u.userId === excludeUserId)
+            continue;
+        if (!isAdminMenuRole(u.role))
+            continue;
+        if (u.barrioOrg !== scope)
+            continue;
+        if (u.inAppEnabled)
+            inAppUserIds.push(u.userId);
+        pushUserIds.push(u.userId);
+    }
+    return { inAppUserIds, pushUserIds };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// New user registration (c_users onCreate) – notify admin menu roles
+// Roles: secretary (incl. legacy admin) and president — same as isAdmin() UI.
+// In-app + push; click opens /admin/users to assign a role.
+// ─────────────────────────────────────────────────────────────────────────────
+function isSelfRegisteredMemberRole(role) {
+    if (typeof role !== "string" || !role.trim()) {
+        // Registration always writes role: 'user'; missing/empty still needs assignment.
+        return true;
+    }
+    const normalized = role.trim().toLowerCase();
+    return normalized === "user" || normalized === "miembro";
+}
+exports.onNewUserRegistered = functions
+    .runWith({ maxInstances: MAX_INSTANCES_DEFAULT })
+    .firestore
+    .document("c_users/{userId}")
+    .onCreate(async (snapshot, context) => {
+    const userId = context.params.userId;
+    try {
+        const data = snapshot.data() || {};
+        // Only self-registrations that still need a leadership role assigned.
+        if (!isSelfRegisteredMemberRole(data.role)) {
+            functions.logger.log("onNewUserRegistered: skip non-member role", {
+                userId,
+                role: data.role ?? null,
+            });
+            return;
+        }
+        const barrioOrg = resolveUserBarrioOrgFromData(data);
+        if (!barrioOrg) {
+            functions.logger.warn("onNewUserRegistered: missing barrioOrg — abort (fail closed)", {
+                userId,
+            });
+            return;
+        }
+        const name = typeof data.name === "string" && data.name.trim()
+            ? data.name.trim()
+            : "Un usuario";
+        const email = typeof data.email === "string" && data.email.trim()
+            ? data.email.trim()
+            : "";
+        // Bust barrio cache so we load current admins (and avoid stale misses).
+        _usersCacheByKey.delete(barrioOrg);
+        const allUsers = await getUsersForDocBarrioOrg(barrioOrg);
+        const eligible = getEligibleAdminsForNewRegistration(allUsers, barrioOrg, userId);
+        if (eligible.inAppUserIds.length === 0 && eligible.pushUserIds.length === 0) {
+            functions.logger.log("onNewUserRegistered: no eligible admins", {
+                userId,
+                barrioOrg,
+            });
+            return;
+        }
+        const body = email
+            ? `${name} (${email}) se registró y necesita que le asignes un rol`
+            : `${name} se registró y necesita que le asignes un rol`;
+        await notificationDispatcher.broadcastToUsers(eligible.inAppUserIds, {
+            title: "Nuevo usuario registrado",
+            body,
+            url: "/admin/users",
+            tag: `new-user-registered-${userId}`,
+            barrioOrg,
+            context: {
+                contextType: "admin_user",
+                contextId: userId,
+                actionUrl: "/admin/users",
+                actionType: "navigate",
+            },
+        }, eligible.pushUserIds, {
+            source: "onNewUserRegistered",
+            category: "admin_user",
+        });
+        functions.logger.log("onNewUserRegistered: notified admins", {
+            userId,
+            barrioOrg,
+            inApp: eligible.inAppUserIds.length,
+            push: eligible.pushUserIds.length,
+        });
+    }
+    catch (error) {
+        functions.logger.error("Failed to notify admins of new registration", {
+            error,
+            userId,
+        });
+    }
+});
 // ─────────────────────────────────────────────────────────────────────────────
 // DAILY NOTIFICATIONS – 09:00 Ecuador (America/Guayaquil)
 // Covers: Birthdays, Future Members, Services, Activities
@@ -1925,7 +1395,8 @@ exports.weeklyNotifications = functions
         for (const [barrioOrg, membersNeedingOrdinances] of deceasedByBarrioOrg.entries()) {
             if (membersNeedingOrdinances.length === 0)
                 continue;
-            const pushUsers = allUsers.filter(u => u.pushEnabled && (!barrioOrg || barrioOrg === "unknown" || u.barrioOrg === barrioOrg));
+            // Per-device opt-in: include barrio users; only devices with tokens receive FCM
+            const pushUsers = allUsers.filter(u => !barrioOrg || barrioOrg === "unknown" || u.barrioOrg === barrioOrg);
             if (pushUsers.length > 0) {
                 const memberNames = membersNeedingOrdinances
                     .map(m => `${m.firstName} ${m.lastName}`)

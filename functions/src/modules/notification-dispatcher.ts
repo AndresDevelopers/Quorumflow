@@ -15,7 +15,8 @@ export type NotificationContextType =
   | "missionary_assignment"
   | "observations"
   | "family_search"
-  | "future_member";
+  | "future_member"
+  | "admin_user";
 
 export interface NotificationContext {
   contextType?: NotificationContextType;

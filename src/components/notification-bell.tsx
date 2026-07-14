@@ -1,25 +1,41 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, Mail, ExternalLink } from "lucide-react";
+import { Bell, Mail, ExternalLink, CheckCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { useI18n } from "@/contexts/i18n-context";
 import { useRouter } from "next/navigation";
-import { doc, updateDoc, query, where, orderBy, limit, writeBatch } from "firebase/firestore";
-import { getDocs } from '@/lib/firestore-query';
+import {
+  doc,
+  updateDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  writeBatch,
+} from "firebase/firestore";
+import { getDocs } from "@/lib/firestore-query";
 import { notificationsCollection } from "@/lib/collections";
+import { firestore } from "@/lib/firebase";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { AppNotification } from "@/lib/types";
 import { formatRelative } from "date-fns";
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Skeleton } from "./ui/skeleton";
 import { useOnManualRefresh } from "@/contexts/refresh-context";
+
+const BATCH_LIMIT = 450;
 
 function deduplicateNotifications(items: AppNotification[]): AppNotification[] {
   const grouped = new Map<string, AppNotification>();
@@ -52,16 +68,25 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasUnread, setHasUnread] = useState(false);
+  const [isActing, setIsActing] = useState(false);
+
+  const resolveBarrioOrgKey = useCallback(() => {
+    // Prefer canonical barrioOrg from profile; fall back to barrio|org composition.
+    // Using only barrio+organizacion hid all notifs when those fields were empty
+    // but barrioOrg was present (common after multi-tenant migration).
+    return (
+      (typeof barrioOrg === "string" && barrioOrg.includes("|")
+        ? barrioOrg.trim()
+        : "") ||
+      (barrio && organizacion ? `${barrio}|${organizacion}` : "")
+    );
+  }, [barrio, organizacion, barrioOrg]);
+
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Prefer canonical barrioOrg from profile; fall back to barrio|org composition.
-      // Using only barrio+organizacion hid all notifs when those fields were empty
-      // but barrioOrg was present (common after multi-tenant migration).
-      const barrioOrgKey =
-        (typeof barrioOrg === "string" && barrioOrg.includes("|") ? barrioOrg.trim() : "") ||
-        (barrio && organizacion ? `${barrio}|${organizacion}` : "");
+      const barrioOrgKey = resolveBarrioOrgKey();
 
       // Query by user only (rules: owner read). Filter client-side by barrioOrg.
       // Fail closed: hide unscoped legacy notifications (could be cross-tenant).
@@ -74,10 +99,13 @@ export function NotificationBell() {
       );
       const snapshot = await getDocs(q);
       const userNotifications = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() } as AppNotification))
+        .map((d) => ({ id: d.id, ...d.data() } as AppNotification))
         .filter((notification) => {
           if (!barrioOrgKey) return false;
-          return Boolean(notification.barrioOrg) && notification.barrioOrg === barrioOrgKey;
+          return (
+            Boolean(notification.barrioOrg) &&
+            notification.barrioOrg === barrioOrgKey
+          );
         })
         .slice(0, 30);
 
@@ -91,19 +119,22 @@ export function NotificationBell() {
         where("isRead", "==", false)
       );
       const unreadSnapshot = await getDocs(unreadQuery);
-      const unreadCount = unreadSnapshot.docs.filter((doc) => {
-        const data = doc.data() as AppNotification;
+      const unreadCount = unreadSnapshot.docs.filter((d) => {
+        const data = d.data() as AppNotification;
         if (!barrioOrgKey) return false;
         return Boolean(data.barrioOrg) && data.barrioOrg === barrioOrgKey;
       }).length;
       setHasUnread(unreadCount > 0);
     } catch (error) {
       // Offline / timeout: keep previous notifications visible
-      console.warn("Error fetching notifications (cache may be empty offline):", error);
+      console.warn(
+        "Error fetching notifications (cache may be empty offline):",
+        error
+      );
     } finally {
       setLoading(false);
     }
-  }, [user, barrio, organizacion, barrioOrg]);
+  }, [user, resolveBarrioOrgKey]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -113,24 +144,112 @@ export function NotificationBell() {
 
   useOnManualRefresh(fetchNotifications);
 
-  const handleMarkAsRead = async () => {
-    if (!user || !hasUnread) return;
-
-    const unreadNotifications = notifications.filter(n => !n.isRead);
-    if (unreadNotifications.length === 0) return;
-
-    try {
-      const batch = writeBatch(doc(notificationsCollection).firestore);
-      unreadNotifications.forEach(n => {
-        const docRef = doc(notificationsCollection, n.id);
-        batch.update(docRef, { isRead: true });
-      });
+  const runBatchedWrites = async (
+    ids: string[],
+    apply: (batch: ReturnType<typeof writeBatch>, id: string) => void
+  ) => {
+    if (!firestore || ids.length === 0) return;
+    for (let i = 0; i < ids.length; i += BATCH_LIMIT) {
+      const chunk = ids.slice(i, i + BATCH_LIMIT);
+      const batch = writeBatch(firestore);
+      chunk.forEach((id) => apply(batch, id));
       await batch.commit();
+    }
+  };
+
+  const handleMarkAsRead = async () => {
+    if (!user || !hasUnread || !firestore || isActing) return;
+
+    const unreadInList = notifications.filter((n) => !n.isRead).map((n) => n.id);
+    // Also include any scoped unread not currently in the visible list
+    let unreadIds = unreadInList;
+    try {
+      const barrioOrgKey = resolveBarrioOrgKey();
+      const unreadQuery = query(
+        notificationsCollection,
+        where("userId", "==", user.uid),
+        where("isRead", "==", false)
+      );
+      const unreadSnapshot = await getDocs(unreadQuery);
+      unreadIds = unreadSnapshot.docs
+        .filter((d) => {
+          const data = d.data() as AppNotification;
+          if (!barrioOrgKey) return false;
+          return Boolean(data.barrioOrg) && data.barrioOrg === barrioOrgKey;
+        })
+        .map((d) => d.id);
+    } catch {
+      // fall back to list-only ids
+    }
+
+    if (unreadIds.length === 0) {
       setHasUnread(false);
-      // Optimistically update UI
-      setNotifications(prev => prev.map(n => ({...n, isRead: true})));
+      return;
+    }
+
+    setIsActing(true);
+    try {
+      await runBatchedWrites(unreadIds, (batch, id) => {
+        batch.update(doc(notificationsCollection, id), { isRead: true });
+      });
+      setHasUnread(false);
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch (error) {
-        console.error("Error marking notifications as read:", error);
+      console.error("Error marking notifications as read:", error);
+    } finally {
+      setIsActing(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!user || notifications.length === 0 || !firestore || isActing) return;
+
+    const confirmed = window.confirm(
+      t("notifications.deleteAllConfirm") ||
+        "¿Borrar todas las notificaciones? Esta acción no se puede deshacer."
+    );
+    if (!confirmed) return;
+
+    setIsActing(true);
+    try {
+      // Prefer deleting everything the user currently sees; also clear any extra
+      // scoped docs so "borrar todas" means all for this barrio/org.
+      const barrioOrgKey = resolveBarrioOrgKey();
+      let idsToDelete = notifications.map((n) => n.id);
+      try {
+        const allQuery = query(
+          notificationsCollection,
+          where("userId", "==", user.uid),
+          orderBy("createdAt", "desc"),
+          limit(200)
+        );
+        const snap = await getDocs(allQuery);
+        idsToDelete = snap.docs
+          .filter((d) => {
+            const data = d.data() as AppNotification;
+            if (!barrioOrgKey) return false;
+            return Boolean(data.barrioOrg) && data.barrioOrg === barrioOrgKey;
+          })
+          .map((d) => d.id);
+      } catch {
+        // fall back to visible list
+      }
+
+      if (idsToDelete.length === 0) {
+        setNotifications([]);
+        setHasUnread(false);
+        return;
+      }
+
+      await runBatchedWrites(idsToDelete, (batch, id) => {
+        batch.delete(doc(notificationsCollection, id));
+      });
+      setNotifications([]);
+      setHasUnread(false);
+    } catch (error) {
+      console.error("Error deleting notifications:", error);
+    } finally {
+      setIsActing(false);
     }
   };
 
@@ -155,7 +274,7 @@ export function NotificationBell() {
         }
         return `/members/${notification.contextId}`;
       case 'activity':
-        return '/reports';
+        return '/reports/activities';
       case 'service':
         return notification.contextId ? `/services/${notification.contextId}` : null;
       case 'member':
@@ -172,6 +291,8 @@ export function NotificationBell() {
         return '/ministering/urgent';
       case 'missionary_assignment':
         return '/missionary-work';
+      case 'admin_user':
+        return '/admin/users';
       default:
         return null;
     }
@@ -229,65 +350,145 @@ export function NotificationBell() {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 max-h-[85vh] flex flex-col" align="end">
-        <div className="flex justify-between items-center mb-2">
-          <h4 className="font-medium text-sm">Notificaciones</h4>
-        </div>
-        <div className="space-y-2 overflow-y-auto flex-1 pr-1">
-            {loading ? (
-                <>
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                </>
-            ) : notifications.length > 0 ? (
-                notifications.map((notif) => {
-                    const url = getNavigationUrl(notif);
-                    const isClickable = !!url;
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h4 className="text-sm font-medium">
+            {t("Notifications") || "Notificaciones"}
+          </h4>
+          <TooltipProvider delayDuration={300}>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={!hasUnread || isActing || loading}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void handleMarkAsRead();
+                    }}
+                    aria-label={
+                      t("notifications.markAllRead") ||
+                      "Marcar todas como leídas"
+                    }
+                  >
+                    <CheckCheck className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>
+                    {t("notifications.markAllRead") ||
+                      "Marcar todas como leídas"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
 
-                    return (
-                        <div
-                            key={notif.id}
-                            className={`relative text-sm p-2 rounded-md transition-colors ${
-                                isClickable
-                                    ? 'hover:bg-muted cursor-pointer border border-transparent hover:border-border'
-                                    : 'hover:bg-muted/50'
-                            } ${!notif.isRead ? 'bg-primary/5 border-primary/20' : ''}`}
-                            onClick={() => isClickable && handleNotificationClick(notif)}
-                        >
-                            <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                    <p className={`font-semibold ${!notif.isRead ? 'text-primary' : ''}`}>
-                                        {notif.title}
-                                    </p>
-                                    <p className="text-muted-foreground text-xs">{notif.body}</p>
-                                    <p className="text-muted-foreground text-xs mt-1">
-                                        {notif.createdAt && typeof notif.createdAt.toDate === "function"
-                                          ? formatRelative(notif.createdAt.toDate(), new Date(), { locale: getDateFnsLocale() })
-                                          : ""}
-                                    </p>
-                                </div>
-                                {isClickable && (
-                                    <div className="ml-2 flex-shrink-0">
-                                        {notif.actionType === 'external' ? (
-                                            <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                                        ) : (
-                                            <div className="h-3 w-3 rounded-full bg-primary/20" />
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            {!notif.isRead && (
-                                <div className="absolute top-2 right-2 h-2 w-2 bg-primary rounded-full" />
-                            )}
-                        </div>
-                    );
-                })
-            ) : (
-                <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4">
-                    <Mail className="h-8 w-8 mb-2" />
-                    <p className="text-sm">No tienes notificaciones</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    disabled={
+                      notifications.length === 0 || isActing || loading
+                    }
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void handleDeleteAll();
+                    }}
+                    aria-label={
+                      t("notifications.deleteAll") ||
+                      "Borrar todas las notificaciones"
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>
+                    {t("notifications.deleteAll") ||
+                      "Borrar todas las notificaciones"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
+        </div>
+        <div className="max-h-[min(60vh,24rem)] flex-1 space-y-2 overflow-y-auto pr-1">
+          {loading ? (
+            <>
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </>
+          ) : notifications.length > 0 ? (
+            notifications.map((notif) => {
+              const url = getNavigationUrl(notif);
+              const isClickable = !!url;
+
+              return (
+                <div
+                  key={notif.id}
+                  className={`relative rounded-md p-2 text-sm transition-colors ${
+                    isClickable
+                      ? "cursor-pointer border border-transparent hover:border-border hover:bg-muted"
+                      : "hover:bg-muted/50"
+                  } ${!notif.isRead ? "border-primary/20 bg-primary/5" : ""}`}
+                  onClick={() =>
+                    isClickable && handleNotificationClick(notif)
+                  }
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p
+                        className={`font-semibold ${
+                          !notif.isRead ? "text-primary" : ""
+                        }`}
+                      >
+                        {notif.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {notif.body}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {notif.createdAt &&
+                        typeof notif.createdAt.toDate === "function"
+                          ? formatRelative(
+                              notif.createdAt.toDate(),
+                              new Date(),
+                              { locale: getDateFnsLocale() }
+                            )
+                          : ""}
+                      </p>
+                    </div>
+                    {isClickable && (
+                      <div className="ml-2 flex-shrink-0">
+                        {notif.actionType === "external" ? (
+                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                        ) : (
+                          <div className="h-3 w-3 rounded-full bg-primary/20" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {!notif.isRead && (
+                    <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />
+                  )}
                 </div>
-            )}
+              );
+            })
+          ) : (
+            <div className="flex flex-col items-center justify-center p-4 text-center text-muted-foreground">
+              <Mail className="mb-2 h-8 w-8" />
+              <p className="text-sm">
+                {t("notifications.empty") || "No tienes notificaciones"}
+              </p>
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>

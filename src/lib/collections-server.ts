@@ -21,7 +21,6 @@ export const investigatorsCollection = coll('c_obra_misional_investigadores');
 export const newConvertFriendsCollection = coll('c_obra_misional_amigos_conversos');
 export const missionaryImagesCollection = coll('c_obra_misional_imagenes');
 export const servicesCollection = coll('c_servicios');
-export const annualReportsCollection = coll('c_reporte_anual');
 export const pushSubscriptionsCollection = coll('c_push_subscriptions');
 export const usersCollection = coll('c_users');
 export const notificationsCollection = coll('c_notifications');

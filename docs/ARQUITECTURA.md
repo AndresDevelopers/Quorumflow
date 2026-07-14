@@ -12,7 +12,6 @@
 - **PWA**: `@ducanh2912/next-pwa` (offline, notificaciones push)
 - **Gráficos**: Recharts
 - **Formularios**: react-hook-form + zod
-- **Exportación**: docxtemplater + docx
 - **Package manager**: pnpm (workspace monorepo)
 - **Deploy**: Vercel + Firebase
 - **Notificaciones**: Web Push API + Firebase Cloud Messaging
@@ -53,7 +52,7 @@ src/
 └── locales/                     # es.json, en.json
 
 functions/                       # Firebase Cloud Functions
-├── src/index.ts                 # Reportes anuales, notificaciones, imágenes
+├── src/index.ts                 # Notificaciones, sync de datos, limpieza de Storage
 └── src/modules/                 # notification-dispatcher, image-module
 
 worker/                          # Service Worker bridge para FCM
@@ -72,7 +71,7 @@ public/                          # PWA assets, service worker, changelog.json
 1. **Frontend**: Componentes React leen/escriben Firestore con `where('barrioOrg', '==', …)` (reglas refuerzan el scope)
 2. **Auth**: Firebase Auth para identidad; `c_users` para rol, permiso y `barrioOrg`
 3. **API Routes**: Bearer ID token + `requireUidAndBarrioOrg` para miembros, external API, push, storage, migración
-4. **Cloud Functions**: reportes anuales scoped al barrio del llamador; notificaciones solo si el doc tiene `barrioOrg`
+4. **Cloud Functions**: notificaciones y sync scoped al barrio del documento/usuario; notificaciones solo si el doc tiene `barrioOrg`
 5. **IA**: DeepSeek desde API routes / UI (sugerencias scoped por barrio; church-chat con rate limit)
 6. **Storage**: objetos bajo `users/{uid}/…`; upload server en `/api/storage/upload`
 

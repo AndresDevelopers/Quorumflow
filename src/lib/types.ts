@@ -173,15 +173,6 @@ export type HealthConcern = {
     createdBy: string;
 };
 
-export type AnnualReportAnswers = {
-    p1: string;
-    p2: string;
-    p3: string;
-    p4: string;
-    p5: string;
-    p6: string;
-}
-
 export type AppNotification = {
     id: string;
     userId: string;
@@ -203,7 +194,8 @@ export type AppNotification = {
     | 'birthday'
     | 'investigator'
     | 'urgent_family'
-    | 'missionary_assignment';
+    | 'missionary_assignment'
+    | 'admin_user';
     contextId?: string;
     notificationTag?: string | null;
     barrioOrg?: string | null;

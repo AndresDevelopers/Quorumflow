@@ -17,18 +17,12 @@
   "dependencies": {
     "@google-cloud/functions-framework": "^5.0.2",
     "@xmldom/xmldom": "^0.9.10",
-    "axios": "^1.16.0",
     "date-fns": "^4.1.0",
-    "docxtemplater": "^3.68.6",
     "firebase-admin": "^13.8.0",
-    "firebase-functions": "^7.2.5",
-    "pizzip": "^3.2.0",
-    "pngjs": "^7.0.0",
-    "webp-wasm": "^1.0.6"
+    "firebase-functions": "^7.2.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/pngjs": "^6.0.5",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",
     "eslint": "^10.2.1",

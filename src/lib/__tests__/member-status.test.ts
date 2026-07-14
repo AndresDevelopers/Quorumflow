@@ -115,7 +115,7 @@ describe('validateNoDuplicateFamilies', () => {
 });
 
 describe('resolveSelectedDistrictId', () => {
-  it('returns district id when companionship is assigned', () => {
+  it('returns district id when companionship is assigned via companionshipIds', () => {
     const result = resolveSelectedDistrictId({
       districts: [
         { id: 'd1', name: 'Distrito 1', companionshipIds: ['c1'] },
@@ -125,6 +125,32 @@ describe('resolveSelectedDistrictId', () => {
       fallbackId: 'none',
     });
     expect(result).toBe('d1');
+  });
+
+  it('prefers companionship.districtId over companionshipIds membership', () => {
+    const result = resolveSelectedDistrictId({
+      districts: [
+        { id: 'd1', name: 'Distrito 1', companionshipIds: ['c1'] },
+        { id: 'd2', name: 'Distrito 2', companionshipIds: [] },
+      ],
+      companionshipId: 'c1',
+      companionshipDistrictId: 'd2',
+      fallbackId: 'none',
+    });
+    expect(result).toBe('d2');
+  });
+
+  it('uses companionship.districtId when companionshipIds is empty', () => {
+    const result = resolveSelectedDistrictId({
+      districts: [
+        { id: 'd1', name: 'Distrito 1', companionshipIds: [] },
+        { id: 'd2', name: 'Distrito 2', companionshipIds: [] },
+      ],
+      companionshipId: 'c1',
+      companionshipDistrictId: 'd2',
+      fallbackId: 'none',
+    });
+    expect(result).toBe('d2');
   });
 
   it('falls back when companionship has no district', () => {

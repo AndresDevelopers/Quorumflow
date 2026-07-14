@@ -166,32 +166,60 @@ function UserNav() {
 
 function RefreshControls() {
   const { t } = useI18n();
-  const { isRefreshing, requestRefresh, lastSyncTime } = useRefresh();
+  const { isRefreshing, requestRefresh, lastSyncTime, lastSyncSource } =
+    useRefresh();
   const label =
     t("mainLayout.refreshTooltip") ||
     "Actualizar datos (respaldo si falla la sincronización automática)";
 
-  const timeLabel = lastSyncTime ? format(lastSyncTime, "HH:mm") : null;
-  const updatedLabel =
-    lastSyncTime &&
-    (t("syncStatus.updated", { time: timeLabel! }) || `Actualizado ${timeLabel}`);
+  const datetimeLabel = lastSyncTime
+    ? format(lastSyncTime, "dd/MM/yyyy HH:mm")
+    : null;
+  const shortDatetimeLabel = lastSyncTime
+    ? format(lastSyncTime, "dd/MM HH:mm")
+    : null;
+  const sourceLabel =
+    lastSyncSource === "manual"
+      ? t("syncStatus.manual") || "Manual"
+      : lastSyncSource === "automatic"
+        ? t("syncStatus.automatic") || "Automática"
+        : null;
+  const updatedLabel = (() => {
+    if (!lastSyncTime || !datetimeLabel) return null;
+    if (sourceLabel) {
+      return (
+        t("syncStatus.updatedWithSource", {
+          datetime: datetimeLabel,
+          source: sourceLabel,
+        }) || `Actualizado ${datetimeLabel} · ${sourceLabel}`
+      );
+    }
+    return (
+      t("syncStatus.updated", { datetime: datetimeLabel }) ||
+      `Actualizado ${datetimeLabel}`
+    );
+  })();
+  const titleLabel = lastSyncTime
+    ? [format(lastSyncTime, "dd/MM/yyyy HH:mm:ss"), sourceLabel]
+        .filter(Boolean)
+        .join(" · ")
+    : undefined;
 
   return (
     <div className="flex items-center gap-1.5 sm:gap-2">
-      {isRefreshing ? (
-        <span className="inline-flex items-center gap-1 text-xs text-blue-600">
-          <RefreshCw className="h-3 w-3 animate-spin" />
-          <span className="hidden sm:inline">
-            {t("syncStatus.syncing") || "Sincronizando…"}
-          </span>
-        </span>
-      ) : lastSyncTime ? (
+      {/* Keep last sync label visible; only the button icon spins while refreshing */}
+      {lastSyncTime ? (
         <span
-          className="inline-flex max-w-[9.5rem] items-center gap-1 truncate text-xs text-green-600 sm:max-w-none"
-          title={format(lastSyncTime, "dd/MM/yyyy HH:mm:ss")}
+          className={`inline-flex max-w-[11rem] items-center gap-1 truncate text-xs sm:max-w-none ${
+            isRefreshing ? "text-muted-foreground" : "text-green-600"
+          }`}
+          title={titleLabel}
         >
           <CheckCircle className="h-3 w-3 shrink-0" />
-          <span className="sm:hidden">{timeLabel}</span>
+          <span className="sm:hidden">
+            {shortDatetimeLabel}
+            {sourceLabel ? ` · ${sourceLabel}` : ""}
+          </span>
           <span className="hidden sm:inline">{updatedLabel}</span>
         </span>
       ) : null}
@@ -211,7 +239,11 @@ function RefreshControls() {
               }}
               disabled={isRefreshing}
               aria-busy={isRefreshing}
-              aria-label={label}
+              aria-label={
+                isRefreshing
+                  ? t("syncStatus.syncing") || "Sincronizando…"
+                  : label
+              }
             >
               <RefreshCw
                 className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
@@ -220,10 +252,10 @@ function RefreshControls() {
           </TooltipTrigger>
           <TooltipContent side="bottom">
             <p>
-              {label}
-              {lastSyncTime
-                ? ` · ${t("syncStatus.updated", { time: format(lastSyncTime, "HH:mm") }) || format(lastSyncTime, "HH:mm")}`
-                : ""}
+              {isRefreshing
+                ? t("syncStatus.syncing") || "Sincronizando…"
+                : label}
+              {!isRefreshing && updatedLabel ? ` · ${updatedLabel}` : ""}
             </p>
           </TooltipContent>
         </Tooltip>
@@ -242,12 +274,14 @@ export function MainLayout({ children }: { children: ReactNode }) {
   const showAdminLink = isAdmin(userRole);
 
   // Derive nav from auth context — no extra Firestore read
-  // Map legacy /future-members to /missionary-work (now a tab inside Obra Misional)
+  // Map legacy paths: /future-members → /missionary-work, /reports → /reports/activities
   const visibleNavItems = (() => {
     if (Array.isArray(visiblePages) && visiblePages.length > 0) {
-      const normalizedPages = visiblePages.map((p) =>
-        p === "/future-members" ? "/missionary-work" : p
-      );
+      const normalizedPages = visiblePages.map((p) => {
+        if (p === "/future-members") return "/missionary-work";
+        if (p === "/reports") return "/reports/activities";
+        return p;
+      });
       const effectiveAllowed = Array.from(
         new Set([...normalizedPages, "/church-chat"])
       );

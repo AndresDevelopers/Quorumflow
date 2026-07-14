@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Cake,
   ClipboardList,
-  FileText,
   Gavel,
   HandHeart,
   HeartHandshake,
@@ -78,6 +77,5 @@ export const navigationItems: NavigationItem[] = [
   { href: "/service", i18nKey: "Service", icon: Wrench },
   { href: "/church-chat", i18nKey: "Church Chat", icon: MessageSquare },
   { href: "/council", i18nKey: "Council", icon: Gavel },
-  { href: "/reports", i18nKey: "Reports", icon: FileText },
   { href: "/reports/activities", i18nKey: "Activities", icon: ClipboardList },
 ];

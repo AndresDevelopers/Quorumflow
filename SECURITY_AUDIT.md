@@ -66,12 +66,10 @@ SionFlow es multi-tenant por `barrioOrg` (`barrio|organización`) sobre Next.js 
 - [x] Rate limiting.
 - [x] `getTargetUserIds` en server push rechaza broadcast sin `barrioOrg`.
 
-### C5. Reportes callable exponen datos de todos los tenants — ✅ REMEDIADO
-- **Ubicación:** `functions/src/index.ts` (`generateCompleteReport`, `generateReport`, `withAuthenticatedReport`)
-- **Problema (histórico):** solo `context.auth`; queries sin filtro de ward.
-- [x] Tras auth, cargar `c_users` y resolver `barrioOrg` (sin default de barrio de producción).
-- [x] Queries de actividades/servicios/bautismos/etc. con `.where("barrioOrg", "==", barrioOrg)`.
-- [x] Respuestas de informe por doc id `year|barrioOrg` (legacy solo si coincide barrioOrg).
+### C5. Reportes callable multi-tenant — ✅ ELIMINADO
+- **Ubicación (histórica):** `functions/src/index.ts` (`generateCompleteReport`, `generateReport`)
+- **Estado:** la página de reportes y las callables de generación de DOCX se eliminaron del producto.
+- **Problema (histórico):** callables solo con `context.auth` y queries sin filtro de ward; luego se remedió con `barrioOrg` y se retiró el feature.
 
 ---
 

@@ -37,11 +37,16 @@ export type RequestRefreshOptions = {
   silent?: boolean;
 };
 
+/** How the last successful sync was triggered */
+export type SyncSource = 'manual' | 'automatic';
+
 interface RefreshContextValue {
   /** True while a manual refresh is in progress */
   isRefreshing: boolean;
   /** Last successful sync time (updated even when there is no new data) */
   lastSyncTime: Date | null;
+  /** Whether last sync was manual (header button) or automatic (CF / silent) */
+  lastSyncSource: SyncSource | null;
   /** Bumps when a refresh finishes; use as key to remount page content */
   refreshGeneration: number;
   /** Register a handler that runs on every manual refresh. Returns unregister fn. */
@@ -53,8 +58,11 @@ interface RefreshContextValue {
    * Offline / no connectivity: keeps cache, never blocks the UI.
    */
   requestRefresh: (options?: RequestRefreshOptions) => Promise<void>;
-  /** Update header clock (e.g. after Cloud Function auto-sync). */
-  markLastSyncTime: (date?: Date) => void;
+  /**
+   * Update header clock (e.g. after Cloud Function auto-sync).
+   * Defaults source to `automatic` when omitted.
+   */
+  markLastSyncTime: (date?: Date, source?: SyncSource) => void;
 }
 
 const RefreshContext = createContext<RefreshContextValue | undefined>(undefined);
@@ -74,23 +82,53 @@ function lastSyncStorageKey(barrioOrg: string) {
   return `${prefix}_last_manual_sync_${barrioOrg}`;
 }
 
-function readStoredLastSync(barrioOrg: string | null | undefined): Date | null {
-  if (!barrioOrg || typeof window === 'undefined') return null;
+type StoredLastSync = {
+  ts: number;
+  source: SyncSource | null;
+};
+
+function parseStoredLastSync(raw: string): StoredLastSync | null {
+  // Legacy format: plain timestamp number
+  const asNumber = Number(raw);
+  if (!Number.isNaN(asNumber) && asNumber > 0 && raw.trim() === String(asNumber)) {
+    return { ts: asNumber, source: null };
+  }
   try {
-    const raw = localStorage.getItem(lastSyncStorageKey(barrioOrg));
-    if (!raw) return null;
-    const ts = Number(raw);
+    const parsed = JSON.parse(raw) as { ts?: unknown; source?: unknown };
+    const ts = typeof parsed.ts === 'number' ? parsed.ts : Number(parsed.ts);
     if (Number.isNaN(ts) || ts <= 0) return null;
-    return new Date(ts);
+    const source =
+      parsed.source === 'manual' || parsed.source === 'automatic'
+        ? parsed.source
+        : null;
+    return { ts, source };
   } catch {
     return null;
   }
 }
 
-function writeStoredLastSync(barrioOrg: string, date: Date) {
+function readStoredLastSync(
+  barrioOrg: string | null | undefined
+): StoredLastSync | null {
+  if (!barrioOrg || typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(lastSyncStorageKey(barrioOrg));
+    if (!raw) return null;
+    return parseStoredLastSync(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredLastSync(
+  barrioOrg: string,
+  date: Date,
+  source: SyncSource | null
+) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(lastSyncStorageKey(barrioOrg), String(date.getTime()));
+    const payload: StoredLastSync = { ts: date.getTime(), source };
+    localStorage.setItem(lastSyncStorageKey(barrioOrg), JSON.stringify(payload));
   } catch {
     // quota / private mode
   }
@@ -128,13 +166,24 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
   const { barrioOrg } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [lastSyncSource, setLastSyncSource] = useState<SyncSource | null>(null);
   const [refreshGeneration, setRefreshGeneration] = useState(0);
   const handlersRef = useRef(new Set<RefreshHandler>());
   const inFlightRef = useRef(false);
+  /** Avoid putting lastSyncTime in requestRefresh deps (re-subscribes CF listener). */
+  const lastSyncTimeRef = useRef<Date | null>(null);
+  lastSyncTimeRef.current = lastSyncTime;
 
-  // Restore last sync time for this ward/org (so user always sees when they last synced)
+  // Restore last sync time/source for this ward/org (so user always sees when they last synced)
   useEffect(() => {
-    setLastSyncTime(readStoredLastSync(barrioOrg));
+    const stored = readStoredLastSync(barrioOrg);
+    if (stored) {
+      setLastSyncTime(new Date(stored.ts));
+      setLastSyncSource(stored.source);
+    } else {
+      setLastSyncTime(null);
+      setLastSyncSource(null);
+    }
   }, [barrioOrg]);
 
   const registerRefreshHandler = useCallback((handler: RefreshHandler) => {
@@ -145,11 +194,12 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markLastSyncTime = useCallback(
-    (date?: Date) => {
+    (date?: Date, source: SyncSource = 'automatic') => {
       const when = date ?? new Date();
       setLastSyncTime(when);
+      setLastSyncSource(source);
       if (barrioOrg) {
-        writeStoredLastSync(barrioOrg, when);
+        writeStoredLastSync(barrioOrg, when, source);
       }
     },
     [barrioOrg]
@@ -192,7 +242,7 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
             new CustomEvent(APP_DATA_REFRESH_EVENT, {
               detail: {
                 hasChanges: false,
-                lastSyncTime: lastSyncTime?.toISOString() ?? null,
+                lastSyncTime: lastSyncTimeRef.current?.toISOString() ?? null,
                 offline: true,
                 silent,
               },
@@ -212,6 +262,8 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
       }
 
       // ── ONLINE: sync + force server window + remount pages ──
+      // flushOfflineSync may write pending docs → CF publishes a signal.
+      // DataSyncListener absorbs those echoes so the source stays "manual".
       try {
         await withTimeout(flushOfflineSync(), 8_000, 'flushOfflineSync');
       } catch (error) {
@@ -233,9 +285,11 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
       }
 
       const now = new Date();
+      const source: SyncSource = silent ? 'automatic' : 'manual';
       setLastSyncTime(now);
+      setLastSyncSource(source);
       if (barrioOrg) {
-        writeStoredLastSync(barrioOrg, now);
+        writeStoredLastSync(barrioOrg, now, source);
       }
 
       if (typeof window !== 'undefined') {
@@ -244,6 +298,7 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
             detail: {
               hasChanges: anyDataChanged,
               lastSyncTime: now.toISOString(),
+              lastSyncSource: source,
               offline: false,
               silent,
             },
@@ -304,12 +359,13 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
       inFlightRef.current = false;
       setIsRefreshing(false);
     }
-  }, [router, toast, t, barrioOrg, lastSyncTime]);
+  }, [router, toast, t, barrioOrg]);
 
   const value = useMemo(
     () => ({
       isRefreshing,
       lastSyncTime,
+      lastSyncSource,
       refreshGeneration,
       registerRefreshHandler,
       requestRefresh,
@@ -318,6 +374,7 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
     [
       isRefreshing,
       lastSyncTime,
+      lastSyncSource,
       refreshGeneration,
       registerRefreshHandler,
       requestRefresh,

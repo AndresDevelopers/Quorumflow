@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { PlusCircle, Settings, Trash2, Users, X } from 'lucide-react';
+import { Pencil, PlusCircle, Settings, Trash2, Users, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
@@ -109,6 +109,10 @@ export default function MinisteringPage() {
   const [newDistrictName, setNewDistrictName] = useState('');
   const [isSavingDistrict, setIsSavingDistrict] = useState(false);
   const [deletingDistrictId, setDeletingDistrictId] = useState<string | null>(null);
+  const [isRenameDistrictOpen, setIsRenameDistrictOpen] = useState(false);
+  const [renamingDistrictId, setRenamingDistrictId] = useState<string | null>(null);
+  const [renameDistrictName, setRenameDistrictName] = useState('');
+  const [isRenamingDistrict, setIsRenamingDistrict] = useState(false);
 
   /** Mapa companionshipId -> nombre(s) de distrito (desde districtId del compañerismo y/o companionshipIds del distrito) */
   const companionshipDistrictMap = useMemo(() => {
@@ -259,6 +263,61 @@ export default function MinisteringPage() {
   const openCreateDistrictDialog = () => {
     setNewDistrictName(getNextDistrictDefaultName());
     setIsCreateDistrictOpen(true);
+  };
+
+  const openRenameDistrictDialog = (
+    district: MinisteringDistrict,
+    e?: { stopPropagation: () => void; preventDefault: () => void },
+  ) => {
+    e?.stopPropagation();
+    e?.preventDefault();
+    setRenamingDistrictId(district.id);
+    setRenameDistrictName(district.name);
+    setIsRenameDistrictOpen(true);
+  };
+
+  const renameDistrict = async () => {
+    if (!renamingDistrictId) return;
+    const name = renameDistrictName.trim();
+    if (!name) {
+      toast({
+        title: t('ministering.error'),
+        description: t('ministering.districtNameRequired'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (
+      districts.some(
+        (d) =>
+          d.id !== renamingDistrictId &&
+          d.name.trim().toLowerCase() === name.toLowerCase(),
+      )
+    ) {
+      toast({
+        title: t('ministering.error'),
+        description: t('ministering.districtNameDuplicate'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const current = districts.find((d) => d.id === renamingDistrictId);
+    if (current && current.name.trim() === name) {
+      setIsRenameDistrictOpen(false);
+      setRenamingDistrictId(null);
+      return;
+    }
+
+    setIsRenamingDistrict(true);
+    try {
+      await updateDistrict(renamingDistrictId, { name });
+      setIsRenameDistrictOpen(false);
+      setRenamingDistrictId(null);
+      setRenameDistrictName('');
+    } finally {
+      setIsRenamingDistrict(false);
+    }
   };
 
   const createDistrict = async () => {
@@ -690,6 +749,51 @@ export default function MinisteringPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            <Dialog
+              open={isRenameDistrictOpen}
+              onOpenChange={(open) => {
+                setIsRenameDistrictOpen(open);
+                if (!open) {
+                  setRenamingDistrictId(null);
+                  setRenameDistrictName('');
+                }
+              }}
+            >
+              <DialogContent onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                  <DialogTitle>{t('ministering.editDistrictTitle')}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="rename-district-name">{t('ministering.districtNameLabel')}</Label>
+                  <Input
+                    id="rename-district-name"
+                    value={renameDistrictName}
+                    onChange={(e) => setRenameDistrictName(e.target.value)}
+                    placeholder={t('ministering.districtNamePlaceholder')}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void renameDistrict();
+                      }
+                    }}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsRenameDistrictOpen(false)}
+                    disabled={isRenamingDistrict}
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                  <Button type="button" onClick={() => void renameDistrict()} disabled={isRenamingDistrict}>
+                    {isRenamingDistrict ? t('common.saving') : t('common.save')}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {loading ? (
                 Array.from({ length: 1 }).map((_, i) => (
@@ -730,9 +834,22 @@ export default function MinisteringPage() {
                   }}
                 >
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
+                    <CardTitle className="text-base flex items-center gap-2 min-w-0">
                       <Users className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{district.name}</span>
+                      <span className="truncate min-w-0">{district.name}</span>
+                      {canWrite && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          aria-label={t('ministering.editDistrictNameAria', { name: district.name })}
+                          title={t('ministering.editDistrictNameAria', { name: district.name })}
+                          onClick={(e) => openRenameDistrictDialog(district, e)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {isSelected && (
                         <span className="ml-auto text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full shrink-0">
                           {t('ministering.filtered')}

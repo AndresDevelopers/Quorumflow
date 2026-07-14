@@ -22,7 +22,6 @@ Aplicación web moderna (PWA) diseñada para las presidencias del Quórum de Él
 | **Servicio** | Proyectos de servicio con notificaciones al consejo |
 | **Chat Iglesia** | Chat con IA impulsado por DeepSeek |
 | **Consejo** | Acciones del consejo, anotaciones y decisiones |
-| **Reportes** | Reportes de actividad por año, generación de reporte anual (DOCX vía docxtemplater) |
 | **Actividades** | Actividades registradas de tu organización por año |
 | **Admin** | Panel de administración: gestión de usuarios, roles, logs de auditoría, migración de datos |
 
@@ -32,7 +31,7 @@ Aplicación web moderna (PWA) diseñada para las presidencias del Quórum de Él
 
 | Rol | Permiso por defecto | Descripción |
 |---|---|---|
-| `secretary` | Todo | Acceso total: administración, ajustes, gestión de roles y reportes |
+| `secretary` | Todo | Acceso total: administración, ajustes y gestión de roles |
 | `president` | Todo | Acceso estratégico: todos los módulos operativos + panel de admin |
 | `counselor` | Todo | Herramientas operativas para seguimiento de familias y asignaciones |
 | `other` | Lectura | Solo lectura de datos de tu organización |
@@ -59,7 +58,6 @@ Aplicación web moderna (PWA) diseñada para las presidencias del Quórum de Él
 | **Notificaciones** | Web Push API + Firebase Cloud Messaging |
 | **Gráficos** | Recharts |
 | **Formularios** | react-hook-form + zod |
-| **Exportación** | docxtemplater + docx (reportes anuales en Word) |
 | **Package manager** | pnpm (workspace monorepo) |
 | **Deploy** | Vercel + Firebase |
 
@@ -175,7 +173,7 @@ src/
 └── locales/                     # es.json, en.json
 
 functions/                       # Firebase Cloud Functions (Node 22)
-├── src/index.ts                 # Reportes anuales, notificaciones, procesamiento de imágenes
+├── src/index.ts                 # Notificaciones, sync de datos, limpieza de Storage
 └── src/modules/                 # notification-dispatcher, image-module
 
 worker/                          # Service Worker bridge para Firebase Messaging

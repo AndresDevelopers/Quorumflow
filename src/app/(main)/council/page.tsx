@@ -190,13 +190,13 @@ async function getUpcomingServices(barrioOrg?: string): Promise<Service[]> {
   return notNotifiedOrFieldMissing.sort((a, b) => a.date.toMillis() - b.date.toMillis());
 }
 
-// Function to get upcoming activities from Reports page data source (show 14 days before, hide after date passes)
+// Function to get upcoming activities (show 14 days before, hide after date passes)
 async function getUpcomingActivities(barrioOrg?: string): Promise<Activity[]> {
   try {
     const now = new Date();
     const fourteenDaysFromNow = addDays(now, 14);
 
-    // Get all activities using the same query as Reports page
+    // Get all activities from the activities collection
     const constraints: any[] = [orderBy('date', 'desc')];
     if (barrioOrg) constraints.unshift(where('barrioOrg', '==', barrioOrg));
     const q = query(activitiesCollection, ...constraints);
@@ -216,7 +216,7 @@ async function getUpcomingActivities(barrioOrg?: string): Promise<Activity[]> {
 
     return activities;
   } catch (error) {
-    logger.error({ error, message: 'Error fetching upcoming activities from Reports data source' });
+    logger.error({ error, message: 'Error fetching upcoming activities' });
     return [];
   }
 }

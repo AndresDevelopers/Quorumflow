@@ -28,7 +28,6 @@ const DATA_COLLECTIONS = [
   'c_bautismos',
   'c_anotaciones',
   'c_observaciones_salud',
-  'c_reporte_anual',
   'c_obra_misional_amigos_conversos',
   'c_obra_misional_investigadores',
   'c_obra_misional_asignaciones',

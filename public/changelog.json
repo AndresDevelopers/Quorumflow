@@ -6,20 +6,20 @@
       "date": "2026-07-14",
       "changes": {
         "es": [
-          "Ahora puedes elegir si recibir notificaciones en cada dispositivo, en lugar de una configuración general para toda la cuenta.",
-          "Corregimos un problema que impedía la sincronización correcta de datos al manejar diferentes tipos de eventos de sincronización.",
-          "Mejoramos la privacidad y el rendimiento al separar la caché de notificaciones por barrio, evitando filtraciones de datos entre diferentes organizaciones.",
-          "Implementamos un sistema de aislamiento de datos por barrio (barrioOrg) para todas las operaciones de escritura, garantizando que cada barrio solo acceda a su propia información.",
-          "Unificamos las rutas de almacenamiento de archivos para que sean consistentes con las reglas de seguridad y el modelo de datos multiinquilino.",
-          "Reforzamos la seguridad de todas las APIs públicas añadiendo autenticación Bearer y verificaciones de ámbito de barrio, protegiendo tus datos contra accesos no autorizados."
+          "Eliminamos el sistema de informes anuales antiguo para simplificar la navegación y la aplicación.",
+          "Ahora puedes activar o desactivar las notificaciones push por dispositivo, en lugar de una configuración general para toda la cuenta.",
+          "Mejoramos la sincronización de datos para que funcione correctamente con diferentes tipos de eventos.",
+          "Corregimos problemas de rendimiento y seguridad al aislar los datos de cada barrio, evitando fugas de información entre organizaciones.",
+          "Añadimos protección multiinquilino para que todos los datos se guarden correctamente asociados a tu barrio u organización.",
+          "Reforzamos la seguridad y estandarizamos las rutas de almacenamiento para proteger tus archivos y datos."
         ],
         "en": [
-          "You can now choose to receive notifications on each device individually, instead of a single account-wide setting.",
-          "Fixed a data sync issue that prevented correct handling of different sync event types.",
-          "Improved privacy and performance by splitting the notification cache per ward, preventing data leaks between different organizations.",
-          "Implemented multi-tenant data isolation for all write operations, ensuring each ward only accesses its own data.",
-          "Standardized file storage paths to be consistent with security rules and the multi-tenant data model.",
-          "Hardened security for all public APIs by adding Bearer authentication and ward scope checks, protecting your data from unauthorized access."
+          "We removed the old annual reporting system to simplify navigation and the app.",
+          "You can now turn push notifications on or off per device, instead of a single account-wide setting.",
+          "Improved data syncing to work correctly with different event types.",
+          "Fixed performance and security issues by isolating data per ward, preventing information leaks between organizations.",
+          "Added multi-tenant protection so all data is properly saved under your ward or organization.",
+          "Strengthened security and standardized storage paths to protect your files and data."
         ]
       }
     },

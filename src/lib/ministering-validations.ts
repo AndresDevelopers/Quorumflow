@@ -16,12 +16,23 @@ export interface ValidationResult {
 export function resolveSelectedDistrictId({
   districts,
   companionshipId,
+  companionshipDistrictId,
   fallbackId,
 }: {
   districts: MinisteringDistrict[];
   companionshipId?: string | null;
+  /** districtId del documento del compañerismo (fuente primaria) */
+  companionshipDistrictId?: string | null;
   fallbackId: string;
 }) {
+  // 1) Fuente primaria: districtId guardado en el compañerismo
+  if (
+    companionshipDistrictId &&
+    districts.some((d) => d.id === companionshipDistrictId)
+  ) {
+    return companionshipDistrictId;
+  }
+  // 2) Fuente secundaria: membership en companionshipIds del distrito
   if (!companionshipId) return fallbackId;
   const currentDistrict = districts.find(d => (d.companionshipIds ?? []).includes(companionshipId));
   return currentDistrict?.id ?? fallbackId;

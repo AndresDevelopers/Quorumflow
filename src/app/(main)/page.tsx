@@ -335,7 +335,7 @@ function DashboardPage() {
         <BirthdaysDashboardCard />
       </div>
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
-        <Link href="/reports">
+        <Link href="/reports/activities">
           <Card>
             <CardHeader>
               <CardTitle>{t("Activity Overview")}</CardTitle>

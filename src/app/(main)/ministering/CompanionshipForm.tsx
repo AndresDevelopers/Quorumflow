@@ -71,8 +71,12 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
   const [companionships, setCompanionships] = useState<Companionship[]>([]);
    const [districts, setDistricts] = useState<MinisteringDistrict[]>([]);
    const [loadingMembers, setLoadingMembers] = useState(false);
+   const [districtsLoaded, setDistrictsLoaded] = useState(false);
    
-   const [selectedDistrictId, setSelectedDistrictId] = useState<string>('');
+   // 'none' = sin distrito; se resuelve al cargar distritos (districtId o companionshipIds)
+   const [selectedDistrictId, setSelectedDistrictId] = useState<string>(
+     companionship?.districtId || 'none'
+   );
 
   const defaultValues = isEditMode
   ? {
@@ -141,37 +145,44 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
     loadCompanionships();
   }, [toast, barrioOrg, t]);
 
-  // Load districts
+  // Load districts and preselect the companionship's current district when editing
   useEffect(() => {
+    if (!barrioOrg) return;
+    let cancelled = false;
+
     const loadDistricts = async () => {
       try {
         const snapshot = await getDocs(query(ministeringDistrictsCollection, where('barrioOrg', '==', barrioOrg), orderBy('name')));
+        if (cancelled) return;
+
         const districtsList = snapshot.docs.map(d => {
           const data = d.data() as Omit<MinisteringDistrict, 'id'>;
           return { ...data, id: d.id, companionshipIds: data.companionshipIds ?? [] };
         });
         setDistricts(districtsList);
-        
-        // Set initial selected district (districtId del compañerismo o membership en distrito)
-        if (companionship) {
-          const fromCompanionship = companionship.districtId &&
-            districtsList.some(d => d.id === companionship.districtId)
-            ? companionship.districtId
-            : null;
-          setSelectedDistrictId(
-            fromCompanionship ??
-            resolveSelectedDistrictId({
+
+        // Siempre resolver el valor del select tras cargar (edit y create)
+        const resolved = companionship
+          ? resolveSelectedDistrictId({
               districts: districtsList,
               companionshipId: companionship.id,
+              companionshipDistrictId: companionship.districtId,
               fallbackId: 'none',
             })
-          );
-        }
+          : 'none';
+        setSelectedDistrictId(resolved);
+        setDistrictsLoaded(true);
       } catch (error) {
         console.error("Error loading districts:", error);
+        if (!cancelled) {
+          setDistrictsLoaded(true);
+        }
       }
     };
     loadDistricts();
+    return () => {
+      cancelled = true;
+    };
   }, [companionship, barrioOrg]);
 
   // Handle district assignment (exclusivo: un compañerismo solo en un distrito)
@@ -735,45 +746,28 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
                 <Label className="text-base font-medium">{t('ministering.districtSectionTitle')}</Label>
                 <p className="text-sm text-muted-foreground">{t('ministering.districtSectionHelp')}</p>
               </div>
-              {isEditMode ? (
-                <Select
-                  value={selectedDistrictId}
-                  onValueChange={handleDistrictChange}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('ministering.selectDistrict')} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="none">{t('ministering.noDistrict')}</SelectItem>
-                    {districts.map((district) => (
-                      <SelectItem key={district.id} value={district.id}>
-                        {district.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Select
-                  value={selectedDistrictId}
-                  onValueChange={(value) => setSelectedDistrictId(value)}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('ministering.selectDistrict')} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="none">{t('ministering.noDistrict')}</SelectItem>
-                    {districts.map((district) => (
-                      <SelectItem key={district.id} value={district.id}>
-                        {district.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              {/*
+                key remonta el Select una sola vez cuando los distritos ya cargaron y el valor
+                está resuelto, para que Radix muestre el ítem preseleccionado.
+              */}
+              <Select
+                key={districtsLoaded ? 'district-select-ready' : 'district-select-loading'}
+                value={selectedDistrictId || 'none'}
+                onValueChange={isEditMode ? handleDistrictChange : setSelectedDistrictId}
+                disabled={!districtsLoaded}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('ministering.selectDistrict')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('ministering.noDistrict')}</SelectItem>
+                  {districts.map((district) => (
+                    <SelectItem key={district.id} value={district.id}>
+                      {district.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">

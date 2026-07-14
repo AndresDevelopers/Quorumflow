@@ -317,7 +317,28 @@ export const NotificationCreators = {
       contextType: 'missionary_assignment',
       contextId: assignmentId,
       actionUrl: '/missionary-work'
-    })
+    }),
+
+  /**
+   * New self-registered user needs a role (admin / president / secretary only).
+   * Prefer the Cloud Function `onNewUserRegistered` in production (Admin SDK).
+   */
+  newUserNeedsRole: (
+    userId: string,
+    registeredName: string,
+    registeredUserId: string,
+    barrioOrg?: string | null
+  ) =>
+    createNotification({
+      userId,
+      title: "Nuevo usuario registrado",
+      body: `${registeredName} se registró y necesita que le asignes un rol`,
+      contextType: 'admin_user',
+      contextId: registeredUserId,
+      actionUrl: '/admin/users',
+      actionType: 'navigate',
+      barrioOrg,
+    }),
 };
 
 /**

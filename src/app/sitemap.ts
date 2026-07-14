@@ -19,7 +19,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/ministering", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/ministering/urgent", priority: 0.8, changeFrequency: "weekly" as const },
     { path: "/missionary-work", priority: 0.8, changeFrequency: "weekly" as const },
-    { path: "/reports", priority: 0.8, changeFrequency: "weekly" as const },
     { path: "/reports/activities", priority: 0.7, changeFrequency: "weekly" as const },
     { path: "/service", priority: 0.7, changeFrequency: "weekly" as const },
     { path: "/birthdays", priority: 0.7, changeFrequency: "daily" as const },

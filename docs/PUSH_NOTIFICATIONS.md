@@ -151,6 +151,16 @@ Si un usuario NO desea recibir notificaciones:
 7. **Notificaciones aparecen en la barra del sistema** → Android/iOS muestran la notificación
 8. **Usuario hace clic** → Navega a `/ministering/urgent`
 
+### Nuevo usuario registrado (asignar rol)
+
+Cuando alguien se auto-registra (`role: user` en `c_users`), la Cloud Function `onNewUserRegistered` notifica **solo** a roles con menú Administración (`president`, `secretary` / legacy `admin`) del mismo `barrioOrg`:
+
+1. **In-app** en la campana del header (`contextType: admin_user`)
+2. **Push** a dispositivos con token FCM activo
+3. **Clic** (in-app o push) → `/admin/users` para asignar el rol
+
+No se notifica a consejeros, miembros u otros roles.
+
 ### Archivos Clave
 
 - `src/app/(main)/settings/page.tsx` - Configuración de preferencias de notificaciones

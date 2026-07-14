@@ -134,12 +134,16 @@ class FcmRepository {
                 const results = [];
                 snap.forEach((doc) => {
                     const data = doc.data();
-                    if (data.fcmToken) {
+                    const token = data.fcmToken;
+                    // Per-device opt-in: skip devices that unsubscribed (no token / enabled=false)
+                    if (typeof token === "string" &&
+                        token.length > 0 &&
+                        data.enabled !== false) {
                         results.push({
                             docId: doc.id,
                             userId: data.userId,
                             deviceId: typeof data.deviceId === "string" ? data.deviceId : undefined,
-                            fcmToken: data.fcmToken,
+                            fcmToken: token,
                         });
                     }
                 });
@@ -333,6 +337,7 @@ class FcmRepository {
                     ...(params.invalidateToken
                         ? {
                             fcmToken: null,
+                            enabled: false,
                             unsubscribedAt: admin.firestore.FieldValue.serverTimestamp(),
                         }
                         : {}),

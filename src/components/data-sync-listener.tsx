@@ -94,7 +94,8 @@ export function DataSyncListener() {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       const data = event.data;
-      if (!data || data.type !== 'DATA_SYNC') return;
+      // SW posts DATA_SYNC; tolerate CF-style data-sync if ever forwarded raw
+      if (!data || (data.type !== 'DATA_SYNC' && data.type !== 'data-sync')) return;
       // Scope: only this barrio|organización
       if (barrioOrg && data.barrioOrg && data.barrioOrg !== barrioOrg) return;
       markLastSyncTime(new Date());

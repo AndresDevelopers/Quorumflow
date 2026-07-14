@@ -30,7 +30,17 @@ export function extractBarrioOrg(
 ): string | null {
   if (!data) return null;
   const raw = data.barrioOrg;
-  if (typeof raw === "string" && raw.trim().length > 0) return raw.trim();
+  if (typeof raw === "string") {
+    const explicit = raw.trim();
+    // Canonical multi-tenant key must be barrio|org (no leading/trailing pipe)
+    if (
+      explicit.includes("|") &&
+      !explicit.startsWith("|") &&
+      !explicit.endsWith("|")
+    ) {
+      return explicit;
+    }
+  }
 
   // Legacy docs may store barrio + organizacion separately
   const barrio = typeof data.barrio === "string" ? data.barrio.trim() : "";

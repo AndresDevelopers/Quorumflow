@@ -78,10 +78,50 @@ function extractNotificationPayload(payload) {
   };
 }
 
+/** Silent CF data-sync: wake open clients to refresh; never show a system notification. */
+function isDataSyncPayload(payload) {
+  const data = payload?.data ?? {};
+  const t = data.type;
+  return t === 'data-sync' || t === 'DATA_SYNC';
+}
+
+async function notifyClientsOfDataSync(payload) {
+  const data = payload?.data ?? {};
+  const message = {
+    type: 'DATA_SYNC',
+    barrioOrg: typeof data.barrioOrg === 'string' ? data.barrioOrg : undefined,
+    version: typeof data.version === 'string' ? data.version : undefined,
+    collection: typeof data.collection === 'string' ? data.collection : undefined,
+    docId: typeof data.docId === 'string' ? data.docId : undefined,
+    changeType: typeof data.changeType === 'string' ? data.changeType : undefined,
+  };
+
+  const clientList = await clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true,
+  });
+  for (const client of clientList) {
+    client.postMessage(message);
+  }
+}
+
 messaging.onBackgroundMessage((payload) => {
+  // Cloud Function silent sync must not surface a fake push notification
+  if (isDataSyncPayload(payload)) {
+    return notifyClientsOfDataSync(payload);
+  }
+
   const message = extractNotificationPayload(payload);
 
-  self.registration.showNotification(message.title, {
+  // Data-only messages without title/body are not user-facing notifications
+  const hasUserFacingText =
+    Boolean(payload?.notification?.title || payload?.notification?.body) ||
+    Boolean(payload?.data?.title || payload?.data?.body);
+  if (!hasUserFacingText) {
+    return;
+  }
+
+  return self.registration.showNotification(message.title, {
     body: message.body,
     icon: message.icon,
     badge: message.badge,

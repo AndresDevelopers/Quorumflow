@@ -310,6 +310,9 @@ export function BirthdayForm({ isOpen, onOpenChange, onFormSubmit, birthday }: B
     setIsSubmitting(true);
 
     try {
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+      const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
+
       const finalPhotoURL = await resolvePhotoUrl();
 
       const dataToSave = {
@@ -318,7 +321,7 @@ export function BirthdayForm({ isOpen, onOpenChange, onFormSubmit, birthday }: B
         photoURL: finalPhotoURL,
         // Store metadata about entry mode and source
         entryMode: values.entryMode,
-        barrioOrg: barrioOrg || '',
+        barrioOrg: scopedBarrioOrg,
         ...(values.entryMode === 'automatic' && values.selectedMemberId && {
           linkedMemberId: values.selectedMemberId,
           sourceType: 'member_selection'

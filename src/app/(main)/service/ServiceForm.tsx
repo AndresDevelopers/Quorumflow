@@ -195,11 +195,14 @@ export function ServiceForm({ service }: ServiceFormProps) {
 
       finalImageUrls = [...finalImageUrls, ...newUrls];
 
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+      const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
+
       const dataToSave = {
         ...values,
         date: Timestamp.fromDate(values.date),
         imageUrls: finalImageUrls,
-        barrioOrg,
+        barrioOrg: scopedBarrioOrg,
       };
 
       if (isEditMode && service) {

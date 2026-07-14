@@ -478,10 +478,11 @@ export function CompanionshipForm({ companionship, onCancel }: CompanionshipForm
 
             // Add the new companionship with districtId for reliable filtering
             const newCompanionshipRef = doc(ministeringCollection);
+            const { requireBarrioOrg } = await import('@/lib/tenant-scope');
             await setDoc(newCompanionshipRef, {
                 companions: values.companions.map(c => c.value),
                 families: familiesWithObjects,
-                barrioOrg,
+                barrioOrg: requireBarrioOrg(barrioOrg),
                 districtId: resolvedDistrictId,
             });
 

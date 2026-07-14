@@ -106,12 +106,15 @@ export default function AddBaptismPage() {
         }
       }
 
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+      const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
+
       await addDoc(baptismsCollection, {
         name: values.name,
         date: Timestamp.fromDate(values.date),
         photoURL: photoURLs[0] || '',
         baptismPhotos: photoURLs,
-        barrioOrg,
+        barrioOrg: scopedBarrioOrg,
       });
 
       toast({

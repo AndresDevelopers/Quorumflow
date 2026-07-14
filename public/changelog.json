@@ -6,20 +6,20 @@
       "date": "2026-07-14",
       "changes": {
         "es": [
-          "Hemos mejorado la seguridad y el aislamiento entre barrios para que solo puedas ver y editar los datos de tu propia organización.",
-          "Ahora todas las rutas de almacenamiento son consistentes y seguras, usando una nueva función centralizada que genera las rutas correctas automáticamente.",
-          "Agregamos un endpoint de administración para migrar datos antiguos y asegurar que todos los registros tengan el campo de barrio correcto.",
-          "Las notificaciones ahora están filtradas por barrio, por lo que solo recibirás las que corresponden a tu organización.",
-          "Mejoramos la autenticación en todas las APIs públicas, requiriendo un token Bearer válido y verificando el ámbito del barrio.",
-          "Se añadieron índices en Firestore para que las consultas por barrio sean más rápidas y eficientes."
+          "Ahora los datos de tu barrio están completamente aislados: cada operación de escritura verifica que pertenezcas a la organización correcta, evitando mezclar información entre barrios.",
+          "Las rutas de almacenamiento se han estandarizado y protegido, garantizando que solo puedas acceder y subir archivos a tu propio espacio asignado.",
+          "Se ha reforzado la seguridad en todas las consultas a la base de datos para que solo veas los miembros y actividades de tu propio barrio, sin riesgos de filtraciones.",
+          "Todos los puntos finales de la API ahora requieren autenticación y verifican tu pertenencia al barrio, cerrando el acceso si falta la información necesaria.",
+          "Se agregaron índices y tiempos de espera configurables para mejorar el rendimiento y la estabilidad al trabajar con datos de tu organización.",
+          "La edición de actividades ahora protege el campo de barrio para que no puedas cambiarlo accidentalmente, manteniendo la integridad de los datos."
         ],
         "en": [
-          "We've strengthened security and tenant isolation so you can only see and edit data from your own ward or organization.",
-          "All storage paths are now consistent and secure, using a new centralized helper that generates the correct paths automatically.",
-          "Added an admin endpoint to migrate old data and ensure all records have the correct barrioOrg field.",
-          "Notifications are now filtered by ward, so you'll only see the ones relevant to your organization.",
-          "Improved authentication on all public APIs, requiring a valid Bearer token and checking the barrio scope.",
-          "Added Firestore indexes to make queries by barrio faster and more efficient."
+          "Your ward's data is now fully isolated: every write operation checks that you belong to the correct organization, preventing data from mixing between wards.",
+          "Storage paths have been standardized and secured, ensuring you can only access and upload files to your own assigned space.",
+          "All database queries now enforce ward scoping so you only see members and activities from your own ward, with no risk of data leaks.",
+          "Every API endpoint now requires authentication and verifies your ward membership, blocking access if the necessary information is missing.",
+          "Added indexes and configurable timeouts to improve performance and stability when working with your organization's data.",
+          "Activity editing now protects the ward field so you cannot accidentally change it, keeping your data consistent."
         ]
       }
     },

@@ -430,7 +430,15 @@ export default function CouncilPage() {
     setSheetSaving(true);
     try {
       const infoRef = convertInfoCollection(convertId);
-      await setDoc(infoRef, { calling, notes, recommendationActive, selfRelianceCourse, barrioOrg, updatedAt: Timestamp.now() }, { merge: true });
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+      await setDoc(infoRef, {
+        calling,
+        notes,
+        recommendationActive,
+        selfRelianceCourse,
+        barrioOrg: requireBarrioOrg(barrioOrg),
+        updatedAt: Timestamp.now(),
+      }, { merge: true });
       toast({ title: t("council.action.convertInfoSavedTitle"), description: t("council.action.convertInfoSavedDescription") });
     } catch (error) {
       logger.error({ error, convertId, message: 'Error saving convert info from council' });
@@ -451,12 +459,13 @@ export default function CouncilPage() {
           toast({ title: t("council.action.friendsUpdatedTitle"), description: t("council.action.friendsUpdatedDescription") });
         }
       } else if (friends.length > 0) {
+        const { requireBarrioOrg } = await import('@/lib/tenant-scope');
         await addDoc(newConvertFriendsCollection, {
           convertId,
           convertName,
           friends,
           assignedAt: serverTimestamp(),
-          barrioOrg,
+          barrioOrg: requireBarrioOrg(barrioOrg),
         });
         toast({ title: t("council.action.friendsAssignedTitle"), description: t("council.action.friendsAssignedDescription") });
       }

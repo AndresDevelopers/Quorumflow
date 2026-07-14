@@ -53,6 +53,14 @@ barrioOrg = "{barrio}|{organización}"
 - Listados Admin (`fetchMembers`, etc.) **exigen** `barrioOrg`; nunca “todos los barrios”.
 - Jobs cron requieren `CRON_SECRET`; si no está configurado, se rechaza la petición.
 
+### Sellado automático al crear datos
+
+Al crear miembros, notas, actividades, servicios, ministración, etc., el cliente/API **estampa** `barrioOrg` del usuario autenticado (`useAuth().barrioOrg` o `requireUidAndBarrioOrg` en servidor). Helper: `src/lib/tenant-scope.ts` → `requireBarrioOrg` / `withTenantScope`.
+
+Las reglas Firestore (`canCreateInBarrio`) solo permiten create si `request.resource.data.barrioOrg` coincide con el del usuario: un cliente **no** puede guardar datos de otro barrio aunque manipule el payload.
+
+El registro de usuario también guarda `barrio`, `organizacion` y `barrioOrg` en `c_users`.
+
 ### Migración de datos legacy
 
 Documentos antiguos sin `barrioOrg` se sellan desde **Admin → Migrar** usando  

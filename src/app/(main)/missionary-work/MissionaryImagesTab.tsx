@@ -334,12 +334,13 @@ export function MissionaryImagesTab({
 
     startTransition(async () => {
       try {
+        const { requireBarrioOrg } = await import('@/lib/tenant-scope');
         await addDoc(missionaryImagesCollection, {
           imageUrl: item.url,
           description: item.description,
           createdAt: serverTimestamp(),
           createdBy: user?.uid || firebaseUser?.uid || 'unknown',
-          barrioOrg,
+          barrioOrg: requireBarrioOrg(barrioOrg),
         });
         toast({
           title: t('missionaryWork.success'),

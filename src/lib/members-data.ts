@@ -58,11 +58,18 @@ export async function createMember(memberData: Omit<Member, 'id'>, barrioOrg: st
       throw new Error('First name and last name are required');
     }
 
+    const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+    const scopedBarrioOrg = requireBarrioOrg(
+      barrioOrg,
+      'barrioOrg es requerido para crear un miembro (aislamiento multi-tenant)'
+    );
+
     // Get firestore instance
     const db = getFirestoreInstance();
     const membersCollection = collection(db, 'c_miembros');
 
     // Clean the data before saving - remove undefined values
+    // Always stamp server/caller barrioOrg — never trust memberData.barrioOrg
     const cleanData: any = {
       firstName: memberData.firstName.trim(),
       lastName: memberData.lastName.trim(),
@@ -70,7 +77,7 @@ export async function createMember(memberData: Omit<Member, 'id'>, barrioOrg: st
       createdAt: memberData.createdAt,
       updatedAt: memberData.updatedAt,
       createdBy: memberData.createdBy,
-      barrioOrg,
+      barrioOrg: scopedBarrioOrg,
     };
 
     // Only add optional fields if they have valid values

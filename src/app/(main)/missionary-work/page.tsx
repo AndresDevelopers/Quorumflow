@@ -249,12 +249,13 @@ function AssignmentsTab({
   const handleAddAssignment = async (description: string) => {
     if (!user) return;
 
+    const { requireBarrioOrg } = await import('@/lib/tenant-scope');
     await addDoc(missionaryAssignmentsCollection, {
       description,
       isCompleted: false,
       createdAt: serverTimestamp(),
       userId: user.uid,
-      barrioOrg,
+      barrioOrg: requireBarrioOrg(barrioOrg),
     });
     onRefresh();
   };
@@ -502,12 +503,13 @@ function InvestigatorsTab({
 
     startTransition(async () => {
       try {
+        const { requireBarrioOrg } = await import('@/lib/tenant-scope');
         await addDoc(investigatorsCollection, {
           name: validated.data.name,
           assignedMissionaries: validated.data.missionaries,
           status: 'active',
           createdAt: serverTimestamp(),
-          barrioOrg,
+          barrioOrg: requireBarrioOrg(barrioOrg),
         });
         toast({ title: t('missionaryWork.success'), description: t('missionaryWork.investigators.successAdd') });
         setAddOpen(false);

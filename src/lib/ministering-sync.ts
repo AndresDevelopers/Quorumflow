@@ -158,9 +158,15 @@ async function addToNewCompanionships(
     // Crear un nuevo compañerismo
     console.log('🆕 Creating new companionship for teachers:', currentTeachers);
     
+    const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+    const scopedBarrioOrg = requireBarrioOrg(
+      barrioOrg,
+      'barrioOrg es requerido para crear compañerismo de ministración'
+    );
+
     const newCompanionship = {
       companions: currentTeachers,
-      barrioOrg,
+      barrioOrg: scopedBarrioOrg,
       families: [{
         name: memberFamilyName,
         isUrgent: false,

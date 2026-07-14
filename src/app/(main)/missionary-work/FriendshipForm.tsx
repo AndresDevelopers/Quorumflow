@@ -116,12 +116,13 @@ export function FriendshipForm({
             });
           }
         } else if (convert) {
+          const { requireBarrioOrg } = await import('@/lib/tenant-scope');
           await addDoc(newConvertFriendsCollection, {
             convertId: convert.id,
             convertName: convert.name,
             friends: friendNames,
             assignedAt: serverTimestamp(),
-            barrioOrg,
+            barrioOrg: requireBarrioOrg(barrioOrg),
           });
           toast({
             title: t('missionaryWork.success'),

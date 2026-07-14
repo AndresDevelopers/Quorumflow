@@ -187,13 +187,19 @@ export async function POST(request: Request) {
 
     const data = await request.json();
 
+    const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+    const scopedBarrioOrg = requireBarrioOrg(
+      barrioOrg,
+      'Usuario sin barrio asignado.'
+    );
+
     const memberData: any = {
       ...data,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       createdBy: uid,
     };
-    // Never trust client-supplied barrioOrg
+    // Never trust client-supplied barrioOrg — stamp server-resolved tenant
     delete memberData.barrioOrg;
 
     if ('birthDate' in data) {
@@ -225,7 +231,7 @@ export async function POST(request: Request) {
       memberData.inactiveSince = Timestamp.now();
     }
 
-    const memberId = await createMember(memberData, barrioOrg);
+    const memberId = await createMember(memberData, scopedBarrioOrg);
 
     // Always invalidate cache when creating/updating members
     revalidateTag('members', 'default');

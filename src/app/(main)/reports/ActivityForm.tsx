@@ -200,16 +200,23 @@ export function ActivityForm({ activity }: ActivityFormProps) {
       const [newUrls] = await Promise.all([uploadPromise, deletePromise]);
       finalImageUrls = [...finalImageUrls, ...newUrls];
 
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+      const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
+
       const dataToSave = {
         ...values,
         date: Timestamp.fromDate(values.date),
         imageUrls: finalImageUrls,
-        barrioOrg,
+        barrioOrg: scopedBarrioOrg,
       };
 
       if (isEditMode && activity) {
         const activityRef = doc(activitiesCollection, activity.id);
-        await updateDoc(activityRef, dataToSave);
+        // Never allow re-scoping an activity to another barrio via client payload
+        const { barrioOrg: _drop, ...updateFields } = dataToSave as typeof dataToSave & {
+          barrioOrg?: string;
+        };
+        await updateDoc(activityRef, { ...updateFields, barrioOrg: scopedBarrioOrg });
 
         toast({
           title: t('reports.activityForm.updatedTitle'),

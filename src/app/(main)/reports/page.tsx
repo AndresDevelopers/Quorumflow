@@ -403,8 +403,10 @@ export default function ReportsPage() {
   const handleSaveAnswers = async () => {
     try {
       // Multi-tenant doc id: year|barrioOrg (avoids sharing answers across wards)
-      const docRef = doc(annualReportsCollection, `${selectedYear}|${barrioOrg}`);
-      await setDoc(docRef, { ...answers, barrioOrg, year: selectedYear }, { merge: true });
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+      const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
+      const docRef = doc(annualReportsCollection, `${selectedYear}|${scopedBarrioOrg}`);
+      await setDoc(docRef, { ...answers, barrioOrg: scopedBarrioOrg, year: selectedYear }, { merge: true });
        toast({ title: t('settings.toast.profileUpdatedTitle'), description: t('reports.toast.answersSaved') });
     } catch (error) {
       logger.error({ error, message: 'Error saving annual report answers' });

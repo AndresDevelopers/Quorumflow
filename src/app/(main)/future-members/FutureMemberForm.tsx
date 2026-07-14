@@ -215,13 +215,16 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
         }));
       }
 
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+      const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
+
       const dataToSave = {
         name: values.name,
         baptismDate: Timestamp.fromDate(values.baptismDate),
         photoURL: finalPhotoURL,
         baptismPhotos: finalBaptismPhotos,
         isBaptized: values.isBaptized,
-        barrioOrg,
+        barrioOrg: scopedBarrioOrg,
       };
 
       if (isEditMode && futureMember) {

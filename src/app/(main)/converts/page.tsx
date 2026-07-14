@@ -326,12 +326,13 @@ export default function ConvertsPage() {
     setSaving(true);
     try {
       const infoRef = convertInfoCollection(convertId);
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
       await setDoc(infoRef, {
         calling,
         notes,
         recommendationActive,
         selfRelianceCourse,
-        barrioOrg,
+        barrioOrg: requireBarrioOrg(barrioOrg),
         updatedAt: Timestamp.now()
       }, { merge: true });
 
@@ -364,11 +365,12 @@ export default function ConvertsPage() {
         }
       } else if (friends.length > 0) {
         // Create new friendship
+        const { requireBarrioOrg } = await import('@/lib/tenant-scope');
         await addDoc(newConvertFriendsCollection, {
           convertId,
           convertName,
           friends,
-          barrioOrg,
+          barrioOrg: requireBarrioOrg(barrioOrg),
           assignedAt: serverTimestamp()
         });
         toast({ title: t('converts.friendsAssignedTitle'), description: t('converts.friendsAssignedDescription') });

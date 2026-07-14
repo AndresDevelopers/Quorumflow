@@ -282,12 +282,13 @@ export default function MinisteringPage() {
 
     setIsSavingDistrict(true);
     try {
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
       const payload = {
         name,
         companionshipIds: [] as string[],
         leaderId: null as string | null,
         leaderName: null as string | null,
-        barrioOrg,
+        barrioOrg: requireBarrioOrg(barrioOrg),
         updatedAt: serverTimestamp(),
       };
       const docRef = await addDoc(ministeringDistrictsCollection, payload);

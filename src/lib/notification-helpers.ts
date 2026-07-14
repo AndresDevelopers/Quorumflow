@@ -45,7 +45,11 @@ export async function createNotification(params: CreateNotificationParams): Prom
   // Create in-app notification if not push-only
   if (!pushOnly) {
     // Firestore rules require barrioOrg on create (multi-tenant fail closed)
-    if (!barrioOrg || !String(barrioOrg).includes('|')) {
+    let scopedBarrioOrg: string;
+    try {
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+      scopedBarrioOrg = requireBarrioOrg(barrioOrg);
+    } catch {
       console.warn('createNotification: missing barrioOrg — skip in-app write');
       if (!inAppOnly) {
         await sendPushNotification({
@@ -64,7 +68,7 @@ export async function createNotification(params: CreateNotificationParams): Prom
       body,
       createdAt: Timestamp.now(),
       isRead: false,
-      barrioOrg,
+      barrioOrg: scopedBarrioOrg,
       ...(contextType && { contextType }),
       ...(contextId && { contextId }),
       ...(actionUrl && { actionUrl }),

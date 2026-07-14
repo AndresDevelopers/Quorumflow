@@ -77,6 +77,12 @@ export const createHealthConcern = async (
     uploadResult = await uploadPhoto(input.photoFile, input.createdBy);
   }
 
+  const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+  const barrioOrg = requireBarrioOrg(
+    input.barrioOrg,
+    'barrioOrg es requerido para crear una observación de salud'
+  );
+
   const data: Record<string, unknown> = {
     firstName: input.firstName,
     lastName: input.lastName,
@@ -85,7 +91,7 @@ export const createHealthConcern = async (
     address: input.address,
     observation: input.observation,
     createdBy: input.createdBy,
-    barrioOrg: input.barrioOrg,
+    barrioOrg,
     createdAt: now,
     updatedAt: now,
   };

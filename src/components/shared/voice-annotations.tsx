@@ -135,6 +135,13 @@ export function VoiceAnnotations({
     if (!currentUserId) return;
 
     try {
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+      const scopedBarrioOrg = requireBarrioOrg(
+        barrioOrg,
+        t('voiceAnnotations.toast.saveErrorDescription') ||
+          'Usuario sin barrio/organización. No se puede guardar la nota.'
+      );
+
       await addDoc(annotationsCollection, {
         text: newAnnotation.trim(),
         source,
@@ -142,7 +149,7 @@ export function VoiceAnnotations({
         isResolved: false,
         createdAt: serverTimestamp(),
         userId: currentUserId,
-        barrioOrg,
+        barrioOrg: scopedBarrioOrg,
       });
 
       setNewAnnotation('');

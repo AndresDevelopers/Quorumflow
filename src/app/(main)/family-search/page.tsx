@@ -136,9 +136,10 @@ export default function FamilySearchPage() {
 
         startTransition(async () => {
             try {
+                const { requireBarrioOrg } = await import('@/lib/tenant-scope');
                 const trainingData: any = {
                     familyName: data.familyName,
-                    barrioOrg,
+                    barrioOrg: requireBarrioOrg(barrioOrg),
                     createdAt: serverTimestamp()
                 };
 
@@ -172,10 +173,11 @@ export default function FamilySearchPage() {
 
         startTransition(async () => {
             try {
+                const { requireBarrioOrg } = await import('@/lib/tenant-scope');
                 await addDoc(familySearchTasksCollection, {
                   task,
                   createdAt: serverTimestamp(),
-                  barrioOrg,
+                  barrioOrg: requireBarrioOrg(barrioOrg),
                 });
                 toast({ title: t("common.success"), description: t("familySearch.task.addedSuccess") });
                 setTaskOpen(false);

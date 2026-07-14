@@ -159,6 +159,7 @@ export default function ActivitiesPage() {
 
   const handleTransferToService = async (activity: Activity) => {
     try {
+      const { requireBarrioOrg } = await import('@/lib/tenant-scope');
       await addDoc(servicesCollection, {
         title: activity.title,
         date: activity.date,
@@ -166,7 +167,7 @@ export default function ActivitiesPage() {
         time: activity.time || null,
         imageUrls: activity.imageUrls || [],
         councilNotified: false,
-        barrioOrg,
+        barrioOrg: requireBarrioOrg(barrioOrg),
       });
       await deleteDoc(doc(activitiesCollection, activity.id));
       toast({

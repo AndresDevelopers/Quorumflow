@@ -5,6 +5,10 @@ import { Member, MemberStatus } from '@/lib/types';
 import { createMember } from '@/lib/members-data';
 import { Timestamp } from 'firebase-admin/firestore';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import {
+  getErrorStatus,
+  requireUidAndBarrioOrg,
+} from '@/lib/api-auth';
 
 const normalizeMemberStatus = (status?: unknown): MemberStatus => {
   if (typeof status !== 'string') return 'active';
@@ -128,13 +132,15 @@ export async function GET(request: Request) {
   const limited = await enforceRateLimit(request, 'api');
   if (limited) return limited;
 
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status') as MemberStatus | null;
-  const barrioOrg = searchParams.get('barrioOrg') || undefined;
-  const limitParam = searchParams.get('limit');
-  const limit = limitParam ? parseInt(limitParam, 10) || undefined : undefined;
-
   try {
+    const { barrioOrg } = await requireUidAndBarrioOrg(request);
+
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status') as MemberStatus | null;
+    // Always use server-resolved barrioOrg — ignore query string barrioOrg
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam, 10) || undefined : undefined;
+
     // In development, always fetch fresh data without cache
     if (process.env.NODE_ENV !== 'production') {
       const members = await fetchMembers(status || undefined, barrioOrg, { limit });
@@ -149,6 +155,14 @@ export async function GET(request: Request) {
     const members = await getMembersCached(status || undefined, barrioOrg, limit);
     return NextResponse.json(members);
   } catch (error) {
+    const status = getErrorStatus(error, 500);
+    if (status === 401 || status === 403) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Unauthorized' },
+        { status }
+      );
+    }
+
     console.error('❌ Detailed error in /api/members:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
@@ -173,14 +187,18 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   try {
+    const { barrioOrg, uid } = await requireUidAndBarrioOrg(request);
+
     const data = await request.json();
 
     const memberData: any = {
       ...data,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-      createdBy: 'system', // Or get from auth
+      createdBy: uid,
     };
+    // Never trust client-supplied barrioOrg
+    delete memberData.barrioOrg;
 
     if ('birthDate' in data) {
       const birthDate = coerceToTimestamp(data.birthDate);
@@ -211,7 +229,6 @@ export async function POST(request: Request) {
       memberData.inactiveSince = Timestamp.now();
     }
 
-    const barrioOrg = data.barrioOrg || 'Libertad|Quórum de Élderes';
     const memberId = await createMember(memberData, barrioOrg);
 
     // Always invalidate cache when creating/updating members
@@ -223,6 +240,13 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
+    const status = getErrorStatus(error, 500);
+    if (status === 401 || status === 403) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Unauthorized' },
+        { status }
+      );
+    }
     console.error('Error creating member:', error);
     return NextResponse.json(
       { error: 'Failed to create member' },

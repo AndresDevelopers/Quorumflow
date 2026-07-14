@@ -32,7 +32,7 @@ type FamilyWithCompanions = Family & { companionshipId: string; companions: stri
 type UrgentFamily = Family & { companions: string[] };
 
 export function UrgentNeedsClient() {
-  const { user, loading: authLoading, barrioOrg } = useAuth();
+  const { user, loading: authLoading, barrioOrg, firebaseUser } = useAuth();
   const { t } = useI18n();
   const [allFamilies, setAllFamilies] = useState<FamilyWithCompanions[]>([]);
   const [urgentFamilies, setUrgentFamilies] = useState<UrgentFamily[]>([]);
@@ -126,10 +126,15 @@ export function UrgentNeedsClient() {
 
       // Send push notification to all subscribed users using FCM
       try {
+        const idToken = await firebaseUser?.getIdToken().catch(() => null);
+        if (!idToken) {
+          throw new Error('No autenticado para enviar push');
+        }
         const pushResponse = await fetch('/api/send-fcm-notification', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
           },
           body: JSON.stringify({
             title: t('ministering.urgent.notificationTitle'),

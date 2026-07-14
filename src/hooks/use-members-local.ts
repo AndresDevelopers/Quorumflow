@@ -93,7 +93,7 @@ export function applyServerMembersToLocalCache(
 }
 
 export function useMembersLocal(): UseMembersLocalReturn {
-  const { user, loading: authLoading, barrioOrg } = useAuth();
+  const { user, loading: authLoading, barrioOrg, firebaseUser } = useAuth();
 
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,10 +138,15 @@ export function useMembersLocal(): UseMembersLocalReturn {
     inFlight.current = true;
     setSyncStatus('syncing');
     try {
+      const idToken = await firebaseUser?.getIdToken().catch(() => null);
+      if (!idToken) throw new Error('No autenticado');
       const url = `/api/members?barrioOrg=${encodeURIComponent(barrioOrg)}&t=${Date.now()}`;
       const response = await fetch(url, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' },
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Cache-Control': 'no-cache',
+        },
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const raw = (await response.json()) as Member[];
@@ -164,7 +169,7 @@ export function useMembersLocal(): UseMembersLocalReturn {
     } finally {
       inFlight.current = false;
     }
-  }, [user, barrioOrg]);
+  }, [user, firebaseUser, barrioOrg]);
 
   // Carga inicial: localStorage primero. Solo va al servidor si NO hay cache.
   // No hay auto-refresh por TTL: el usuario debe usar el icono de actualizar.

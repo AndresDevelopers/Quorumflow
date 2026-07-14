@@ -1,6 +1,7 @@
 import { addDoc, Timestamp, getDocs } from "firebase/firestore";
 import { notificationsCollection, usersCollection } from "./collections";
 import type { AppNotification } from "./types";
+import { auth } from "./firebase";
 
 /**
  * Helper function to create notifications with navigation context
@@ -92,10 +93,16 @@ async function sendPushNotification(params: {
   url?: string;
 }): Promise<void> {
   try {
+    const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+    if (!idToken) {
+      console.error('Failed to send push notification: no autenticado');
+      return;
+    }
     const response = await fetch('/api/send-fcm-notification', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
       },
       body: JSON.stringify(params),
     });

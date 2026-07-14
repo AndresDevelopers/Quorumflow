@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { firestoreAdmin, messagingAdmin } from '@/lib/firebase-admin';
 import { getAppNotificationTag } from '@/lib/app-config';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import {
+  getErrorStatus,
+  getUserBarrioOrg,
+  requireUidAndBarrioOrg,
+} from '@/lib/api-auth';
 
 // Firestore 'in' operator supports max 30 items
 const FIRESTORE_IN_LIMIT = 30;
@@ -55,6 +60,8 @@ export async function POST(request: NextRequest) {
   if (limited) return limited;
 
   try {
+    const { barrioOrg: callerBarrioOrg } = await requireUidAndBarrioOrg(request);
+
     const { title, body, url, userId } = await request.json() as {
       title?: string;
       body?: string;
@@ -72,10 +79,33 @@ export async function POST(request: NextRequest) {
     let targetUserIds: string[] = [];
 
     if (userId) {
+      // Target a single user — must share the caller's barrioOrg
+      let targetBarrioOrg: string;
+      try {
+        targetBarrioOrg = await getUserBarrioOrg(userId);
+      } catch (error) {
+        const status = getErrorStatus(error, 403);
+        if (status === 403) {
+          return NextResponse.json(
+            { error: 'No tienes acceso a este usuario' },
+            { status: 403 }
+          );
+        }
+        throw error;
+      }
+      if (targetBarrioOrg !== callerBarrioOrg) {
+        return NextResponse.json(
+          { error: 'No tienes acceso a este usuario' },
+          { status: 403 }
+        );
+      }
       targetUserIds = [userId];
     } else {
-      // Broadcast: get all users with push notifications enabled
-      const usersSnapshot = await firestoreAdmin.collection('c_users').get();
+      // Broadcast: only users in the caller's barrioOrg with push enabled
+      const usersSnapshot = await firestoreAdmin
+        .collection('c_users')
+        .where('barrioOrg', '==', callerBarrioOrg)
+        .get();
       usersSnapshot.forEach((doc) => {
         const userData = doc.data();
         // pushNotificationsEnabled must be explicitly true
@@ -192,6 +222,13 @@ export async function POST(request: NextRequest) {
       failedCount: totalFailure,
     });
   } catch (error) {
+    const status = getErrorStatus(error, 500);
+    if (status === 401 || status === 403) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Unauthorized' },
+        { status }
+      );
+    }
     console.error('[FCM] Error in send-fcm-notification API:', error);
     return NextResponse.json(
       {

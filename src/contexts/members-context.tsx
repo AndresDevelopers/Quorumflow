@@ -61,7 +61,7 @@ function normalizeList(raw: Member[]): Member[] {
 }
 
 export function MembersProvider({ children }: { children: ReactNode }) {
-  const { user, loading: authLoading, barrioOrg } = useAuth();
+  const { user, loading: authLoading, barrioOrg, firebaseUser } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
@@ -138,12 +138,19 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       const abortTimer = setTimeout(() => controller.abort(), 8_000);
 
       try {
+        const idToken = await firebaseUser?.getIdToken().catch(() => null);
+        if (!idToken) {
+          throw new Error('No autenticado');
+        }
         const cacheBuster = forceRefresh ? `&t=${Date.now()}` : '';
         const url = `/api/members?barrioOrg=${encodeURIComponent(barrioOrg)}${cacheBuster}`;
         const response = await withTimeout(
           fetch(url, {
             cache: forceRefresh ? 'no-store' : 'default',
-            headers: forceRefresh ? { 'Cache-Control': 'no-cache' } : undefined,
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+              ...(forceRefresh ? { 'Cache-Control': 'no-cache' } : {}),
+            },
             signal: controller.signal,
           }),
           8_500,
@@ -191,7 +198,7 @@ export function MembersProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     },
-    [authLoading, user, barrioOrg, loadFromLocalCache, saveToLocalCache]
+    [authLoading, user, firebaseUser, barrioOrg, loadFromLocalCache, saveToLocalCache]
   );
 
   // Initial load once per barrioOrg: cache first, network only if empty.

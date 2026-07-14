@@ -13,6 +13,7 @@ import { z } from 'zod';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEFAULT_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const DEEPSEEK_TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS) || 8000;
 
 type DeepSeekMessage = {
   role: 'system' | 'user' | 'assistant';
@@ -38,40 +39,59 @@ export async function requestDeepSeekText(messages: DeepSeekMessage[], model = D
     throw new Error('DEEPSEEK_API_KEY no está configurada en el servidor.');
   }
 
-  const response = await fetch(DEEPSEEK_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.4,
-      thinking: { type: 'disabled' },
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`DeepSeek request failed (${response.status}): ${text}`);
+  try {
+    const response = await fetch(DEEPSEEK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0.4,
+        thinking: { type: 'disabled' },
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`DeepSeek request failed (${response.status}): ${text}`);
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
+    };
+
+    const rawContent = data.choices?.[0]?.message?.content;
+
+    if (typeof rawContent === 'string') {
+      return rawContent.trim();
+    }
+
+    if (Array.isArray(rawContent)) {
+      return rawContent.map((item) => item.text ?? '').join(' ').trim();
+    }
+
+    throw new Error('DeepSeek respondió sin contenido.');
+  } catch (error) {
+    if (
+      (error instanceof Error && error.name === 'AbortError') ||
+      (typeof error === 'object' &&
+        error !== null &&
+        'name' in error &&
+        (error as { name: string }).name === 'AbortError')
+    ) {
+      throw new Error(`DeepSeek request timed out after ${DEEPSEEK_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
-  };
-
-  const rawContent = data.choices?.[0]?.message?.content;
-
-  if (typeof rawContent === 'string') {
-    return rawContent.trim();
-  }
-
-  if (Array.isArray(rawContent)) {
-    return rawContent.map((item) => item.text ?? '').join(' ').trim();
-  }
-
-  throw new Error('DeepSeek respondió sin contenido.');
 }
 
 export async function requestDeepSeekJson<T>(params: {

@@ -230,6 +230,22 @@
       ]
     },
     {
+      "collectionGroup": "c_nuevos_conversos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "barrioOrg", "order": "ASCENDING" },
+        { "fieldPath": "baptismDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "c_miembros",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "barrioOrg", "order": "ASCENDING" },
+        { "fieldPath": "baptismDate", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "c_ministracion_historial",
       "queryScope": "COLLECTION",
       "fields": [

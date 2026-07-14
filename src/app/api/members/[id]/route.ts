@@ -3,8 +3,11 @@ import { revalidateTag } from 'next/cache';
 import { firestoreAdmin } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import logger from '@/lib/logger';
-import type { Member } from '@/lib/types';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import {
+  getErrorStatus,
+  requireUidAndBarrioOrg,
+} from '@/lib/api-auth';
 
 function coerceToTimestamp(value: unknown): Timestamp | null | undefined {
   if (value === undefined) return undefined;
@@ -47,6 +50,8 @@ export async function PUT(
   let data: any = null;
   const { id } = await params;
   try {
+    const { barrioOrg: callerBarrioOrg } = await requireUidAndBarrioOrg(request);
+
     try {
       data = await request.json();
     } catch {
@@ -63,6 +68,20 @@ export async function PUT(
       );
     }
 
+    const memberRef = firestoreAdmin.collection('c_miembros').doc(id);
+    const memberDoc = await memberRef.get();
+    if (!memberDoc.exists) {
+      return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 });
+    }
+
+    const memberData = memberDoc.data() as { barrioOrg?: string };
+    if (memberData.barrioOrg !== callerBarrioOrg) {
+      return NextResponse.json(
+        { error: 'No tienes acceso a este miembro' },
+        { status: 403 }
+      );
+    }
+
     // Convert date strings to Admin Timestamps
     const updateData: Record<string, unknown> = {
       ...data,
@@ -71,6 +90,7 @@ export async function PUT(
     delete updateData.id;
     delete updateData.createdAt;
     delete updateData.createdBy;
+    delete updateData.barrioOrg;
 
     if ('birthDate' in data) {
       const bd = coerceToTimestamp(data.birthDate);
@@ -82,7 +102,7 @@ export async function PUT(
     }
 
     // Admin SDK — bypasses Firestore rules
-    await firestoreAdmin.collection('c_miembros').doc(id).update(updateData);
+    await memberRef.update(updateData);
 
     revalidateTag('members', 'default');
 
@@ -90,10 +110,11 @@ export async function PUT(
     response.headers.set('Cache-Control', 'no-store');
     return response;
   } catch (error) {
+    const status = getErrorStatus(error, 500);
     const message = error instanceof Error ? error.message : 'Failed to update member';
     return NextResponse.json(
       { error: message, memberId: id },
-      { status: 500 }
+      { status }
     );
   }
 }
@@ -107,16 +128,30 @@ export async function DELETE(
 
   const { id } = await params;
   try {
-    // Check if member has photo to delete from storage
-    let photoURL: string | undefined;
-    try {
-      const doc = await firestoreAdmin.collection('c_miembros').doc(id).get();
-      if (doc.exists) {
-        photoURL = (doc.data() as any)?.photoURL;
-      }
-    } catch {
-      // Continue even if lookup fails
+    const { barrioOrg: callerBarrioOrg } = await requireUidAndBarrioOrg(request);
+
+    if (!id || id.trim() === '') {
+      return NextResponse.json(
+        { error: 'Invalid member ID' },
+        { status: 400 }
+      );
     }
+
+    // Check if member has photo to delete from storage; also enforce barrioOrg scope
+    let photoURL: string | undefined;
+    const memberDoc = await firestoreAdmin.collection('c_miembros').doc(id).get();
+    if (!memberDoc.exists) {
+      return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 });
+    }
+
+    const memberData = memberDoc.data() as { barrioOrg?: string; photoURL?: string };
+    if (memberData.barrioOrg !== callerBarrioOrg) {
+      return NextResponse.json(
+        { error: 'No tienes acceso a este miembro' },
+        { status: 403 }
+      );
+    }
+    photoURL = memberData.photoURL;
 
     // Delete photo from Firebase Storage if exists (via Admin SDK)
     if (photoURL) {
@@ -144,8 +179,9 @@ export async function DELETE(
     response.headers.set('Cache-Control', 'no-store');
     return response;
   } catch (error) {
+    const status = getErrorStatus(error, 500);
     logger.error({ error, message: 'Error deleting member', memberId: id });
     const message = error instanceof Error ? error.message : 'Failed to delete member';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status });
   }
 }

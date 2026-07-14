@@ -19,6 +19,7 @@ const bodySchema = z.object({
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_CHAT_MODEL = process.env.DEEPSEEK_CHAT_MODEL ?? 'deepseek-v4-flash';
 const DEEPSEEK_MAX_TOKENS = Number(process.env.DEEPSEEK_MAX_TOKENS) || 800;
+const DEEPSEEK_TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS) || 8000;
 const FALLBACK_MODELS = ['deepseek-chat'];
 
 type ChatLanguage = 'en' | 'es';
@@ -200,40 +201,66 @@ export async function POST(request: Request) {
     let lastStatus = 502;
 
     for (const model of modelCandidates) {
-      const response = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.3,
-          max_tokens: DEEPSEEK_MAX_TOKENS,
-          thinking: { type: 'disabled' },
-        }),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
+      try {
+        const response = await fetch(DEEPSEEK_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.3,
+            max_tokens: DEEPSEEK_MAX_TOKENS,
+            thinking: { type: 'disabled' },
+          }),
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        lastStatus = response.status;
-        lastErrorText = await response.text();
-        logger.warn({ message: 'DeepSeek request failed for model candidate', model, status: response.status });
-        continue;
-      }
+        if (!response.ok) {
+          lastStatus = response.status;
+          lastErrorText = await response.text();
+          logger.warn({ message: 'DeepSeek request failed for model candidate', model, status: response.status });
+          continue;
+        }
 
-      const data = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
-      };
-      const rawContent = data.choices?.[0]?.message?.content;
-      answer = typeof rawContent === 'string'
-        ? rawContent.trim()
-        : Array.isArray(rawContent)
-          ? rawContent.map((item) => item.text ?? '').join(' ').trim()
-          : '';
+        const data = (await response.json()) as {
+          choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
+        };
+        const rawContent = data.choices?.[0]?.message?.content;
+        answer = typeof rawContent === 'string'
+          ? rawContent.trim()
+          : Array.isArray(rawContent)
+            ? rawContent.map((item) => item.text ?? '').join(' ').trim()
+            : '';
 
-      if (answer) {
-        break;
+        if (answer) {
+          break;
+        }
+      } catch (error) {
+        const isTimeout =
+          (error instanceof Error && error.name === 'AbortError') ||
+          (typeof error === 'object' &&
+            error !== null &&
+            'name' in error &&
+            (error as { name: string }).name === 'AbortError');
+        if (isTimeout) {
+          lastStatus = 504;
+          lastErrorText = `timeout after ${DEEPSEEK_TIMEOUT_MS}ms`;
+          logger.warn({
+            message: 'DeepSeek request failed for model candidate',
+            model,
+            status: 'timeout',
+            timeoutMs: DEEPSEEK_TIMEOUT_MS,
+          });
+          continue;
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 

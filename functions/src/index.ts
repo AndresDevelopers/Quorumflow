@@ -632,6 +632,8 @@ type ReportRequest = {
     year: number;
     includeAllActivities: boolean;
     organizacion: string;
+    /** Server-resolved multi-tenant scope (never trust client for filtering). */
+    barrioOrg: string;
 };
 
 type ReportProfile = {
@@ -741,21 +743,28 @@ async function buildAnnualReport(
     const end = endOfYear(new Date(req.year, 11, 31));
     const startTimestamp = admin.firestore.Timestamp.fromDate(start);
     const endTimestamp = admin.firestore.Timestamp.fromDate(end);
+    const barrioOrg = req.barrioOrg;
 
-    // 1. Load activities / services
+    // 1. Load activities / services (scoped to caller's barrioOrg)
     let allActivities: Activity[];
     let activitiesToProcess: ActivityOrService[];
 
     if (profile.includeServices) {
         const activitiesQuery = req.includeAllActivities
-            ? firestore.collection("c_actividades").orderBy("date", "desc")
+            ? firestore.collection("c_actividades")
+                .where("barrioOrg", "==", barrioOrg)
+                .orderBy("date", "desc")
             : firestore.collection("c_actividades")
+                .where("barrioOrg", "==", barrioOrg)
                 .where("date", ">=", startTimestamp)
                 .where("date", "<=", endTimestamp)
                 .orderBy("date", "desc");
         const servicesQuery = req.includeAllActivities
-            ? firestore.collection("c_servicios").orderBy("date", "desc")
+            ? firestore.collection("c_servicios")
+                .where("barrioOrg", "==", barrioOrg)
+                .orderBy("date", "desc")
             : firestore.collection("c_servicios")
+                .where("barrioOrg", "==", barrioOrg)
                 .where("date", ">=", startTimestamp)
                 .where("date", "<=", endTimestamp)
                 .orderBy("date", "desc");
@@ -775,23 +784,29 @@ async function buildAnnualReport(
             ? combined
             : combined.filter(a => a.date.toDate() >= start && a.date.toDate() <= end);
     } else {
-        const activitiesSnapshot = await firestore.collection("c_actividades").orderBy("date", "desc").get();
+        const activitiesSnapshot = await firestore.collection("c_actividades")
+            .where("barrioOrg", "==", barrioOrg)
+            .orderBy("date", "desc")
+            .get();
         allActivities = activitiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Activity));
         const currentYearActivities = allActivities.filter(a => a.date.toDate() >= start && a.date.toDate() <= end);
         activitiesToProcess = req.includeAllActivities ? allActivities : currentYearActivities;
     }
 
-    // 2. Load baptisms
+    // 2. Load baptisms (scoped to caller's barrioOrg)
     const baptismQueries: Promise<admin.firestore.QuerySnapshot>[] = [
         firestore.collection("c_bautismos")
+            .where("barrioOrg", "==", barrioOrg)
             .where("date", ">=", startTimestamp)
             .where("date", "<=", endTimestamp)
             .get(),
         firestore.collection("c_futuros_miembros")
+            .where("barrioOrg", "==", barrioOrg)
             .where("baptismDate", ">=", startTimestamp)
             .where("baptismDate", "<=", endTimestamp)
             .get(),
         firestore.collection("c_nuevos_conversos")
+            .where("barrioOrg", "==", barrioOrg)
             .where("baptismDate", ">=", startTimestamp)
             .where("baptismDate", "<=", endTimestamp)
             .get(),
@@ -800,6 +815,7 @@ async function buildAnnualReport(
     if (profile.includeMemberBaptisms) {
         baptismQueries.push(
             firestore.collection("c_miembros")
+                .where("barrioOrg", "==", barrioOrg)
                 .where("baptismDate", ">=", startTimestamp)
                 .where("baptismDate", "<=", endTimestamp)
                 .get()
@@ -989,7 +1005,7 @@ const LEGACY_PROFILE: ReportProfile = {
 
 // ── Authenticated wrappers ───────────────────────────────────────────────────
 
-function withAuthenticatedReport(
+async function withAuthenticatedReport(
     context: any,
     data: any,
     profile: ReportProfile,
@@ -998,10 +1014,26 @@ function withAuthenticatedReport(
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "The function must be called while authenticated.");
     }
+
+    // Resolve barrioOrg from c_users — never trust client for data filtering
+    const userDoc = await firestore.collection("c_users").doc(context.auth.uid).get();
+    if (!userDoc.exists) {
+        throw new functions.https.HttpsError("failed-precondition", "Usuario sin barrio asignado.");
+    }
+    const userData = userDoc.data() || {};
+    const barrio = typeof userData.barrio === "string" ? userData.barrio.trim() : "";
+    const organizacionField = typeof userData.organizacion === "string" ? userData.organizacion.trim() : "";
+    if (!barrio || !organizacionField) {
+        throw new functions.https.HttpsError("failed-precondition", "Usuario sin barrio asignado.");
+    }
+    const barrioOrg = `${barrio}|${organizacionField}`;
+
     const req: ReportRequest = {
         year: data.year || getYear(new Date()),
         includeAllActivities: data.includeAllActivities || false,
+        // Client organizacion is visual label only; data is filtered by barrioOrg
         organizacion: sanitizeOrgName(data.organizacion),
+        barrioOrg,
     };
     return buildAnnualReport(req, profile).catch(error => {
         functions.logger.error(`Error generating ${label} report:`, error);
@@ -1648,6 +1680,60 @@ async function getAllUsersNotificationData(): Promise<UserNotificationData[]> {
     return data;
 }
 
+/** Firestore `in` operator supports at most 30 values. */
+const FIRESTORE_IN_LIMIT = 30;
+
+/**
+ * Unique barrioOrg values that have at least one user with notifications active
+ * (inAppEnabled or pushEnabled). Used to scope scheduled notification reads.
+ */
+function getActiveBarrioOrgs(users: UserNotificationData[]): string[] {
+    const set = new Set<string>();
+    for (const u of users) {
+        if ((u.inAppEnabled || u.pushEnabled) && u.barrioOrg) {
+            set.add(u.barrioOrg);
+        }
+    }
+    return Array.from(set);
+}
+
+/**
+ * Read a collection filtered by barrioOrg in chunks of 30 (Firestore `in` limit).
+ * Returns a snapshot-like object with combined docs so call sites can keep
+ * using .docs / .forEach as before.
+ */
+async function getCollectionDocsForBarrios(
+    collectionName: string,
+    activeBarrioOrgs: string[]
+): Promise<{
+    docs: admin.firestore.QueryDocumentSnapshot[];
+    empty: boolean;
+    forEach: (cb: (doc: admin.firestore.QueryDocumentSnapshot) => void) => void;
+}> {
+    if (activeBarrioOrgs.length === 0) {
+        return { docs: [], empty: true, forEach: () => undefined };
+    }
+
+    const chunks: string[][] = [];
+    for (let i = 0; i < activeBarrioOrgs.length; i += FIRESTORE_IN_LIMIT) {
+        chunks.push(activeBarrioOrgs.slice(i, i + FIRESTORE_IN_LIMIT));
+    }
+
+    const snapshots = await Promise.all(
+        chunks.map((chunk) =>
+            firestore.collection(collectionName).where("barrioOrg", "in", chunk).get()
+        )
+    );
+    const docs = snapshots.flatMap((s) => s.docs);
+    return {
+        docs,
+        empty: docs.length === 0,
+        forEach: (cb) => {
+            docs.forEach(cb);
+        },
+    };
+}
+
 type NotifCategory =
     | "observations"
     | "converts"
@@ -1788,13 +1874,14 @@ export const dailyNotifications = functions
         const in3Days = addDays(today, 3);
 
         const allUsers = await getAllUsersNotificationData();
+        const activeBarrioOrgs = getActiveBarrioOrgs(allUsers);
 
         // ── Cumpleaños ──────────────────────────────────────────────────────
         const birthdayTrace = buildNotificationTrace("dailyNotifications", "birthdays");
         {
             const [birthdaysSnap, membersForBirthdaySnap] = await Promise.all([
-                firestore.collection("c_cumpleanos").get(),
-                firestore.collection("c_miembros").get(),
+                getCollectionDocsForBarrios("c_cumpleanos", activeBarrioOrgs),
+                getCollectionDocsForBarrios("c_miembros", activeBarrioOrgs),
             ]);
 
             const sentBirthdays14 = new Set<string>();
@@ -1925,7 +2012,7 @@ export const dailyNotifications = functions
         // ── Futuros Miembros – 3 días antes del bautismo ────────────────────
         const futureMembersTrace = buildNotificationTrace("dailyNotifications", "futureMembers");
         {
-            const fmSnap = await firestore.collection("c_futuros_miembros").get();
+            const fmSnap = await getCollectionDocsForBarrios("c_futuros_miembros", activeBarrioOrgs);
             for (const doc of fmSnap.docs) {
                 const fm = doc.data() as { name: string; baptismDate: admin.firestore.Timestamp; isBaptized?: boolean; barrioOrg?: string };
                 if (fm.isBaptized) continue;
@@ -2078,14 +2165,15 @@ export const weeklyNotifications = functions
             scheduledLocalTime: getEcuadorNowLabel(),
         });
         const allUsers = await getAllUsersNotificationData();
+        const activeBarrioOrgs = getActiveBarrioOrgs(allUsers);
 
         // ── Observaciones ────────────────────────────────────────────────────
         const observationsTrace = buildNotificationTrace("weeklyNotifications", "observations");
         {
             const [membersSnap, healthSnap, ministeringSnap] = await Promise.all([
-                firestore.collection("c_miembros").get(),
-                firestore.collection("c_observaciones_salud").get(),
-                firestore.collection("c_ministracion").get(),
+                getCollectionDocsForBarrios("c_miembros", activeBarrioOrgs),
+                getCollectionDocsForBarrios("c_observaciones_salud", activeBarrioOrgs),
+                getCollectionDocsForBarrios("c_ministracion", activeBarrioOrgs),
             ]);
 
             // Group stats by barrioOrg
@@ -2255,8 +2343,8 @@ export const weeklyNotifications = functions
                 firestore.collection("c_miembros")
                     .where("baptismDate", ">=", cutoffTs)
                     .get(),
-                firestore.collection("c_obra_misional_amigos_conversos").get(),
-                firestore.collection("c_conversos_info").get(),
+                getCollectionDocsForBarrios("c_obra_misional_amigos_conversos", activeBarrioOrgs),
+                getCollectionDocsForBarrios("c_conversos_info", activeBarrioOrgs),
             ]);
 
             const assignedFriendConvertIds = new Set<string>();
@@ -2369,7 +2457,7 @@ export const weeklyNotifications = functions
         // ── FamilySearch ─────────────────────────────────────────────────────
         const familySearchTrace = buildNotificationTrace("weeklyNotifications", "familySearch");
         {
-            const fsSnap = await firestore.collection("c_fs_capacitaciones").get();
+            const fsSnap = await getCollectionDocsForBarrios("c_fs_capacitaciones", activeBarrioOrgs);
             // Group counts by barrioOrg
             const fsCountByBarrioOrg = new Map<string, number>();
             fsSnap.forEach((doc) => {
@@ -2492,11 +2580,12 @@ export const councilNotifications = functions
             scheduledLocalTime: getEcuadorNowLabel(),
         });
         const allUsers = await getAllUsersNotificationData();
+        const activeBarrioOrgs = getActiveBarrioOrgs(allUsers);
         const councilTrace = buildNotificationTrace("councilNotifications", "council");
 
         const [membersSnap, ministeringSnap] = await Promise.all([
-            firestore.collection("c_miembros").get(),
-            firestore.collection("c_ministracion").get(),
+            getCollectionDocsForBarrios("c_miembros", activeBarrioOrgs),
+            getCollectionDocsForBarrios("c_ministracion", activeBarrioOrgs),
         ]);
 
         // Group council stats by barrioOrg
@@ -2629,12 +2718,30 @@ export const requestDataSyncSignal = functions
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
-    const barrioOrg = typeof data?.barrioOrg === "string" ? data.barrioOrg.trim() : "";
-    if (!barrioOrg) {
+
+    // Resolve real barrioOrg from c_users — never trust client alone
+    const userDoc = await firestore.collection("c_users").doc(context.auth.uid).get();
+    if (!userDoc.exists) {
+        throw new functions.https.HttpsError("failed-precondition", "Usuario sin barrio asignado.");
+    }
+    const userData = userDoc.data() || {};
+    const barrio = (userData.barrio as string) || "Libertad";
+    const organizacion = (userData.organizacion as string) || "Quórum de Élderes";
+    const callerBarrioOrg = `${barrio}|${organizacion}`;
+
+    const requestedBarrioOrg = typeof data?.barrioOrg === "string" ? data.barrioOrg.trim() : "";
+    if (!requestedBarrioOrg) {
         throw new functions.https.HttpsError("invalid-argument", "barrioOrg required");
     }
+    if (requestedBarrioOrg !== callerBarrioOrg) {
+        throw new functions.https.HttpsError(
+            "permission-denied",
+            "No puedes disparar señales de sync para otro barrio."
+        );
+    }
+
     await publishSyncSignal(firestore, messaging, functions.logger, {
-        barrioOrg,
+        barrioOrg: callerBarrioOrg,
         collection: typeof data?.collection === "string" ? data.collection : "manual",
         docId: typeof data?.docId === "string" ? data.docId : "manual",
         changeType: "write",

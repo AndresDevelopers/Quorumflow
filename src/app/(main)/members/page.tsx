@@ -88,7 +88,7 @@ const statusConfig = {
 
 export default function MembersPage() {
   const { toast } = useToast();
-  const { barrioOrg } = useAuth();
+  const { barrioOrg, firebaseUser } = useAuth();
   const { t } = useI18n();
   const { canWrite } = usePermission();
   const router = useRouter();
@@ -143,8 +143,15 @@ export default function MembersPage() {
 
   const handleDeleteMember = async (memberId: string) => {
     try {
+      const idToken = await firebaseUser?.getIdToken().catch(() => null);
+      if (!idToken) {
+        throw new Error('No autenticado');
+      }
       const response = await fetch(`/api/members/${memberId}`, {
         method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
       });
 
       if (!response.ok) {

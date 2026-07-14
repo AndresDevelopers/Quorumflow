@@ -1,9 +1,10 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { authAdmin, getAdminBucket } from '@/lib/firebase-admin';
+import { getAdminBucket } from '@/lib/firebase-admin';
 import logger from '@/lib/logger';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { getErrorStatus, requireUid } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -42,23 +43,6 @@ function parseDataUrl(dataUrl: string): { mimeType: string; buffer: Buffer } {
     mimeType: match[1],
     buffer: Buffer.from(match[2], 'base64'),
   };
-}
-
-async function requireUid(request: Request): Promise<string> {
-  const authHeader = request.headers.get('authorization') || '';
-  const match = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (!match) {
-    throw Object.assign(new Error('No autenticado. Inicia sesión de nuevo.'), { status: 401 });
-  }
-  try {
-    const decoded = await authAdmin.verifyIdToken(match[1]);
-    return decoded.uid;
-  } catch (error) {
-    logger.warn({ error, message: 'Invalid ID token on storage upload' });
-    throw Object.assign(new Error('Token inválido o expirado. Cierra sesión y vuelve a entrar.'), {
-      status: 401,
-    });
-  }
 }
 
 /**
@@ -217,13 +201,7 @@ export async function POST(request: Request) {
       size: buffer.length,
     });
   } catch (error) {
-    const status =
-      typeof error === 'object' &&
-      error !== null &&
-      'status' in error &&
-      typeof (error as { status: unknown }).status === 'number'
-        ? (error as { status: number }).status
-        : 502;
+    const status = getErrorStatus(error, 502);
     const message = error instanceof Error ? error.message : 'Error al subir la imagen';
     logger.error({ error, message: 'Error en /api/storage/upload', status });
     return NextResponse.json({ error: message }, { status });

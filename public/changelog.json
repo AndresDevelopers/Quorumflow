@@ -1,6 +1,28 @@
 {
-  "current": "1.1.30",
+  "current": "1.1.31",
   "entries": [
+    {
+      "version": "1.1.31",
+      "date": "2026-07-14",
+      "changes": {
+        "es": [
+          "Ahora la autenticación es más segura y rápida, con verificación de token Bearer en todas las rutas del backend.",
+          "Ya no podrás ver datos de otras organizaciones; cada usuario solo accede a su propia información.",
+          "Las solicitudes a la API de DeepSeek tienen un tiempo de espera configurable, mejorando la estabilidad.",
+          "Se agregaron índices en Firestore para acelerar las consultas de miembros y nuevos conversos.",
+          "Las operaciones programadas ahora respetan tu barrio u organización asignada.",
+          "La aplicación ahora envía los encabezados de autenticación necesarios en todas las llamadas a la API."
+        ],
+        "en": [
+          "Authentication is now more secure and faster, with Bearer token verification on all backend routes.",
+          "You can no longer see data from other organizations; each user only accesses their own information.",
+          "Requests to the DeepSeek API now have a configurable timeout, improving stability.",
+          "Added Firestore indexes to speed up queries for members and new converts.",
+          "Scheduled operations now respect your assigned ward or organization.",
+          "The app now sends the required authentication headers on all API calls."
+        ]
+      }
+    },
     {
       "version": "1.1.30",
       "date": "2026-07-13",

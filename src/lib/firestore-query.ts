@@ -19,10 +19,24 @@ import {
   type DocumentData,
   type DocumentReference,
   type DocumentSnapshot,
+  type FirestoreError,
   type Query,
   type QuerySnapshot,
 } from 'firebase/firestore';
 import { isBrowserOnline, isNetworkError, withTimeout } from '@/lib/network';
+
+/** Firebase permission-denied code. */
+const PERMISSION_DENIED = 'permission-denied';
+
+/** Check if error is a Firestore permission-denied error. */
+function isPermissionDenied(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as FirestoreError).code === PERMISSION_DENIED
+  );
+}
 
 const FORCE_UNTIL_KEY = 'sionflow_force_server_reads_until';
 
@@ -140,6 +154,14 @@ export async function getDocs(q: QueryLike): Promise<QuerySnapshot<DocumentData>
   try {
     return await withTimeout(fsGetDocs(q), DEFAULT_READ_MS, 'getDocs');
   } catch (error) {
+    if (isPermissionDenied(error)) {
+      // Missing Firestore permissions — try cache, then throw empty result
+      try {
+        return await readDocsFromCache(q);
+      } catch {
+        throw error;
+      }
+    }
     if (isNetworkError(error) || !isBrowserOnline()) {
       try {
         return await readDocsFromCache(q);
@@ -178,6 +200,21 @@ export async function getDoc<T extends DocumentData = DocumentData>(
       return await withTimeout(getDocFromServer(ref), SERVER_READ_MS, 'getDocFromServer');
     } catch (error) {
       console.warn('[firestore-query] getDocFromServer failed/timed out → cache', error);
+      if (isPermissionDenied(error)) {
+        try {
+          return await readDocFromCache(ref);
+        } catch {
+          const fakeDoc = {
+            exists: () => false,
+            id: ref.id,
+            ref,
+            data: () => undefined,
+            get: () => undefined,
+            metadata: { hasPendingWrites: false, fromCache: true },
+          } as unknown as DocumentSnapshot<T>;
+          return fakeDoc;
+        }
+      }
       try {
         return await readDocFromCache(ref);
       } catch {
@@ -189,6 +226,23 @@ export async function getDoc<T extends DocumentData = DocumentData>(
   try {
     return await withTimeout(fsGetDoc(ref), DEFAULT_READ_MS, 'getDoc');
   } catch (error) {
+    if (isPermissionDenied(error)) {
+      // Missing Firestore permissions — try cache, then fail silently
+      try {
+        return await readDocFromCache(ref);
+      } catch {
+        // Return a non-existent snapshot so callers can handle gracefully
+        const fakeDoc = {
+            exists: () => false,
+            id: ref.id,
+            ref,
+            data: () => undefined,
+            get: () => undefined,
+            metadata: { hasPendingWrites: false, fromCache: true },
+          } as unknown as DocumentSnapshot<T>;
+        return fakeDoc;
+      }
+    }
     if (isNetworkError(error) || !isBrowserOnline()) {
       try {
         return await readDocFromCache(ref);

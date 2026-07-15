@@ -114,6 +114,8 @@ class NotificationRepository {
 
     // Include Ecuador calendar day so recurring tags (weekly-*, birthday-today-*, …)
     // still create a fresh in-app doc each day while remaining idempotent on retries.
+    // IMPORTANT: client "clear all" soft-dismisses (isDismissed) instead of hard-deleting,
+    // so this create() keeps failing with already-exists and dismissed notifs do not reappear.
     const dateKey = getEcuadorDateKey();
 
     await Promise.all(records.map(async (record) => {
@@ -129,6 +131,7 @@ class NotificationRepository {
       } catch (error) {
         const code = typeof error === "object" && error && "code" in error ? (error as { code?: unknown }).code : undefined;
         // gRPC ALREADY_EXISTS = 6; Admin SDK may also surface the string form
+        // (includes soft-dismissed docs — do not overwrite isDismissed)
         if (code === 6 || code === "already-exists") {
           return;
         }

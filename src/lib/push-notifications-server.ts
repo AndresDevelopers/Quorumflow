@@ -243,6 +243,8 @@ export async function sendServerSidePushNotification(
         })
       );
       try {
+        // create() only — never set/merge, so soft-dismissed docs (isDismissed)
+        // are not re-shown when the same user+tag+day is dispatched again.
         await notifRef.create({
           userId: uid,
           title,

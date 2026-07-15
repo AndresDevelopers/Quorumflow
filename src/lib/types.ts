@@ -180,6 +180,12 @@ export type AppNotification = {
     body: string;
     createdAt: Timestamp;
     isRead: boolean;
+    /**
+     * Soft-delete: user dismissed from the in-app bell.
+     * Kept as a doc so deterministic CF/API creates (same user+tag+day) stay
+     * idempotent and do not reappear after the user cleared them.
+     */
+    isDismissed?: boolean;
     // Navigation data for clickable notifications
     actionUrl?: string;
     actionType?: 'navigate' | 'external';

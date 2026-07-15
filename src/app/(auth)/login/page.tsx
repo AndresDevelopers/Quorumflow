@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -43,6 +43,8 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const { t } = useI18n();
+  /** Prevent race: onAuthStateChanged and onSubmit both try to navigate. */
+  const navigatingRef = useRef(false);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -57,8 +59,9 @@ function LoginForm() {
   useEffect(() => {
     if (!auth) return;
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
+      if (!user || navigatingRef.current) return;
       try {
+        navigatingRef.current = true;
         const token = await user.getIdToken();
         const { syncServerSession } = await import("@/lib/auth-session-client");
         await syncServerSession(token);
@@ -67,6 +70,7 @@ function LoginForm() {
           next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
         router.replace(safeNext);
       } catch {
+        navigatingRef.current = false;
         // stay on login
       }
     });
@@ -74,6 +78,10 @@ function LoginForm() {
   }, [router, searchParams]);
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
+    // Prevent double submission + race with onAuthStateChanged
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+
     try {
       const cred = await signInWithEmailAndPassword(
         auth,
@@ -120,6 +128,7 @@ function LoginForm() {
         next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
       router.push(safeNext);
     } catch (error: any) {
+      navigatingRef.current = false;
       console.error("Login Error:", error);
       
       let description = t('login.toastErrorUnexpected');

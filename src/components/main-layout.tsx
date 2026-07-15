@@ -394,7 +394,9 @@ export function MainLayout({ children }: { children: ReactNode }) {
             Scroll lives here so the header above stays fixed while the page content moves. */}
         <main className="page-shell min-h-0 flex-1 overflow-y-auto overscroll-y-contain" key={refreshGeneration}>
           <OfflineContentBanner />
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
         <ErrorBoundary>
           <OfflineIndicator />
@@ -407,6 +409,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
         <PushOnboardingGuide />
         <OfflineSyncBootstrap />
         <DataSyncListener />
+        <InstallPrompt />
       </SidebarInset>
     </>
   );

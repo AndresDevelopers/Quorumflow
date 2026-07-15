@@ -6,20 +6,20 @@
       "date": "2026-07-15",
       "changes": {
         "es": [
-          "Se corrigieron vulnerabilidades de seguridad y se actualizaron dependencias clave.",
-          "Se actualizó firebase-admin a la versión 14 y @types/node a la versión 26.",
-          "Se actualizó Next.js y eslint-config-next a la versión 16.2.10.",
-          "Se reemplazó el middleware de borde con un proxy de Next.js para mejorar la autenticación y sincronización de datos.",
-          "Se agregaron salvaguardas en la sincronización de datos para evitar actualizaciones innecesarias en notificaciones.",
-          "Se corrigieron problemas de importación y cabeceras de caché para mejorar el desarrollo y la compilación."
+          "Ahora puedes descartar notificaciones sin eliminarlas: solo se marcan como leídas.",
+          "Se corrigieron varios problemas de seguridad al actualizar dependencias como PostCSS y body-parser.",
+          "La aplicación ahora es más estable al iniciar sesión, evitando conflictos de navegación.",
+          "Se mejoró la instalación de la PWA en dispositivos móviles, solucionando fallos con los iconos.",
+          "Las notificaciones que no se pueden cargar por permisos ahora muestran datos en caché.",
+          "Se actualizaron Firebase Admin y tipos de Node.js para mejor compatibilidad."
         ],
         "en": [
-          "Fixed security vulnerabilities and updated key dependencies.",
-          "Upgraded firebase-admin to version 14 and @types/node to version 26.",
-          "Updated Next.js and eslint-config-next to version 16.2.10.",
-          "Replaced edge middleware with a Next.js proxy for better authentication and data sync.",
-          "Added safeguards in data sync to skip unnecessary notification updates.",
-          "Fixed import issues and cache headers to improve development and build."
+          "You can now soft-dismiss notifications: they are marked as read instead of deleted.",
+          "Fixed several security vulnerabilities by updating dependencies like PostCSS and body-parser.",
+          "The app is now more stable when logging in, preventing navigation conflicts.",
+          "Improved PWA installation on mobile devices, fixing issues with icon redirects.",
+          "Notifications that fail to load due to permissions now fall back to cached data.",
+          "Updated Firebase Admin and Node.js types for better compatibility."
         ]
       }
     },

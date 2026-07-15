@@ -10,6 +10,7 @@ El sistema de notificaciones de SionFlow usa Firebase Cloud Messaging (FCM), PWA
 - **Push por dispositivo**: Cada móvil/PWA guarda un documento en `c_push_subscriptions` con trazabilidad de intentos.
 - **Control del usuario**: Cada usuario puede desactivar las notificaciones desde Settings
 - **Notificaciones in-app**: Se muestran en la campana del header; solo el dueño puede leerlas (reglas Firestore)
+- **Borrar en la campana = soft-dismiss**: el ícono de basura marca `isDismissed: true` (no borra el documento). Así las Cloud Functions con ID determinístico (`user+tag+día`) no vuelven a crear la misma notificación del día. Al día siguiente o por un evento nuevo sí puede aparecer una nueva.
 - **Filtrado inteligente**: Solo se envían a usuarios con preferencias activas
 - **Aislamiento multi-tenant**: envíos y elegibilidad se limitan por `barrioOrg`. Documentos o eventos sin `barrioOrg` **no** se difunden a todos los barrios (fail closed). Broadcast API solo al tenant del llamador.
 - **Diagnóstico integrado**: Settings / push diagnostics (liderazgo, mismo barrio) muestra estado del SW, permiso, device ID e intentos del servidor.

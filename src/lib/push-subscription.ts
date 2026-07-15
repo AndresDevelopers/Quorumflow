@@ -1,4 +1,5 @@
-import { doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { getDoc as safeGetDoc } from '@/lib/firestore-query';
 import { pushSubscriptionsCollection, usersCollection } from '@/lib/collections';
 import { getAppStoragePrefix } from '@/lib/app-config';
 
@@ -231,7 +232,7 @@ export async function getCurrentPushSubscription(userId: string): Promise<PushSu
     return null;
   }
 
-  const subscriptionDoc = await getDoc(target.ref);
+  const subscriptionDoc = await safeGetDoc(target.ref);
   if (!subscriptionDoc.exists()) {
     return null;
   }

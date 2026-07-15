@@ -1260,7 +1260,7 @@
   "Notifications": "Notificaciones",
   "notifications.markAllRead": "Marcar todas como leídas",
   "notifications.deleteAll": "Borrar todas",
-  "notifications.deleteAllConfirm": "¿Borrar todas las notificaciones? Esta acción no se puede deshacer.",
+  "notifications.deleteAllConfirm": "¿Quitar todas las notificaciones de la campana? No volverán a mostrarse (solo podrían aparecer de nuevo otro día o por un evento nuevo).",
   "notifications.empty": "No tienes notificaciones",
   "Observations": "Observaciones",
   "observations.ageSuffix": "{age} años",

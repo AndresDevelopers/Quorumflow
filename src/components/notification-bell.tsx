@@ -102,6 +102,8 @@ export function NotificationBell() {
       const userNotifications = snapshot.docs
         .map((d) => ({ id: d.id, ...d.data() } as AppNotification))
         .filter((notification) => {
+          // Soft-dismissed stay in Firestore so CF idempotent creates do not reappear
+          if (notification.isDismissed) return false;
           if (!barrioOrgKey) return false;
           return (
             Boolean(notification.barrioOrg) &&
@@ -122,6 +124,7 @@ export function NotificationBell() {
       const unreadSnapshot = await getDocs(unreadQuery);
       const unreadCount = unreadSnapshot.docs.filter((d) => {
         const data = d.data() as AppNotification;
+        if (data.isDismissed) return false;
         if (!barrioOrgKey) return false;
         return Boolean(data.barrioOrg) && data.barrioOrg === barrioOrgKey;
       }).length;
@@ -175,6 +178,7 @@ export function NotificationBell() {
       unreadIds = unreadSnapshot.docs
         .filter((d) => {
           const data = d.data() as AppNotification;
+          if (data.isDismissed) return false;
           if (!barrioOrgKey) return false;
           return Boolean(data.barrioOrg) && data.barrioOrg === barrioOrgKey;
         })
@@ -207,16 +211,17 @@ export function NotificationBell() {
 
     const confirmed = window.confirm(
       t("notifications.deleteAllConfirm") ||
-        "¿Borrar todas las notificaciones? Esta acción no se puede deshacer."
+        "¿Quitar todas las notificaciones de la campana? No volverán a mostrarse (solo podrían aparecer de nuevo otro día o por un evento nuevo)."
     );
     if (!confirmed) return;
 
     setIsActing(true);
     try {
-      // Prefer deleting everything the user currently sees; also clear any extra
-      // scoped docs so "borrar todas" means all for this barrio/org.
+      // Soft-dismiss (do not hard-delete): scheduled CF/API use deterministic
+      // doc IDs + create(). If the doc is gone, they recreate the same notif.
+      // Keeping the doc with isDismissed=true preserves idempotency.
       const barrioOrgKey = resolveBarrioOrgKey();
-      let idsToDelete = notifications.map((n) => n.id);
+      let idsToDismiss = notifications.map((n) => n.id);
       try {
         const allQuery = query(
           notificationsCollection,
@@ -225,9 +230,10 @@ export function NotificationBell() {
           limit(200)
         );
         const snap = await getDocs(allQuery);
-        idsToDelete = snap.docs
+        idsToDismiss = snap.docs
           .filter((d) => {
             const data = d.data() as AppNotification;
+            if (data.isDismissed) return false;
             if (!barrioOrgKey) return false;
             return Boolean(data.barrioOrg) && data.barrioOrg === barrioOrgKey;
           })
@@ -236,19 +242,22 @@ export function NotificationBell() {
         // fall back to visible list
       }
 
-      if (idsToDelete.length === 0) {
+      if (idsToDismiss.length === 0) {
         setNotifications([]);
         setHasUnread(false);
         return;
       }
 
-      await runBatchedWrites(idsToDelete, (batch, id) => {
-        batch.delete(doc(notificationsCollection, id));
+      await runBatchedWrites(idsToDismiss, (batch, id) => {
+        batch.update(doc(notificationsCollection, id), {
+          isDismissed: true,
+          isRead: true,
+        });
       });
       setNotifications([]);
       setHasUnread(false);
     } catch (error) {
-      console.error("Error deleting notifications:", error);
+      console.error("Error dismissing notifications:", error);
     } finally {
       setIsActing(false);
     }

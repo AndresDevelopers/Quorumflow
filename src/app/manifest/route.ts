@@ -1,23 +1,32 @@
 import { NextResponse } from "next/server";
-import { getAppName } from "@/lib/app-config";
+import { getAppName, getAppIcon } from "@/lib/app-config";
 
 const appName = getAppName();
 const shortName = appName.length > 12 ? appName.slice(0, 12) : appName;
 
-const LOCAL_ICON = "/api/icon";
+/** Static icon file served from /public — always a 200, never a redirect. */
+const STATIC_ICON = "/icono-app.png";
 
 export const revalidate = 86400;
 
 export async function GET() {
+  // Use the static icon file directly so browsers (Chrome Android, etc.)
+  // never receive a redirect response for the manifest icon — redirects
+  // cause PWA install prompts to fail silently on mobile.
+  const useStaticIcon =
+    !getAppIcon() || getAppIcon() === "/icono-app.png" || getAppIcon() === "/api/icon";
+
+  const iconSrc = useStaticIcon ? STATIC_ICON : "/api/icon";
+
   const icons = [
     {
-      src: LOCAL_ICON,
+      src: iconSrc,
       sizes: "192x192",
       type: "image/png",
       purpose: "any",
     },
     {
-      src: LOCAL_ICON,
+      src: iconSrc,
       sizes: "512x512",
       type: "image/png",
       purpose: "any",
@@ -43,21 +52,21 @@ export async function GET() {
         short_name: "Dashboard",
         description: "Panel principal",
         url: "/dashboard",
-        icons: [{ src: LOCAL_ICON, sizes: "96x96" }],
+        icons: [{ src: iconSrc, sizes: "96x96" }],
       },
       {
         name: "Miembros",
         short_name: "Miembros",
         description: "Gestionar miembros del quórum y sociedad de socorro",
         url: "/members",
-        icons: [{ src: LOCAL_ICON, sizes: "96x96" }],
+        icons: [{ src: iconSrc, sizes: "96x96" }],
       },
       {
         name: "Consejo",
         short_name: "Consejo",
         description: "Ver elementos del consejo",
         url: "/council",
-        icons: [{ src: LOCAL_ICON, sizes: "96x96" }],
+        icons: [{ src: iconSrc, sizes: "96x96" }],
       },
     ],
     prefer_related_applications: false,

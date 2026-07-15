@@ -261,10 +261,12 @@ service cloud.firestore {
           isOwnUserId(request.resource.data.userId)
           || canWrite()
         );
-      // Read-only users must still be able to mark their own notifications as read
+      // Owner may mark read and soft-dismiss (trash in bell). Soft-dismiss keeps
+      // the doc so scheduled CF deterministic creates do not reappear the same day.
       allow update: if isOwnUserId(resource.data.userId)
         && request.resource.data.userId == resource.data.userId
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['isRead']);
+        && request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly(['isRead', 'isDismissed']);
       allow delete: if isOwnUserId(resource.data.userId);
     }
 

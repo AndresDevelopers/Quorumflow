@@ -68,10 +68,17 @@ function readPackage(pkg, context) {
   }
 
   // ── postcss (XSS via unescaped </style>) ────────────────────────
-  // Next.js 16.2.10 bundles postcss 8.4.31 internally.  pnpm cannot
-  // override bundled dependencies, so this is documented as a known
-  // accepted risk (build-time only, no user-controlled CSS rendered).
-  // The workspace devDependency is already at postcss@^8.5.19.
+  // Next.js 16.2.10 bundles postcss 8.4.31 internally. Force it to
+  // 8.5.19+ which fixes CVE-2026-41305 (unescaped </style> in CSS
+  // stringify output enabling XSS).
+  if (pkg.name === 'next') {
+    if (pkg.dependencies && pkg.dependencies['postcss']) {
+      pkg.dependencies['postcss'] = '^8.5.19';
+      context.log(
+        '[pnpmfile] next: postcss → ^8.5.19'
+      );
+    }
+  }
 
   return pkg;
 }

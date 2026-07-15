@@ -775,6 +775,8 @@
   "login.toastErrorTooManyRequests": "Too many failed attempts. Please try again later.",
   "login.toastErrorUnexpected": "An unexpected error occurred.",
   "login.toastErrorUserDisabled": "Your account has been disabled. Contact the administrator.",
+  "login.toastErrorSessionCookie": "Could not create the server session. Reload and try again. If it keeps failing, clear site data or reinstall the PWA.",
+  "login.restoringSession": "Restoring session…",
   "login.toastSuccessDescription": "Welcome back.",
   "login.toastSuccessTitle": "Login Successful",
   "mainLayout.adminTooltip": "Administration",

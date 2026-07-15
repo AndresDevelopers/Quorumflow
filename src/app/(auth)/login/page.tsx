@@ -2,8 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -30,6 +30,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/contexts/i18n-context";
 import { InstallPrompt } from "@/components/install-prompt";
+import {
+  canAttemptAuthRedirect,
+  ensureServerSession,
+  hardNavigate,
+} from "@/lib/auth-session-client";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -38,13 +43,17 @@ const loginSchema = z.object({
     .min(1, { message: "Password is required." }),
 });
 
+function safeNextPath(next: string | null): string {
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+}
+
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const { t } = useI18n();
   /** Prevent race: onAuthStateChanged and onSubmit both try to navigate. */
   const navigatingRef = useRef(false);
+  const [restoringSession, setRestoringSession] = useState(true);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -56,26 +65,86 @@ function LoginForm() {
 
   // If Firebase already has a session but the Edge cookie is missing/expired,
   // re-mint the cookie and continue (avoids forcing a second password entry).
+  // Only hard-navigate after the cookie is confirmed — never change the URL
+  // optimistically (that left production stuck on a protected route without cookie).
   useEffect(() => {
-    if (!auth) return;
+    if (!auth) {
+      setRestoringSession(false);
+      return;
+    }
+
+    let cancelled = false;
+    // Don't leave the form blocked forever if Auth is slow.
+    const restoreTimeout = window.setTimeout(() => {
+      if (!cancelled && !navigatingRef.current) {
+        setRestoringSession(false);
+      }
+    }, 6000);
+
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user || navigatingRef.current) return;
+      if (cancelled) return;
+
+      if (!user) {
+        setRestoringSession(false);
+        return;
+      }
+
+      if (navigatingRef.current) return;
+
+      if (!canAttemptAuthRedirect()) {
+        // Break /login ↔ / loops when cookie mint works but Edge verify fails.
+        setRestoringSession(false);
+        toast({
+          title: t("login.toastErrorTitle"),
+          description: t("login.toastErrorSessionCookie"),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      navigatingRef.current = true;
       try {
-        navigatingRef.current = true;
-        const token = await user.getIdToken();
-        const { syncServerSession } = await import("@/lib/auth-session-client");
-        await syncServerSession(token);
-        const next = searchParams.get("next");
-        const safeNext =
-          next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
-        router.replace(safeNext);
+        const ok = await ensureServerSession((force) => user.getIdToken(force));
+        if (cancelled) return;
+
+        if (!ok) {
+          navigatingRef.current = false;
+          setRestoringSession(false);
+          return;
+        }
+
+        // Super admin → platform panel
+        try {
+          const token = await user.getIdToken();
+          const meRes = await fetch("/api/app-admin/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (meRes.ok) {
+            const me = (await meRes.json()) as { ok?: boolean };
+            if (me.ok) {
+              hardNavigate("/app-admin/panel");
+              return;
+            }
+          }
+        } catch {
+          // continue to normal app
+        }
+
+        hardNavigate(safeNextPath(searchParams.get("next")));
       } catch {
-        navigatingRef.current = false;
-        // stay on login
+        if (!cancelled) {
+          navigatingRef.current = false;
+          setRestoringSession(false);
+        }
       }
     });
-    return () => unsub();
-  }, [router, searchParams]);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(restoreTimeout);
+      unsub();
+    };
+  }, [searchParams, t, toast]);
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     // Prevent double submission + race with onAuthStateChanged
@@ -89,13 +158,18 @@ function LoginForm() {
         values.password
       );
 
-      // Proxy session cookie (defense-in-depth)
-      try {
-        const token = await cred.user.getIdToken();
-        const { syncServerSession } = await import("@/lib/auth-session-client");
-        await syncServerSession(token);
-      } catch {
-        // non-fatal; onIdTokenChanged will retry
+      // Proxy session cookie is REQUIRED for full document navigations in prod.
+      const sessionOk = await ensureServerSession((force) =>
+        cred.user.getIdToken(force)
+      );
+      if (!sessionOk) {
+        navigatingRef.current = false;
+        toast({
+          title: t("login.toastErrorTitle"),
+          description: t("login.toastErrorSessionCookie"),
+          variant: "destructive",
+        });
+        return;
       }
 
       // Super admin solo usa el panel /app-admin
@@ -111,7 +185,7 @@ function LoginForm() {
               title: t("login.toastSuccessTitle"),
               description: "Redirigiendo al panel de admin general…",
             });
-            router.replace("/app-admin/panel");
+            hardNavigate("/app-admin/panel");
             return;
           }
         }
@@ -120,44 +194,41 @@ function LoginForm() {
       }
 
       toast({
-          title: t('login.toastSuccessTitle'),
-          description: t('login.toastSuccessDescription'),
+        title: t("login.toastSuccessTitle"),
+        description: t("login.toastSuccessDescription"),
       });
-      const next = searchParams.get("next");
-      const safeNext =
-        next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
-      router.push(safeNext);
+      hardNavigate(safeNextPath(searchParams.get("next")));
     } catch (error: any) {
       navigatingRef.current = false;
       console.error("Login Error:", error);
-      
-      let description = t('login.toastErrorUnexpected');
-      
+
+      let description = t("login.toastErrorUnexpected");
+
       // Manejo específico de errores de Firebase
       switch (error.code) {
-        case 'auth/invalid-credential':
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-          description = t('login.toastErrorInvalidCredentials');
+        case "auth/invalid-credential":
+        case "auth/user-not-found":
+        case "auth/wrong-password":
+          description = t("login.toastErrorInvalidCredentials");
           break;
-        case 'auth/user-disabled':
-          description = t('login.toastErrorUserDisabled');
+        case "auth/user-disabled":
+          description = t("login.toastErrorUserDisabled");
           break;
-        case 'auth/too-many-requests':
-          description = t('login.toastErrorTooManyRequests');
+        case "auth/too-many-requests":
+          description = t("login.toastErrorTooManyRequests");
           break;
-        case 'auth/network-request-failed':
-          description = t('login.toastErrorNetwork');
+        case "auth/network-request-failed":
+          description = t("login.toastErrorNetwork");
           break;
-        case 'auth/invalid-email':
-          description = t('login.toastErrorInvalidEmail');
+        case "auth/invalid-email":
+          description = t("login.toastErrorInvalidEmail");
           break;
         default:
-          description = t('login.toastErrorUnexpected');
+          description = t("login.toastErrorUnexpected");
       }
-      
+
       toast({
-        title: t('login.toastErrorTitle'),
+        title: t("login.toastErrorTitle"),
         description: description,
         variant: "destructive",
       });
@@ -166,67 +237,80 @@ function LoginForm() {
 
   return (
     <>
-    <p className="mb-6 text-center text-sm text-muted-foreground">
-      {t('login.subtitle')}
-    </p>
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-2xl">{t('login.title')}</CardTitle>
-        <CardDescription>
-          {t('login.description')}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('login.emailLabel')}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="m@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center">
-                    <FormLabel>{t('login.passwordLabel')}</FormLabel>
-                    <Link
-                      href="/forgot-password"
-                      className="ml-auto inline-block text-sm underline"
-                    >
-                      {t('login.forgotPassword')}
-                    </Link>
-                  </div>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? t('login.submitButtonLoading') : t('login.submitButton')}
-            </Button>
-          </form>
-        </Form>
-        <div className="mt-4 text-center text-sm">
-          {t('login.noAccount')}{" "}
-          <Link href="/register" className="underline">
-            {t('login.registerLink')}
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
-    <InstallPrompt />
+      <p className="mb-6 text-center text-sm text-muted-foreground">
+        {t("login.subtitle")}
+      </p>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">{t("login.title")}</CardTitle>
+          <CardDescription>{t("login.description")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {restoringSession ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {t("login.restoringSession")}
+            </p>
+          ) : (
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("login.emailLabel")}</FormLabel>
+                      <FormControl>
+                        <Input placeholder="m@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-center">
+                        <FormLabel>{t("login.passwordLabel")}</FormLabel>
+                        <Link
+                          href="/forgot-password"
+                          className="ml-auto inline-block text-sm underline"
+                        >
+                          {t("login.forgotPassword")}
+                        </Link>
+                      </div>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={form.formState.isSubmitting}
+                >
+                  {form.formState.isSubmitting
+                    ? t("login.submitButtonLoading")
+                    : t("login.submitButton")}
+                </Button>
+              </form>
+            </Form>
+          )}
+          <div className="mt-4 text-center text-sm">
+            {t("login.noAccount")}{" "}
+            <Link href="/register" className="underline">
+              {t("login.registerLink")}
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+      <InstallPrompt />
     </>
   );
 }

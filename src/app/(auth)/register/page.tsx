@@ -217,11 +217,10 @@ export default function RegisterPage() {
       });
 
       try {
-        const token = await user.getIdToken();
-        const { syncServerSession } = await import("@/lib/auth-session-client");
-        await syncServerSession(token);
+        const { ensureServerSession } = await import("@/lib/auth-session-client");
+        await ensureServerSession((force) => user.getIdToken(force));
       } catch {
-        // non-fatal; onIdTokenChanged will retry
+        // non-fatal; login page will remint the proxy cookie
       }
 
       const barrioOrg = `${values.barrio}|${values.organizacion}`;

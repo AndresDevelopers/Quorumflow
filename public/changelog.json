@@ -6,20 +6,20 @@
       "date": "2026-07-15",
       "changes": {
         "es": [
-          "Ahora puedes descartar notificaciones sin eliminarlas: solo se marcan como leídas.",
-          "Se corrigieron varios problemas de seguridad al actualizar dependencias como PostCSS y body-parser.",
-          "La aplicación ahora es más estable al iniciar sesión, evitando conflictos de navegación.",
-          "Se mejoró la instalación de la PWA en dispositivos móviles, solucionando fallos con los iconos.",
-          "Las notificaciones que no se pueden cargar por permisos ahora muestran datos en caché.",
-          "Se actualizaron Firebase Admin y tipos de Node.js para mejor compatibilidad."
+          "Corregimos problemas de inicio de sesión y redirecciones para que la sesión se mantenga estable.",
+          "Ahora las notificaciones se pueden descartar suavemente sin eliminarlas por completo.",
+          "Mejoramos la seguridad actualizando dependencias y corrigiendo vulnerabilidades.",
+          "Actualizamos Firebase Admin y TypeScript para mejor compatibilidad y rendimiento.",
+          "Actualizamos Next.js a la versión más reciente para correcciones de errores y mejoras.",
+          "Optimizamos el manejo de autenticación y sincronización de datos para mayor fiabilidad."
         ],
         "en": [
-          "You can now soft-dismiss notifications: they are marked as read instead of deleted.",
-          "Fixed several security vulnerabilities by updating dependencies like PostCSS and body-parser.",
-          "The app is now more stable when logging in, preventing navigation conflicts.",
-          "Improved PWA installation on mobile devices, fixing issues with icon redirects.",
-          "Notifications that fail to load due to permissions now fall back to cached data.",
-          "Updated Firebase Admin and Node.js types for better compatibility."
+          "Fixed login and redirect issues so your session stays stable and secure.",
+          "You can now dismiss notifications softly instead of deleting them permanently.",
+          "Improved security by updating dependencies and fixing vulnerabilities.",
+          "Updated Firebase Admin and TypeScript for better compatibility and performance.",
+          "Updated Next.js to the latest version for bug fixes and improvements.",
+          "Optimized authentication and data sync for more reliable operation."
         ]
       }
     },

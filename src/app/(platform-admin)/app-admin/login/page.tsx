@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -46,7 +45,6 @@ async function verifyAppAdmin(idToken: string): Promise<boolean> {
 }
 
 export default function AppAdminLoginPage() {
-  const router = useRouter();
   const { toast } = useToast();
   const [checking, setChecking] = useState(true);
 
@@ -68,8 +66,16 @@ export default function AppAdminLoginPage() {
         const token = await user.getIdToken();
         const ok = await verifyAppAdmin(token);
         if (ok) {
-          router.replace("/app-admin/panel");
-          return;
+          const { ensureServerSession, hardNavigate } = await import(
+            "@/lib/auth-session-client"
+          );
+          const sessionOk = await ensureServerSession((force) =>
+            user.getIdToken(force)
+          );
+          if (sessionOk) {
+            hardNavigate("/app-admin/panel");
+            return;
+          }
         }
         setChecking(false);
       } catch {
@@ -77,7 +83,7 @@ export default function AppAdminLoginPage() {
       }
     });
     return () => unsub();
-  }, [router]);
+  }, []);
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     try {
@@ -87,16 +93,26 @@ export default function AppAdminLoginPage() {
         values.password
       );
       const token = await cred.user.getIdToken(true);
-      try {
-        const { syncServerSession } = await import("@/lib/auth-session-client");
-        await syncServerSession(token);
-      } catch {
-        // non-fatal
+      const {
+        ensureServerSession,
+        hardNavigate,
+        syncServerSession,
+      } = await import("@/lib/auth-session-client");
+      const sessionOk = await ensureServerSession((force) =>
+        cred.user.getIdToken(force)
+      );
+      if (!sessionOk) {
+        toast({
+          title: "Error de sesión",
+          description:
+            "No se pudo crear la cookie de sesión del servidor. Revisa la conexión e intenta de nuevo.",
+          variant: "destructive",
+        });
+        return;
       }
       const ok = await verifyAppAdmin(token);
 
       if (!ok) {
-        const { syncServerSession } = await import("@/lib/auth-session-client");
         await syncServerSession(null);
         await signOut(auth);
         toast({
@@ -112,7 +128,7 @@ export default function AppAdminLoginPage() {
         title: "Sesión de admin general",
         description: "Puedes ver todos los usuarios e ingresar como cualquiera.",
       });
-      router.push("/app-admin/panel");
+      hardNavigate("/app-admin/panel");
     } catch (error: unknown) {
       const code =
         typeof error === "object" &&

@@ -775,6 +775,8 @@
   "login.toastErrorTooManyRequests": "Demasiados intentos fallidos. Por favor, intenta más tarde.",
   "login.toastErrorUnexpected": "Ocurrió un error inesperado.",
   "login.toastErrorUserDisabled": "Tu cuenta ha sido deshabilitada. Contacta al administrador.",
+  "login.toastErrorSessionCookie": "No se pudo crear la sesión del servidor. Recarga e intenta de nuevo. Si el problema continúa, borra los datos del sitio o desinstala/reinstala la PWA.",
+  "login.restoringSession": "Restaurando sesión…",
   "login.toastSuccessDescription": "Bienvenido de nuevo.",
   "login.toastSuccessTitle": "Inicio de sesión exitoso",
   "mainLayout.adminTooltip": "Administración",

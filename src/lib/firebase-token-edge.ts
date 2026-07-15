@@ -19,9 +19,18 @@ export type VerifiedFirebaseToken = JWTPayload & {
 export async function verifyFirebaseIdTokenEdge(
   token: string
 ): Promise<VerifiedFirebaseToken> {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+  // Prefer public client project id (must match the token audience). Fall back to
+  // common server aliases so a missing NEXT_PUBLIC_ var does not brick production.
+  const projectId =
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() ||
+    process.env.FIREBASE_PROJECT_ID?.trim() ||
+    process.env.GCLOUD_PROJECT?.trim() ||
+    process.env.GOOGLE_CLOUD_PROJECT?.trim() ||
+    '';
   if (!projectId) {
-    throw new Error('NEXT_PUBLIC_FIREBASE_PROJECT_ID is not configured');
+    throw new Error(
+      'Firebase project id is not configured (NEXT_PUBLIC_FIREBASE_PROJECT_ID)'
+    );
   }
 
   const { payload } = await jwtVerify(token, GOOGLE_JWKS, {

@@ -13,6 +13,7 @@ import { isBrowserOnline } from "@/lib/network";
 import { WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAppName } from "@/lib/app-config";
+import { clearAuthRedirectGuard } from "@/lib/auth-session-client";
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const {
@@ -28,6 +29,13 @@ function PrivateRoute({ children }: { children: ReactNode }) {
   const [offlineAuthGaveUp, setOfflineAuthGaveUp] = useState(false);
   // Keep SSR + first client paint identical; only read navigator after mount.
   const [isOffline, setIsOffline] = useState(false);
+
+  // Successful shell load — reset login redirect guard (avoids sticky lock after fix).
+  useEffect(() => {
+    if (!loading && user && profileLoaded) {
+      clearAuthRedirectGuard();
+    }
+  }, [loading, user, profileLoaded]);
 
   const isRestricted = userRole === "user";
 

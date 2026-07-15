@@ -6,18 +6,20 @@
       "date": "2026-07-15",
       "changes": {
         "es": [
-          "Actualizamos las dependencias de Next.js y ESLint para mejorar la seguridad y el rendimiento.",
-          "Reemplazamos el middleware de borde con un proxy de Next.js para una autenticación más rápida y confiable.",
-          "Mejoramos la sincronización de datos con nuevas protecciones que evitan actualizaciones innecesarias de notificaciones.",
-          "Corregimos errores en la importación de plugins de Tailwind CSS y en los encabezados de caché para evitar problemas con la recarga en caliente.",
-          "Añadimos filtrado de tipo de carga útil FCM en notificaciones para una entrega más precisa."
+          "Actualizamos las dependencias internas para mejorar la seguridad y el rendimiento.",
+          "Mejoramos el sistema de autenticación y sincronización de datos para que sea más rápido y confiable.",
+          "Corregimos problemas de compatibilidad con las últimas versiones de Next.js y otras herramientas.",
+          "Optimizamos el manejo de notificaciones para que solo recibas las que te interesan.",
+          "Ajustamos la configuración de desarrollo para evitar reinicios inesperados.",
+          "Reforzamos la protección de tus datos al actualizar los componentes de autenticación."
         ],
         "en": [
-          "Updated Next.js and ESLint dependencies to improve security and performance.",
-          "Replaced edge middleware with a Next.js proxy for faster and more reliable authentication.",
-          "Enhanced data sync with new safeguards to skip unnecessary notification updates.",
-          "Fixed Tailwind CSS plugin import and cache header issues to prevent hot module replacement problems.",
-          "Added FCM payload type filtering in notifications for more accurate delivery."
+          "Updated internal dependencies to improve security and performance.",
+          "Enhanced authentication and data sync for faster and more reliable operation.",
+          "Fixed compatibility issues with the latest Next.js and other tools.",
+          "Optimized notification handling so you only get the ones that matter.",
+          "Tweaked development settings to prevent unexpected restarts.",
+          "Strengthened data protection by updating authentication components."
         ]
       }
     },

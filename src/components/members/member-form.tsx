@@ -9,7 +9,6 @@ import { Upload, X, CalendarIcon, MapPin, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { cn } from '@/lib/utils';
-import { getAppName } from "@/lib/app-config";
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -60,6 +59,11 @@ import { ref, deleteObject } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 import { safeGetDate } from '@/lib/date-utils';
 import { normalizeDateForEcuadorStorage } from '@/lib/date-utils';
+import {
+  resolveLocationCodeToAddress,
+  reverseGeocodeToAddress,
+  looksLikeCoordinates,
+} from '@/lib/geocode-address';
 
 const createMemberFormSchema = (t: (key: string) => string) =>
   z.object({
@@ -120,6 +124,10 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
   const [availableMembers, setAvailableMembers] = useState<Member[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
+  /** Optional mode: enter lat/lng or Plus Code instead of typing the address */
+  const [useLocationCode, setUseLocationCode] = useState(false);
+  const [locationCode, setLocationCode] = useState('');
+  const [resolvingCode, setResolvingCode] = useState(false);
 
   // Estados para el diálogo de duplicados
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
@@ -139,6 +147,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       lastName: '',
       phoneNumber: '',
       memberId: '',
+      address: '',
       status: 'active',
       photoURL: undefined,
       baptismDate: undefined,
@@ -242,6 +251,17 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       // Actualizar el estado local del input de fecha de fallecimiento
       setDeathDateInput(formatDateForDisplay(deathDateValue));
 
+      // Si la dirección guardada es lat/lng, ofrecer modo código para convertirla
+      const existingAddress = currentMember.address || '';
+      if (looksLikeCoordinates(existingAddress)) {
+        setUseLocationCode(true);
+        setLocationCode(existingAddress);
+        form.setValue('address', '', { shouldValidate: false });
+      } else {
+        setUseLocationCode(false);
+        setLocationCode('');
+      }
+
     } else {
       // Reset to empty form for new member
       form.reset({
@@ -249,6 +269,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         lastName: '',
         phoneNumber: '',
         memberId: '',
+        address: '',
         status: 'active',
         photoURL: undefined,
         birthDate: undefined,
@@ -273,6 +294,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
 
       // Limpiar el input de fecha de fallecimiento
       setDeathDateInput('');
+      setUseLocationCode(false);
+      setLocationCode('');
 
       // Reset duplicate states for new member
       setDuplicateMembers([]);
@@ -546,6 +569,54 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
     setBaptismPhotoPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  const applyResolvedAddress = (formattedAddress: string) => {
+    form.setValue('address', formattedAddress, { shouldValidate: true });
+    // Keep code mode off once we have a real address for the profile
+    setUseLocationCode(false);
+    setLocationCode('');
+  };
+
+  const handleResolveLocationCode = async (codeOverride?: string): Promise<string | null> => {
+    const code = (codeOverride ?? locationCode).trim();
+    if (!code) {
+      toast({
+        title: t('common.error'),
+        description: t('memberForm.toast.locationCodeEmpty'),
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    setResolvingCode(true);
+    try {
+      const address = await resolveLocationCodeToAddress(code);
+      if (!address) {
+        toast({
+          title: t('memberForm.toast.addressLookupError'),
+          description: t('memberForm.toast.locationCodeNotFound'),
+          variant: 'destructive',
+        });
+        return null;
+      }
+      applyResolvedAddress(address);
+      toast({
+        title: t('memberForm.toast.locationCodeResolvedTitle'),
+        description: t('memberForm.toast.locationCodeResolvedDesc'),
+      });
+      return address;
+    } catch (error) {
+      console.error('Error resolving location code:', error);
+      toast({
+        title: t('common.error'),
+        description: t('memberForm.toast.addressLookupError'),
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setResolvingCode(false);
+    }
+  };
+
   const handleGetCurrentLocation = () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
       toast({
@@ -562,23 +633,28 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=es`,
-            { headers: { 'User-Agent': `${getAppName()}/1.0` } }
-          );
-          if (!response.ok) {
-            throw new Error(t('memberForm.toast.addressLookupError'));
+          const formattedAddress = await reverseGeocodeToAddress(latitude, longitude);
+          if (!formattedAddress) {
+            // Do not save lat/lng on the profile — offer code mode so user can retry/edit
+            setUseLocationCode(true);
+            setLocationCode(`${latitude}, ${longitude}`);
+            form.setValue('address', '', { shouldValidate: false });
+            toast({
+              title: t('memberForm.toast.partialAddressTitle'),
+              description: t('memberForm.toast.partialAddressDesc'),
+            });
+            return;
           }
-          const data = await response.json();
-          const formattedAddress = data.display_name || `${latitude}, ${longitude}`;
-          form.setValue('address', formattedAddress, { shouldValidate: true });
+          applyResolvedAddress(formattedAddress);
           toast({
             title: t('memberForm.toast.locationObtainedTitle'),
             description: t('memberForm.toast.locationObtainedDesc'),
           });
         } catch (error) {
           console.error('Error reverse geocoding:', error);
-          form.setValue('address', `${latitude}, ${longitude}`, { shouldValidate: true });
+          setUseLocationCode(true);
+          setLocationCode(`${latitude}, ${longitude}`);
+          form.setValue('address', '', { shouldValidate: false });
           toast({
             title: t('memberForm.toast.partialAddressTitle'),
             description: t('memberForm.toast.partialAddressDesc'),
@@ -626,8 +702,45 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       return;
     }
 
+    // If user entered a location code, resolve it to a real address before saving
+    // (profile must never store/show lat-lng codes as the address)
+    let resolvedAddressFromCode: string | null = null;
+    if (useLocationCode && locationCode.trim()) {
+      resolvedAddressFromCode = await handleResolveLocationCode(locationCode);
+      if (!resolvedAddressFromCode) {
+        // Conversion failed — do not save coordinates as address
+        return;
+      }
+    }
+
     setLoading(true);
     try {
+      let addressToSave = (
+        resolvedAddressFromCode ??
+        values.address?.trim() ??
+        form.getValues('address')?.trim() ??
+        ''
+      ).trim();
+
+      // Never persist raw lat/lng on the member profile
+      if (addressToSave && looksLikeCoordinates(addressToSave)) {
+        const converted = await resolveLocationCodeToAddress(addressToSave);
+        if (!converted) {
+          setLoading(false);
+          setUseLocationCode(true);
+          setLocationCode(addressToSave);
+          form.setValue('address', '', { shouldValidate: false });
+          toast({
+            title: t('memberForm.toast.partialAddressTitle'),
+            description: t('memberForm.toast.partialAddressDesc'),
+            variant: 'destructive',
+          });
+          return;
+        }
+        addressToSave = converted;
+        form.setValue('address', converted, { shouldValidate: true });
+      }
+
       // Handle photo URL
       let photoURL = member?.photoURL; // Start with existing photo
       if (photoFile) {
@@ -727,7 +840,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         // Manejar campos opcionales: usar el valor del formulario si está presente, sino undefined para limpiar
         phoneNumber: values.phoneNumber?.trim() ? values.phoneNumber.trim() : undefined,
         memberId: values.memberId?.trim() ? values.memberId.trim() : undefined,
-        address: values.address?.trim() ? values.address.trim() : '',
+        address: addressToSave || '',
         birthDate: values.birthDate ? values.birthDate.toISOString() : undefined,
         baptismDate: values.baptismDate ? values.baptismDate.toISOString() : undefined,
         deathDate: values.status === 'deceased'
@@ -786,7 +899,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           status: values.status,
           phoneNumber: values.phoneNumber?.trim() ? values.phoneNumber.trim() : undefined,
           memberId: values.memberId?.trim() ? values.memberId.trim() : undefined,
-          address: values.address?.trim() ? values.address.trim() : '',
+          address: addressToSave || '',
           birthDate: values.birthDate
             ? Timestamp.fromDate(normalizeDateForEcuadorStorage(values.birthDate))
             : null as any,
@@ -882,7 +995,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           status: values.status,
           phoneNumber: values.phoneNumber?.trim() ? values.phoneNumber.trim() : undefined,
           memberId: values.memberId?.trim() ? values.memberId.trim() : undefined,
-          address: values.address?.trim() ? values.address.trim() : '',
+          address: addressToSave || '',
           birthDate: values.birthDate
             ? Timestamp.fromDate(normalizeDateForEcuadorStorage(values.birthDate))
             : undefined,
@@ -1209,40 +1322,120 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
             )}
           />
 
-          {/* Address with GPS */}
+          {/* Address: manual text, GPS, or optional location code (lat/lng / Plus Code) */}
           <FormField
             control={form.control}
             name="address"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t('memberForm.address')}</FormLabel>
-                <div className="flex gap-2">
-                  <FormControl>
-                    <Input
-                      placeholder={t('memberForm.addressPlaceholder')}
-                      {...field}
-                      value={field.value || ''}
-                    />
-                  </FormControl>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={handleGetCurrentLocation}
-                    disabled={gettingLocation}
-                    title={t('memberForm.gpsTitle')}
-                    aria-label={t('memberForm.gpsAria')}
-                  >
-                    {gettingLocation ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <MapPin className="h-4 w-4" />
-                    )}
-                  </Button>
+
+                <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                  <Checkbox
+                    id="use-location-code"
+                    checked={useLocationCode}
+                    onCheckedChange={(checked) => {
+                      const enabled = checked === true;
+                      setUseLocationCode(enabled);
+                      if (enabled) {
+                        // If current address looks like coords, move it into the code field
+                        const current = field.value || '';
+                        if (looksLikeCoordinates(current)) {
+                          setLocationCode(current);
+                          field.onChange('');
+                        }
+                      } else {
+                        setLocationCode('');
+                      }
+                    }}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-0.5">
+                    <Label
+                      htmlFor="use-location-code"
+                      className="cursor-pointer text-sm font-medium leading-none"
+                    >
+                      {t('memberForm.useLocationCode')}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t('memberForm.useLocationCodeHint')}
+                    </p>
+                  </div>
                 </div>
-                <FormDescription>
-                  {t('memberForm.addressDescription')}
-                </FormDescription>
+
+                {useLocationCode ? (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={t('memberForm.locationCodePlaceholder')}
+                        value={locationCode}
+                        onChange={(e) => setLocationCode(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void handleResolveLocationCode();
+                          }
+                        }}
+                        disabled={resolvingCode}
+                        aria-label={t('memberForm.locationCodeLabel')}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => void handleResolveLocationCode()}
+                        disabled={resolvingCode || !locationCode.trim()}
+                        title={t('memberForm.resolveLocationCodeTitle')}
+                      >
+                        {resolvingCode ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          t('memberForm.resolveLocationCode')
+                        )}
+                      </Button>
+                    </div>
+                    {field.value ? (
+                      <div className="rounded-md border bg-background px-3 py-2 text-sm">
+                        <p className="text-xs font-medium text-muted-foreground mb-0.5">
+                          {t('memberForm.resolvedAddressLabel')}
+                        </p>
+                        <p className="text-foreground">{field.value}</p>
+                      </div>
+                    ) : null}
+                    <FormDescription>
+                      {t('memberForm.locationCodeDescription')}
+                    </FormDescription>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          placeholder={t('memberForm.addressPlaceholder')}
+                          {...field}
+                          value={field.value || ''}
+                        />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={handleGetCurrentLocation}
+                        disabled={gettingLocation}
+                        title={t('memberForm.gpsTitle')}
+                        aria-label={t('memberForm.gpsAria')}
+                      >
+                        {gettingLocation ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MapPin className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <FormDescription>
+                      {t('memberForm.addressDescription')}
+                    </FormDescription>
+                  </>
+                )}
                 <FormMessage />
               </FormItem>
             )}

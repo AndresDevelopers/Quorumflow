@@ -6,20 +6,20 @@
       "date": "2026-07-14",
       "changes": {
         "es": [
-          "Mejoramos la seguridad de inicio de sesión con sincronización de sesión entre servidor y navegador, y protección de rutas con middleware.",
-          "Agregamos un sistema de administración general para la plataforma, con panel dedicado y controles de acceso para administradores.",
-          "Eliminamos el sistema de informes anuales obsoleto y limpiamos código sin usar para que la navegación sea más clara.",
-          "Ahora puedes activar o desactivar las notificaciones push por dispositivo, en lugar de tener una configuración única para toda la cuenta.",
-          "Corregimos problemas de sincronización de datos para que funcione con diferentes tipos de eventos y mensajes.",
-          "Reforzamos la seguridad multiinquilino: cada barrio u organización solo puede acceder a sus propios datos, y mejoramos el rendimiento de notificaciones."
+          "Ahora puedes ingresar un código de ubicación o coordenadas para convertirlos automáticamente en direcciones, sin guardar datos de ubicación sin procesar.",
+          "Mejoramos la seguridad y el rendimiento: la sesión se sincroniza de forma segura, y los datos de tu barrio están protegidos para que solo los vea tu organización.",
+          "Los administradores de la plataforma ahora tienen su propio panel separado, con herramientas para gestionar usuarios y configurar el sistema.",
+          "Eliminamos el sistema de informes anuales antiguo para simplificar la navegación y acelerar la aplicación.",
+          "Las notificaciones push ahora se activan por dispositivo, dándote control sobre qué dispositivos reciben alertas.",
+          "Corregimos errores en la sincronización de datos y mejoramos el rendimiento de las notificaciones para evitar duplicados y retrasos."
         ],
         "en": [
-          "Improved login security with session sync between server and browser, and route protection via middleware.",
-          "Added a general platform admin system with a dedicated panel and access controls for administrators.",
-          "Removed the outdated annual reporting system and cleaned up unused code for clearer navigation.",
-          "You can now enable or disable push notifications per device instead of a single account-wide setting.",
-          "Fixed data sync to work with different event types and message formats.",
-          "Strengthened multi-tenant security: each ward or organization can only access its own data, and notifications are faster."
+          "You can now enter a location code or coordinates to automatically convert them to street addresses, without storing raw location data.",
+          "We improved security and performance: your session is now synced securely, and your ward's data is protected so only your organization can see it.",
+          "Platform administrators now have their own separate panel with tools to manage users and configure the system.",
+          "We removed the old annual reporting system to simplify navigation and speed up the app.",
+          "Push notifications are now enabled per device, giving you control over which devices receive alerts.",
+          "Fixed data sync errors and improved notification performance to prevent duplicates and delays."
         ]
       }
     },

@@ -64,6 +64,7 @@ import {
   reverseGeocodeToAddress,
   looksLikeCoordinates,
 } from '@/lib/geocode-address';
+import { saveCurrentDeviceGpsPermission } from '@/lib/device-permissions';
 
 const createMemberFormSchema = (t: (key: string) => string) =>
   z.object({
@@ -631,6 +632,11 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        // GPS permission granted — persist it so the Settings switch stays in sync
+        if (user) {
+          saveCurrentDeviceGpsPermission(user.uid, true).catch(() => {});
+        }
+
         const { latitude, longitude } = position.coords;
         try {
           const formattedAddress = await reverseGeocodeToAddress(latitude, longitude);

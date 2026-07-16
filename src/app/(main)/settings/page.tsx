@@ -83,6 +83,11 @@ import {
   saveCurrentPushSubscription,
   syncAccountPushEnabledFlag,
 } from '@/lib/push-subscription';
+import {
+  getCurrentDevicePermissions,
+  saveCurrentDeviceGpsPermission,
+  saveCurrentDeviceMicPermission,
+} from '@/lib/device-permissions';
 
 type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -234,7 +239,7 @@ export default function SettingsPage() {
     loadNotificationPreferences();
   }, [user, defaultCategoryPrefs]);
 
-  // Load permission prefs (available for all roles)
+  // Load per-device permission prefs (GPS & Mic respect the *device* that enabled them)
   useEffect(() => {
     const loadPermissionPreferences = async () => {
       if (!user) {
@@ -244,19 +249,11 @@ export default function SettingsPage() {
       }
 
       try {
-        const userDocRef = doc(usersCollection, user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setMicEnabled(userData.micPermissionEnabled === true);
-          setGpsEnabled(userData.gpsPermissionEnabled === true);
-        } else {
-          setMicEnabled(false);
-          setGpsEnabled(false);
-        }
+        const perms = await getCurrentDevicePermissions(user.uid);
+        setMicEnabled(perms.micEnabled);
+        setGpsEnabled(perms.gpsEnabled);
       } catch (error) {
-        logger.error({ error, message: 'Error loading permission preferences' });
+        logger.error({ error, message: 'Error loading device permission preferences' });
         setMicEnabled(false);
         setGpsEnabled(false);
       } finally {
@@ -1017,8 +1014,8 @@ export default function SettingsPage() {
         }
       }
 
-      const userDocRef = doc(usersCollection, user.uid);
-      await updateDoc(userDocRef, { micPermissionEnabled: checked });
+      // Save ONLY for this device — other phones keep their own setting
+      await saveCurrentDeviceMicPermission(user.uid, checked);
       setMicEnabled(checked);
 
       toast({
@@ -1084,8 +1081,8 @@ export default function SettingsPage() {
         }
       }
 
-      const userDocRef = doc(usersCollection, user.uid);
-      await updateDoc(userDocRef, { gpsPermissionEnabled: checked });
+      // Save ONLY for this device — other phones keep their own setting
+      await saveCurrentDeviceGpsPermission(user.uid, checked);
       setGpsEnabled(checked);
 
       toast({

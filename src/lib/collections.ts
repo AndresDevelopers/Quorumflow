@@ -25,6 +25,7 @@ export const newConvertFriendsCollection = coll('c_obra_misional_amigos_converso
 export const missionaryImagesCollection = coll('c_obra_misional_imagenes');
 export const servicesCollection = coll('c_servicios');
 export const pushSubscriptionsCollection = coll('c_push_subscriptions');
+export const devicePermissionsCollection = coll('c_device_permissions');
 export const usersCollection = coll('c_users');
 export const notificationsCollection = coll('c_notifications');
 export const healthConcernsCollection = coll('c_observaciones_salud');

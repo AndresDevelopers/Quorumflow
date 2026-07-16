@@ -1,6 +1,20 @@
 {
-  "current": "1.1.32",
+  "current": "1.1.33",
   "entries": [
+    {
+      "version": "1.1.33",
+      "date": "2026-07-16",
+      "changes": {
+        "es": [
+          "Ahora puedes gestionar los permisos de GPS y micrófono de cada dispositivo por separado.",
+          "La página de Configuración muestra los estados de permisos específicos de cada dispositivo."
+        ],
+        "en": [
+          "You can now manage GPS and microphone permissions separately for each device.",
+          "The Settings page now shows permission states specific to each device."
+        ]
+      }
+    },
     {
       "version": "1.1.32",
       "date": "2026-07-15",

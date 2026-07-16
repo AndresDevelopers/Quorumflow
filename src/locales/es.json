@@ -876,6 +876,7 @@
   "memberForm.toast.gpsErrorTitle": "Error de GPS",
   "memberForm.toast.gpsGenericError": "No se pudo obtener la ubicación.",
   "memberForm.toast.gpsPermissionDenied": "Permiso de ubicación denegado. Activa el GPS en tu navegador.",
+  "memberForm.toast.gpsDisabledInSettings": "El GPS está desactivado. Actívalo en Ajustes > Permisos del dispositivo.",
   "memberForm.toast.gpsTimeout": "La solicitud de ubicación tardó demasiado.",
   "memberForm.toast.gpsUnavailableDesc": "Tu navegador no soporta geolocalización.",
   "memberForm.toast.gpsUnavailableNow": "La ubicación no está disponible en este momento.",

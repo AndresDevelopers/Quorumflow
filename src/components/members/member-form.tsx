@@ -64,7 +64,7 @@ import {
   reverseGeocodeToAddress,
   looksLikeCoordinates,
 } from '@/lib/geocode-address';
-import { saveCurrentDeviceGpsPermission } from '@/lib/device-permissions';
+import { saveCurrentDeviceGpsPermission, getCurrentDevicePermissions } from '@/lib/device-permissions';
 
 const createMemberFormSchema = (t: (key: string) => string) =>
   z.object({
@@ -618,7 +618,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
     }
   };
 
-  const handleGetCurrentLocation = () => {
+  const handleGetCurrentLocation = async () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
       toast({
         title: t('memberForm.toast.gpsUnavailableTitle'),
@@ -626,6 +626,23 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         variant: 'destructive',
       });
       return;
+    }
+
+    // Respect user's device-level GPS preference from Settings
+    if (user) {
+      try {
+        const perms = await getCurrentDevicePermissions(user.uid);
+        if (!perms.gpsEnabled) {
+          toast({
+            title: t('settings.permissions.gps'),  // "Ubicación (GPS)"
+            description: t('memberForm.toast.gpsDisabledInSettings'),  // needs new key or reuse
+            variant: 'destructive',
+          });
+          return;
+        }
+      } catch {
+        // If we can't check, let the native prompt be the gate
+      }
     }
 
     setGettingLocation(true);

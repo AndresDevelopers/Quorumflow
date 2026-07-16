@@ -6,12 +6,12 @@
       "date": "2026-07-16",
       "changes": {
         "es": [
-          "Ahora puedes gestionar los permisos de GPS y micrófono de cada dispositivo por separado.",
-          "La página de Configuración muestra los estados de permisos específicos de cada dispositivo."
+          "Ahora la aplicación verifica que el GPS esté activado antes de solicitar tu ubicación, mostrando un mensaje claro si está desactivado.",
+          "Mejoramos el control de permisos: ahora puedes gestionar el acceso al GPS y al micrófono para cada dispositivo por separado desde la configuración."
         ],
         "en": [
-          "You can now manage GPS and microphone permissions separately for each device.",
-          "The Settings page now shows permission states specific to each device."
+          "The app now checks if GPS is enabled before asking for your location, showing a clear message if it's off.",
+          "We improved permission management: you can now control GPS and microphone access for each device separately from the settings."
         ]
       }
     },

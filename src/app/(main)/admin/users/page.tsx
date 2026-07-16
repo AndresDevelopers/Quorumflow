@@ -877,7 +877,7 @@ export default function AdminUsersPage() {
                         <TableCell>
                           <details className="text-xs">
                             <summary className="cursor-pointer text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5">
-                              <span>{t("admin.users.pagesVisible", { count: user.visiblePages.length })}</span>
+                              <span>{t("admin.users.pagesVisible", { count: navigationItems.filter(item => item.href !== '/church-chat' && user.visiblePages.includes(item.href)).length })}</span>
                               {savedVisibilityUids.has(user.uid) && (
                                 <span className="text-emerald-600 dark:text-emerald-400 font-medium animate-in fade-in">
                                   ✓ {t("admin.users.saved")}
@@ -1090,7 +1090,7 @@ export default function AdminUsersPage() {
                           <Label className="text-xs text-muted-foreground">{t("admin.users.visibilityLabel")}</Label>
                           <details className="mt-1 text-xs">
                             <summary className="cursor-pointer text-primary hover:underline inline-flex items-center gap-1.5">
-                              <span>{t("admin.users.pagesVisibleMobile", { count: user.visiblePages.length })}</span>
+                              <span>{t("admin.users.pagesVisibleMobile", { count: navigationItems.filter(item => item.href !== '/church-chat' && user.visiblePages.includes(item.href)).length })}</span>
                               {savedVisibilityUids.has(user.uid) && (
                                 <span className="text-emerald-600 dark:text-emerald-400 font-medium animate-in fade-in">
                                   ✓ {t("admin.users.saved")}

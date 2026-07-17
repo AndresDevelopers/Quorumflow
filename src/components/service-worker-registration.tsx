@@ -43,6 +43,29 @@ export function ServiceWorkerRegistration() {
 
     void (async () => {
       try {
+        // ── Cache the CURRENT page as start-url IMMEDIATELY ───────────
+        // Before the SW takes control, save a snapshot so the PWA always
+        // finds something in the start-url cache — critical for the very
+        // first PWA open when the server might be slow (cold start, 3G).
+        if ('caches' in window && isBrowserOnline()) {
+          try {
+            const cache = await caches.open('start-url');
+            const docClone = document.documentElement.outerHTML;
+            const res = new Response(
+              '<!DOCTYPE html>' + docClone,
+              {
+                status: 200,
+                statusText: 'OK',
+                headers: { 'Content-Type': 'text/html; charset=utf-8' },
+              },
+            );
+            await cache.put('/', res.clone());
+            await cache.put(window.location.href, res.clone());
+          } catch {
+            // ignore — best-effort
+          }
+        }
+
         const registration = await navigator.serviceWorker.register('/sw.js', {
           scope: '/',
           updateViaCache: 'none',

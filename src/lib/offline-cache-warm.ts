@@ -316,12 +316,22 @@ export async function precacheAllPageShells(options?: {
     // ignore
   }
 
-  // Start URL
+  // Start URL — cache the actual resolved URL (including after redirects,
+  // e.g. / → /login). Use a fresh clone for both the original key and the
+  // resolved URL so the PWA always opens from cache when NetworkFirst times out.
   try {
     const cache = await caches.open('start-url');
-    const start = await fetch('/', { credentials: 'same-origin', cache: 'no-cache' });
-    if (start.ok && !start.redirected) {
+    const start = await fetch('/', {
+      credentials: 'same-origin',
+      cache: 'no-cache',
+      redirect: 'follow',
+    });
+    if (start.ok) {
+      // Cache both the canonical "/" key and the actual resolved URL
       await cache.put('/', start.clone());
+      if (start.redirected && start.url && start.url !== window.location.origin + '/') {
+        await cache.put(start.url, start.clone());
+      }
     }
   } catch {
     // ignore

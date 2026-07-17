@@ -25,6 +25,33 @@ const withPWA = withPWAInit({
     skipWaiting: true,
     clientsClaim: true,
     cleanupOutdatedCaches: true,
+    // ── Precaching: only the essential shell (framework, shared chunks,
+    //    layout, auth pages, CSS, fonts, public assets). Page-specific
+    //    chunks are cached at runtime → much faster SW install.
+    exclude: [
+      /\/app\/\(main\)\/admin\//,
+      /\/app\/\(main\)\/birthdays\//,
+      /\/app\/\(main\)\/church-chat\//,
+      /\/app\/\(main\)\/consejo\//,
+      /\/app\/\(main\)\/converts\//,
+      /\/app\/\(main\)\/council\//,
+      /\/app\/\(main\)\/donate\//,
+      /\/app\/\(main\)\/family-search\//,
+      /\/app\/\(main\)\/future-members\//,
+      /\/app\/\(main\)\/members\//,
+      /\/app\/\(main\)\/ministering\//,
+      /\/app\/\(main\)\/missionary-work\//,
+      /\/app\/\(main\)\/observations\//,
+      /\/app\/\(main\)\/profile\//,
+      /\/app\/\(main\)\/reports\//,
+      /\/app\/\(main\)\/service\//,
+      /\/app\/\(main\)\/settings\//,
+      /\/app\/\(platform-admin\)\//,
+      /\/app\/api\//,
+      /\/app\/manifest\//,
+      /\/app\/robots\.txt\//,
+      /\/app\/sitemap\.xml\//,
+    ],
     runtimeCaching: [
       {
         // Override default "pages" — short network timeout so mobile offline fails over fast
@@ -32,7 +59,7 @@ const withPWA = withPWAInit({
         handler: 'NetworkFirst',
         options: {
           cacheName: 'pages',
-          networkTimeoutSeconds: 2,
+          networkTimeoutSeconds: 5,
           expiration: {
             maxEntries: 128,
             maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days

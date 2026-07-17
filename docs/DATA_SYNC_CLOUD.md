@@ -18,8 +18,19 @@ Cloud Function onWrite (syncOn*Write)
 App (cliente)
   • DataSyncListener: onSnapshot del signal → requestRefresh({ silent: true })
   • PushForegroundListener / SW: mensaje DATA_SYNC → mismo refresh
-  • Botón header Actualizar = fallback manual (con toast)
+  • Silent: handlers + reloj "Automática" en background — **sin remount ni router.refresh**
+  • Botón header Actualizar = fallback manual (toast + remount de la página)
 ```
+
+## UX: auto vs manual
+
+| Origen | Remount página | Spinner header | Toast |
+|--------|----------------|----------------|-------|
+| CF / FCM (`silent: true`) | No | No | No |
+| Botón Actualizar | Sí (`refreshGeneration`) | Sí | Sí |
+
+Las páginas registran loaders con `useOnManualRefresh` para que el sync silencioso
+actualice datos **in-place** (p. ej. miembros, notificaciones, listas).
 
 ## Colecciones que publican señal
 

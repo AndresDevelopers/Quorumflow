@@ -14,6 +14,7 @@ import { useI18n } from "@/contexts/i18n-context";
 import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
 import { useAuth } from '@/contexts/auth-context';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { usePermission } from '@/hooks/use-permission';
 
 import {
@@ -105,31 +106,36 @@ export default function ServicePage() {
   const yearParam = Number(searchParams.get('year'));
   const selectedYear = Number.isInteger(yearParam) && yearParam >= 1900 && yearParam <= 2100 ? yearParam : currentYear;
 
-  const fetchServices = useCallback(() => {
-    setLoading(true);
-    getServicesForYear(selectedYear, barrioOrg)
-        .then(data => {
-            setServices(data);
-            // Prefetch service photos into local Cache Storage for offline viewing
-            if (isBrowserOnline()) {
-              const urls = data.flatMap((s) => s.imageUrls ?? []);
-              void cacheImages(urls, { concurrency: 3, limit: 80 });
-            }
-        })
-        .catch(err => {
-            logger.error({ error: err, message: "Failed to fetch services" });
-            toast({ title: t('common.error'), description: t('service.loadError'), variant: "destructive" });
-        })
-        .finally(() => {
-            setLoading(false);
-        });
-  }, [selectedYear, toast, barrioOrg]);
+  const fetchServices = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoading(true);
+    try {
+      const data = await getServicesForYear(selectedYear, barrioOrg);
+      setServices(data);
+      // Prefetch service photos into local Cache Storage for offline viewing
+      if (isBrowserOnline()) {
+        const urls = data.flatMap((s) => s.imageUrls ?? []);
+        void cacheImages(urls, { concurrency: 3, limit: 80 });
+      }
+    } catch (err) {
+      logger.error({ error: err, message: "Failed to fetch services" });
+      toast({ title: t('common.error'), description: t('service.loadError'), variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedYear, toast, barrioOrg, t]);
 
   useEffect(() => {
     if (!authLoading && user) {
-      queueMicrotask(() => fetchServices());
+      queueMicrotask(() => {
+        void fetchServices();
+      });
     }
   }, [authLoading, fetchServices, user]);
+
+  useOnManualRefresh(async () => {
+    await fetchServices({ quiet: true });
+    return true;
+  });
 
   const handleDelete = async (serviceId: string, serviceTitle: string) => {
     try {

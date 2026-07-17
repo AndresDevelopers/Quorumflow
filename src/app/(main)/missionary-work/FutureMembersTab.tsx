@@ -62,6 +62,7 @@ import { format } from 'date-fns';
 import { getDateFnsLocale } from '@/lib/i18n-date';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { usePermission } from '@/hooks/use-permission';
 import { useI18n } from '@/contexts/i18n-context';
 import { useToast } from '@/hooks/use-toast';
@@ -120,8 +121,8 @@ export function FutureMembersTab() {
     },
   });
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoading(true);
     try {
       const data = await getFutureMembers(barrioOrg);
       setFutureMembers(data);
@@ -138,6 +139,11 @@ export function FutureMembersTab() {
       void loadData();
     });
   }, [authLoading, user, loadData]);
+
+  useOnManualRefresh(async () => {
+    await loadData({ quiet: true });
+    return true;
+  });
 
   const handleDialogOpenChange = (open: boolean) => {
     setDialogOpen(open);

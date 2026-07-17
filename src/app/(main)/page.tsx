@@ -40,6 +40,7 @@ import { getDocs } from '@/lib/firestore-query';
 import { annotationsCollection, membersCollection } from "@/lib/collections";
 import logger from "@/lib/logger";
 import { useAuth } from "@/contexts/auth-context";
+import { useOnManualRefresh } from "@/contexts/refresh-context";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -165,51 +166,58 @@ function DashboardPage() {
   const [deceasedMembers, setDeceasedMembers] = useState<Member[]>([]);
   const [loadingDeceased, setLoadingDeceased] = useState(true);
 
-  // One dashboard load: counts + members-by-status + deceased (single members read)
-  useEffect(() => {
-    if (authLoading || !user || !barrioOrg) return;
-
-    async function loadData() {
+  const loadDashboardData = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!barrioOrg) return;
+    if (!opts?.quiet) {
       setLoading(true);
       setLoadingMembers(true);
       setLoadingDeceased(true);
-      try {
-        const dashboardData = await getDashboardData(barrioOrg);
-        setData({
-          convertsCount: dashboardData.convertsCount,
-          futureMembersCount: dashboardData.futureMembersCount,
-          councilActionsCount: dashboardData.councilActionsCount,
-        });
-        setMembersData(dashboardData.membersByStatus);
-        setDeceasedMembers(dashboardData.deceasedMembers);
-      } catch (error) {
-        console.error('Error loading dashboard data', error);
-      } finally {
-        setLoading(false);
-        setLoadingMembers(false);
-        setLoadingDeceased(false);
-      }
     }
-    loadData();
-  }, [authLoading, user, barrioOrg]);
+    try {
+      const dashboardData = await getDashboardData(barrioOrg);
+      setData({
+        convertsCount: dashboardData.convertsCount,
+        futureMembersCount: dashboardData.futureMembersCount,
+        councilActionsCount: dashboardData.councilActionsCount,
+      });
+      setMembersData(dashboardData.membersByStatus);
+      setDeceasedMembers(dashboardData.deceasedMembers);
+    } catch (error) {
+      console.error('Error loading dashboard data', error);
+    } finally {
+      setLoading(false);
+      setLoadingMembers(false);
+      setLoadingDeceased(false);
+    }
+  }, [barrioOrg]);
+
+  const loadActivityOverview = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!barrioOrg) return;
+    if (!opts?.quiet) setLoadingActivities(true);
+    try {
+      const summary = await getActivityOverviewData(barrioOrg);
+      setActivityOverview(summary);
+    } finally {
+      setLoadingActivities(false);
+    }
+  }, [barrioOrg]);
+
+  // One dashboard load: counts + members-by-status + deceased (single members read)
+  useEffect(() => {
+    if (authLoading || !user || !barrioOrg) return;
+    void loadDashboardData();
+  }, [authLoading, user, barrioOrg, loadDashboardData]);
 
   useEffect(() => {
     if (authLoading || !user || !barrioOrg) return;
-
-    async function loadActivityOverview() {
-        setLoadingActivities(true);
-        const summary = await getActivityOverviewData(barrioOrg);
-        setActivityOverview(summary);
-        setLoadingActivities(false);
-    }
     queueMicrotask(() => {
       void loadActivityOverview();
     });
-  }, [authLoading, user, barrioOrg])
+  }, [authLoading, user, barrioOrg, loadActivityOverview]);
 
-  const fetchAnnotations = useCallback(async () => {
+  const fetchAnnotations = useCallback(async (opts?: { quiet?: boolean }) => {
     if (authLoading || !user) return; // Wait for authentication
-    setLoadingAnnotations(true);
+    if (!opts?.quiet) setLoadingAnnotations(true);
     const result = await getAnnotations('dashboard', barrioOrg);
     setAnnotations(result);
     setLoadingAnnotations(false);
@@ -219,7 +227,16 @@ function DashboardPage() {
     queueMicrotask(() => {
       void fetchAnnotations();
     });
-  }, [fetchAnnotations])
+  }, [fetchAnnotations]);
+
+  useOnManualRefresh(async () => {
+    await Promise.all([
+      loadDashboardData({ quiet: true }),
+      loadActivityOverview({ quiet: true }),
+      fetchAnnotations({ quiet: true }),
+    ]);
+    return true;
+  });
 
   const handleDeleteAnnotation = async (id: string) => {
     try {

@@ -48,6 +48,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { VoiceAnnotations } from '@/components/shared/voice-annotations';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
 import { ConvertInfoSheet, type ConvertWithInfo } from '@/app/(main)/converts/convert-info-sheet';
@@ -340,8 +341,8 @@ export default function CouncilPage() {
   const [sheetLoading, setSheetLoading] = useState<string | null>(null); // memberId being loaded
   const [availableMembers, setAvailableMembers] = useState<Member[]>([]);
 
-  const fetchAllData = useCallback(async () => {
-    setLoading(true);
+  const fetchAllData = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoading(true);
     try {
       const [converts, baptisms, needs, notes, upcomingServices, lessActive, inactive, urgent, activities, membersSnap, deceased] = await Promise.all([
         getCouncilMembers(barrioOrg),
@@ -368,8 +369,10 @@ export default function CouncilPage() {
       setAvailableMembers(membersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Member)));
       setDeceasedMembers(deceased);
 
-      // Send daily notifications for urgent members (fire-and-forget)
-      sendDailyUrgentNotifications(urgent).catch(() => { });
+      // Only on explicit/manual loads — never from CF silent background sync
+      if (!opts?.quiet) {
+        sendDailyUrgentNotifications(urgent).catch(() => { });
+      }
         } catch (error) {
           logger.error({ error, message: 'Error fetching council data' });
           toast({ title: t("council.error.fetchingTitle"), description: t("council.error.fetchingDescription"), variant: "destructive" });
@@ -380,8 +383,13 @@ export default function CouncilPage() {
 
   useEffect(() => {
     if (authLoading || !user) return;
-    fetchAllData();
+    void fetchAllData();
   }, [authLoading, user, fetchAllData]);
+
+  useOnManualRefresh(async () => {
+    await fetchAllData({ quiet: true });
+    return true;
+  });
 
   const handleResolveAnnotation = async (id: string) => {
     try {

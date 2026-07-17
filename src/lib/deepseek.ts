@@ -13,7 +13,13 @@ import { z } from 'zod';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEFAULT_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
-const DEEPSEEK_TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS) || 8000;
+/**
+ * Default 30s (was 8s). Serverless cold start + DeepSeek latency often exceeds 8s
+ * in production, which made suggestions/vision polish fail only on sionflow.com.
+ * Keep under route `maxDuration` (60s).
+ */
+const DEEPSEEK_TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS) || 30_000;
+const DEEPSEEK_MAX_TOKENS = Number(process.env.DEEPSEEK_MAX_TOKENS) || 1600;
 
 type DeepSeekMessage = {
   role: 'system' | 'user' | 'assistant';
@@ -53,6 +59,8 @@ export async function requestDeepSeekText(messages: DeepSeekMessage[], model = D
         model,
         messages,
         temperature: 0.4,
+        max_tokens: DEEPSEEK_MAX_TOKENS,
+        // v4 models can return empty `content` when thinking runs; keep it off.
         thinking: { type: 'disabled' },
       }),
       signal: controller.signal,

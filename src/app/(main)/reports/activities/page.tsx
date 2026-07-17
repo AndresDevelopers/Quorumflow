@@ -53,6 +53,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { useToast } from '@/hooks/use-toast';
 import { Camera, FileText, Pencil, PlusCircle, RefreshCw, Wand2, Trash2, ArrowRightLeft } from 'lucide-react';
 import { endOfYear, format, getYear, startOfYear } from 'date-fns';
@@ -126,8 +127,8 @@ export default function ActivitiesPage() {
     router.replace(`/reports/activities?${params.toString()}`);
   };
 
-  const fetchActivities = useCallback(async () => {
-    setLoading(true);
+  const fetchActivities = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoading(true);
     try {
       const data = await getActivitiesForYear(selectedYear, barrioOrg);
       setActivities(data);
@@ -138,6 +139,11 @@ export default function ActivitiesPage() {
       setLoading(false);
     }
   }, [selectedYear, barrioOrg]);
+
+  useOnManualRefresh(async () => {
+    await fetchActivities({ quiet: true });
+    return true;
+  });
 
   const handleDelete = async (activityId: string, activityTitle: string) => {
     try {

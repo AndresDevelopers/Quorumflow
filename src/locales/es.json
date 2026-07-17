@@ -327,6 +327,7 @@
   "churchChat.readResponseTitle": "Leer",
   "churchChat.send": "Enviar",
   "churchChat.sendErrorDefault": "No se pudo obtener una respuesta. Intenta de nuevo.",
+  "churchChat.sendErrorTimeout": "La respuesta de la IA tardó demasiado. Intenta de nuevo o formula una pregunta más breve.",
   "churchChat.sendErrorTitle": "Error al enviar",
   "churchChat.speakUnavailableDescription": "Tu navegador no soporta síntesis de voz.",
   "churchChat.speakUnavailableTitle": "Lectura no disponible",

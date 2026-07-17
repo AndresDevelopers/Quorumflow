@@ -14,6 +14,7 @@ import { FamilySelector } from '@/components/family-search/family-selector';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { usePermission } from '@/hooks/use-permission';
 import { useI18n } from '@/contexts/i18n-context';
 
@@ -87,15 +88,15 @@ export default function FamilySearchPage() {
     const trainingFormRef = useRef<HTMLFormElement>(null);
     const taskFormRef = useRef<HTMLFormElement>(null);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
+    const fetchData = useCallback(async (opts?: { quiet?: boolean }) => {
+        if (!opts?.quiet) setLoading(true);
         const trainingsSnap = await getDocs(query(familySearchTrainingsCollection, where('barrioOrg', '==', barrioOrg), orderBy('createdAt', 'desc')));
         setTrainings(trainingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as FamilySearchTraining)));
         setLoading(false);
     }, [barrioOrg]);
 
-    const fetchAnnotations = useCallback(async () => {
-        setLoadingAnnotations(true);
+    const fetchAnnotations = useCallback(async (opts?: { quiet?: boolean }) => {
+        if (!opts?.quiet) setLoadingAnnotations(true);
         try {
             const q = query(
                 annotationsCollection,
@@ -122,9 +123,17 @@ export default function FamilySearchPage() {
 
     useEffect(() => {
         if (authLoading || !user) return;
-        fetchData();
-        fetchAnnotations();
+        void fetchData();
+        void fetchAnnotations();
     }, [authLoading, user, fetchData, fetchAnnotations]);
+
+    useOnManualRefresh(async () => {
+        await Promise.all([
+            fetchData({ quiet: true }),
+            fetchAnnotations({ quiet: true }),
+        ]);
+        return true;
+    });
 
     const handleAddTraining = (data: { familyName: string; memberId?: string; memberName?: string }) => {
         const validated = trainingSchema.safeParse(data);

@@ -62,6 +62,20 @@ Sin `GEMINI_API_KEY`, el chat de texto sigue funcionando; las imágenes no se an
 - `POST /api/church-chat`
   - Entrada: `{ message?: string, imageDataUrl?: string, history: Array<{role, content}>, language?: 'es'|'en', organizacion?: string }`
   - Salida: `{ answer: string, contextNews: string }`
+  - Producción (Vercel): `maxDuration = 60` para no cortar la respuesta de DeepSeek/Gemini.
+  - El Service Worker **no** cachea esta ruta (NetworkOnly); evita timeouts de 5s de la PWA.
+
+## Troubleshooting (solo producción)
+
+Si el chat o las sugerencias fallan solo en `sionflow.com` y no en localhost:
+
+1. En Vercel → Settings → Environment Variables, confirma **Production**:
+   - `DEEPSEEK_API_KEY`
+   - `GEMINI_API_KEY` (solo imágenes)
+   - `DEEPSEEK_TIMEOUT_MS=30000` (recomendado)
+   - `FIREBASE_SERVICE_ACCOUNT_KEY` (auth de las APIs)
+2. Redeploy tras cambiar env vars.
+3. En el navegador: Application → Service Workers → Unregister + hard refresh (para tomar el SW nuevo).
 
 ## Notas de seguridad
 

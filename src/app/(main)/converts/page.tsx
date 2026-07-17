@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { OfflineImage } from '@/components/offline-image';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import {
   getDocsFromServer,
   query,
@@ -269,14 +270,14 @@ export default function ConvertsPage() {
   const [saving, setSaving] = useState(false);
   const [availableMembers, setAvailableMembers] = useState<Member[]>([]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (opts?: { quiet?: boolean }) => {
     if (!barrioOrg) {
       setConverts([]);
       setAvailableMembers([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!opts?.quiet) setLoading(true);
     try {
       const [data, membersList] = await Promise.all([
         getConvertsWithInfo(barrioOrg),
@@ -321,6 +322,11 @@ export default function ConvertsPage() {
     if (authLoading || !user) return;
     void loadData();
   }, [authLoading, user, loadData]);
+
+  useOnManualRefresh(async () => {
+    await loadData({ quiet: true });
+    return true;
+  });
 
   const handleSaveConvertInfo = async (convertId: string, calling: string, notes: string, recommendationActive: boolean, selfRelianceCourse: boolean) => {
     setSaving(true);

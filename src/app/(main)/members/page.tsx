@@ -281,9 +281,10 @@ export default function MembersPage() {
 
 
   const filteredMembers = members.filter(member => {
-    const matchesSearch =
-      member.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.lastName.toLowerCase().includes(searchTerm.toLowerCase());
+    const firstName = (member.firstName ?? '').toString().toLowerCase();
+    const lastName = (member.lastName ?? '').toString().toLowerCase();
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = firstName.includes(term) || lastName.includes(term);
     const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
     const isBaptized = member.ordinances?.includes('baptism') ?? false;
 
@@ -523,7 +524,7 @@ export default function MembersPage() {
                   </TableRow>
                 ) : (
                   filteredMembers.map((member) => {
-                    const statusInfo = statusConfig[member.status];
+                    const statusInfo = statusConfig[member.status] ?? statusConfig.active;
                     const isDeceased = member.status === 'deceased';
                     const StatusIcon = statusInfo.icon;
 
@@ -698,7 +699,7 @@ export default function MembersPage() {
               </div>
             ) : (
               filteredMembers.map((member) => {
-                const statusInfo = statusConfig[member.status];
+                const statusInfo = statusConfig[member.status] ?? statusConfig.active;
                 const isDeceased = member.status === 'deceased';
                 const StatusIcon = statusInfo.icon;
 
@@ -914,7 +915,7 @@ export default function MembersPage() {
               </p>
             ) : (
               membersWithoutCedula.map((member) => {
-                const statusInfo = statusConfig[member.status];
+                const statusInfo = statusConfig[member.status] ?? statusConfig.active;
                 const StatusIcon = statusInfo.icon;
                 return (
                   <div

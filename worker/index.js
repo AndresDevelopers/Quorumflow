@@ -96,7 +96,9 @@ async function matchInCaches(request) {
 }
 
 async function offlineNavigationFallback() {
-  const candidates = ['/', '/~offline', '/login', '/members'];
+  // Prefer login/offline shells first: unauthenticated `/` is a 307 → /login,
+  // so a cached `/` is often missing and must not be required to open the app.
+  const candidates = ['/login', '/~offline', '/', '/members'];
   for (const path of candidates) {
     try {
       const abs = new URL(path, self.location.origin).href;
@@ -117,6 +119,42 @@ async function offlineNavigationFallback() {
     statusText: 'OK',
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
   });
+}
+
+/**
+ * Document navigations use redirect mode "manual". Passing that Request into
+ * fetch() yields an opaqueredirect; if the SW returns it (or drops it because
+ * !response.ok), Chrome fails the navigation with ERR_FAILED — the browser
+ * "can't access the site" screen. That broke sionflow.com/ → /login.
+ *
+ * Follow redirects inside the SW, then hand the browser a real redirect so the
+ * address bar updates (e.g. / → /login?reason=missing).
+ */
+async function fetchNavigationDocument(request, signal) {
+  const init = {
+    method: 'GET',
+    credentials: 'same-origin',
+    redirect: 'follow',
+    headers: {
+      Accept: request.headers.get('Accept') || 'text/html,application/xhtml+xml',
+    },
+  };
+  if (signal) init.signal = signal;
+
+  const response = await fetch(request.url, init);
+
+  if (response.redirected && response.url) {
+    return Response.redirect(response.url, 302);
+  }
+  return response;
+}
+
+function isRedirectResponse(response) {
+  return (
+    !!response &&
+    (response.type === 'opaqueredirect' ||
+      (response.status >= 300 && response.status < 400))
+  );
 }
 
 // Offline-first navigations MUST be handled here (before/alongside Workbox)
@@ -145,15 +183,24 @@ self.addEventListener('fetch', (event) => {
         try {
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), 10_000);
-          networkResponse = await fetch(request, { signal: controller.signal });
+          networkResponse = await fetchNavigationDocument(
+            request,
+            controller.signal
+          );
           clearTimeout(timer);
         } catch {
           // first attempt failed, try once more without abort
           try {
-            networkResponse = await fetch(request);
+            networkResponse = await fetchNavigationDocument(request);
           } catch {
             networkResponse = null;
           }
+        }
+
+        // Auth/proxy redirects (and any other 3xx) must reach the browser.
+        // Never treat them as offline or serve a stale cache for `/`.
+        if (isRedirectResponse(networkResponse)) {
+          return networkResponse;
         }
 
         if (networkResponse && networkResponse.ok) {

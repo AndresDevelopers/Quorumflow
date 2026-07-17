@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Member, MemberStatus } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { mergeMembersCache } from '@/lib/members-cache-merge';
 
 interface UseMembersLocalReturn {
@@ -13,6 +14,7 @@ interface UseMembersLocalReturn {
   /**
    * Sincroniza con el servidor (manual / primera carga sin cache).
    * Solo reescribe el cache local si hay cambios reales respecto a lo guardado.
+   * Always hydrates in-memory state after a successful fetch (even if cache was already up to date).
    * Returns whether the local cache was updated.
    */
   syncFromServer: () => Promise<boolean>;
@@ -40,6 +42,12 @@ function normalizeStatus(status?: unknown): MemberStatus {
   if (['inactive', 'inactivo'].includes(n)) return 'inactive';
   if (['less_active', 'less active', 'menos activo', 'menos_activo'].includes(n)) return 'less_active';
   return 'active';
+}
+
+function safeLastNameCompare(a: Member, b: Member): number {
+  const aName = (a.lastName || a.firstName || '').toString();
+  const bName = (b.lastName || b.firstName || '').toString();
+  return aName.localeCompare(bName);
 }
 
 export function normalizeMembersList(raw: Member[]): Member[] {
@@ -102,6 +110,8 @@ export function useMembersLocal(): UseMembersLocalReturn {
 
   const inFlight = useRef(false);
   const initialLoadDone = useRef(false);
+  const membersRef = useRef<Member[]>([]);
+  membersRef.current = members;
 
   /** Lee miembros desde localStorage */
   const loadFromLocal = useCallback((): { members: Member[]; ts: number } | null => {
@@ -110,8 +120,9 @@ export function useMembersLocal(): UseMembersLocalReturn {
       const keys = getMembersLocalCacheKeys(barrioOrg);
       const tsRaw = localStorage.getItem(keys.ts);
       const dataRaw = localStorage.getItem(keys.data);
-      if (!tsRaw || !dataRaw) return null;
-      const ts = Number(tsRaw);
+      // Accept data even if timestamp key is missing (partial writes / older formats)
+      if (!dataRaw) return null;
+      const ts = tsRaw ? Number(tsRaw) : Date.now();
       if (Number.isNaN(ts)) return null;
       const list = JSON.parse(dataRaw) as Member[];
       return { members: normalizeMembersList(list), ts };
@@ -131,14 +142,18 @@ export function useMembersLocal(): UseMembersLocalReturn {
 
   /**
    * Sincroniza desde el servidor (manual o primera carga sin cache).
-   * Compara con el cache: solo reescribe localStorage y el estado si hay cambios.
+   * Compara con el cache: solo reescribe localStorage si hay cambios.
+   * ALWAYS applies the merged list to React state so a parallel writer
+   * (MembersProvider) cannot leave the UI empty with hasChanges=false.
    */
   const syncFromServer = useCallback(async (): Promise<boolean> => {
     if (!user || !barrioOrg || inFlight.current) return false;
+    if (!firebaseUser) return false;
+
     inFlight.current = true;
     setSyncStatus('syncing');
     try {
-      const idToken = await firebaseUser?.getIdToken().catch(() => null);
+      const idToken = await firebaseUser.getIdToken().catch(() => null);
       if (!idToken) throw new Error('No autenticado');
       const url = `/api/members?barrioOrg=${encodeURIComponent(barrioOrg)}&t=${Date.now()}`;
       const response = await fetch(url, {
@@ -154,56 +169,93 @@ export function useMembersLocal(): UseMembersLocalReturn {
 
       const { list, hasChanges } = applyServerMembersToLocalCache(barrioOrg, serverList);
 
-      if (hasChanges) {
-        setMembers(list);
-        setLastSyncTime(new Date());
-      }
-      // Sin cambios: se conserva el cache y el lastSyncTime previo
+      // Critical: always hydrate memory after a successful network response.
+      // MembersProvider may have already written the same list to localStorage,
+      // making hasChanges=false while this hook's state is still [].
+      setMembers(list);
+      setLastSyncTime(new Date());
       setSyncStatus('idle');
       return hasChanges;
     } catch (error) {
       console.error('[useMembersLocal] syncFromServer error', error);
       setSyncStatus('error');
-      // Mantener datos locales si falla — no borrar cache
+      // Fall back to whatever is in localStorage if memory is empty
+      const cached = loadFromLocal();
+      if (cached && membersRef.current.length === 0) {
+        setMembers(cached.members);
+        setLastSyncTime(new Date(cached.ts));
+      }
       return false;
     } finally {
       inFlight.current = false;
     }
-  }, [user, firebaseUser, barrioOrg]);
+  }, [user, firebaseUser, barrioOrg, loadFromLocal]);
 
   // Carga inicial: localStorage primero. Solo va al servidor si NO hay cache.
-  // No usa TTL para no gastar lecturas de Firestore innecesarias.
-  // Se re-ejecuta si barrioOrg cambia (p. ej. cache de auth tarda en hidratarse en PWA).
+  // Espera firebaseUser antes de marcar "done" cuando hay que ir a red.
+  // Se re-ejecuta si barrioOrg / firebaseUser cambian (PWA / auth hidratación).
   useEffect(() => {
-    // Si aún no tenemos barrioOrg, no marcar como "done" — esperar a que llegue
     if (authLoading || !user || !barrioOrg) {
-      // Reset the flag so we retry when prerequisites arrive
+      // Reset so we retry when prerequisites arrive (barrioOrg often late on PWA)
       if (!barrioOrg) {
         initialLoadDone.current = false;
+      }
+      // Avoid infinite skeleton when auth finished but profile has no barrio
+      if (!authLoading && user && !barrioOrg) {
+        setLoading(false);
       }
       return;
     }
     if (initialLoadDone.current) return;
 
-    initialLoadDone.current = true;
-
     const cached = loadFromLocal();
     if (cached) {
+      initialLoadDone.current = true;
       setMembers(cached.members);
       setLastSyncTime(new Date(cached.ts));
       setLoading(false);
       return;
     }
 
+    // No cache: need network — wait for Firebase user/token first
+    if (!firebaseUser) {
+      return;
+    }
+
+    initialLoadDone.current = true;
     setLoading(true);
-    syncFromServer().finally(() => setLoading(false));
-  }, [authLoading, user, barrioOrg, loadFromLocal, syncFromServer]);
+    syncFromServer()
+      .then((ok) => {
+        // If sync failed and still empty, allow a later retry when deps change
+        if (!ok && membersRef.current.length === 0) {
+          initialLoadDone.current = false;
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [authLoading, user, barrioOrg, firebaseUser, loadFromLocal, syncFromServer]);
+
+  // Header refresh icon + Cloud Function silent sync
+  const handleManualRefresh = useCallback(async () => {
+    const changed = await syncFromServer();
+    // If memory was empty, also re-read localStorage (provider may have written it)
+    if (membersRef.current.length === 0) {
+      const cached = loadFromLocal();
+      if (cached) {
+        setMembers(cached.members);
+        setLastSyncTime(new Date(cached.ts));
+        return true;
+      }
+    }
+    return changed;
+  }, [syncFromServer, loadFromLocal]);
+
+  useOnManualRefresh(handleManualRefresh);
 
   const addToLocal = useCallback(
     (member: Member) => {
       setMembers((prev) => {
         const next = [...prev, { ...member, status: normalizeStatus(member.status) }];
-        next.sort((a, b) => a.lastName.localeCompare(b.lastName));
+        next.sort(safeLastNameCompare);
         saveToLocal(next);
         return next;
       });
@@ -219,7 +271,7 @@ export function useMembersLocal(): UseMembersLocalReturn {
             ? { ...member, status: normalizeStatus(member.status) }
             : m
         );
-        next.sort((a, b) => a.lastName.localeCompare(b.lastName));
+        next.sort(safeLastNameCompare);
         saveToLocal(next);
         return next;
       });

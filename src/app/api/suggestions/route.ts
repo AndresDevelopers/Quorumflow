@@ -7,6 +7,10 @@ import { getYear } from 'date-fns';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getErrorStatus, requireUidAndBarrioOrg } from '@/lib/api-auth';
 
+export const runtime = 'nodejs';
+/** DeepSeek suggestions often need > default Vercel limit on cold start. */
+export const maxDuration = 60;
+
 type TimestampLike = { toDate(): Date };
 type ActivityDoc = { title?: string; date?: TimestampLike };
 

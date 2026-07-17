@@ -12,6 +12,14 @@ import {
   resolveOrganizationCallings,
 } from '@/lib/church-organization-callings';
 
+export const runtime = 'nodejs';
+/**
+ * DeepSeek + optional Gemini vision can exceed Vercel's default ~10–15s.
+ * Without this, production kills the function mid-request and the chat
+ * never receives content (works on localhost where there is no hard cap).
+ */
+export const maxDuration = 60;
+
 const bodySchema = z.object({
   message: z.string().min(2).max(3000).optional(),
   imageDataUrl: z.string().max(10_000_000).regex(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, 'Invalid image').optional(),

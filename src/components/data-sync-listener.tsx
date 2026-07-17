@@ -31,7 +31,8 @@ const POST_REFRESH_GRACE_MS = 4_000;
  */
 export function DataSyncListener() {
   const { barrioOrg, user } = useAuth();
-  const { requestRefresh, isRefreshing } = useRefresh();
+  // isSyncInFlight covers silent CF sync too (isRefreshing is manual-only UI).
+  const { requestRefresh, isSyncInFlight } = useRefresh();
   const lastVersionRef = useRef<number | null>(null);
   /** Highest signal version already covered by a completed local refresh */
   const lastConsumedVersionRef = useRef(0);
@@ -39,8 +40,8 @@ export function DataSyncListener() {
   const graceUntilRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingVersionRef = useRef<number | null>(null);
-  const isRefreshingRef = useRef(isRefreshing);
-  isRefreshingRef.current = isRefreshing;
+  const isSyncInFlightRef = useRef(isSyncInFlight);
+  isSyncInFlightRef.current = isSyncInFlight;
 
   const cancelPendingAutoRefresh = () => {
     if (debounceRef.current) {
@@ -91,7 +92,7 @@ export function DataSyncListener() {
           absorbVersion(pending);
           return;
         }
-        if (isRefreshingRef.current) {
+        if (isSyncInFlightRef.current) {
           absorbVersion(pending);
           return;
         }
@@ -145,7 +146,7 @@ export function DataSyncListener() {
         }
 
         // In-flight refresh will include this data — absorb, do not re-label as auto
-        if (isRefreshingRef.current || Date.now() < graceUntilRef.current) {
+        if (isSyncInFlightRef.current || Date.now() < graceUntilRef.current) {
           absorbVersion(version);
           cancelPendingAutoRefresh();
           return;
@@ -217,7 +218,7 @@ export function DataSyncListener() {
   // FCM / SW data-sync while app is open
   useEffect(() => {
     const handleRemoteDataSync = (versionHint?: number) => {
-      if (isRefreshingRef.current || Date.now() < graceUntilRef.current) {
+      if (isSyncInFlightRef.current || Date.now() < graceUntilRef.current) {
         if (typeof versionHint === 'number' && versionHint > 0) {
           absorbVersion(versionHint);
         }
@@ -239,7 +240,7 @@ export function DataSyncListener() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
-        if (isRefreshingRef.current || Date.now() < graceUntilRef.current) {
+        if (isSyncInFlightRef.current || Date.now() < graceUntilRef.current) {
           return;
         }
         if (!isBrowserOnline()) return;

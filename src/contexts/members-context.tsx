@@ -170,15 +170,17 @@ export function MembersProvider({ children }: { children: ReactNode }) {
 
         const merged = mergeMembersCache(previous, serverList);
 
+        // Always hydrate in-memory state after a successful fetch.
+        // Another writer (useMembersLocal) may have already persisted the same
+        // list, making hasChanges=false while this provider's state is still [].
+        setMembers(merged.list);
+        setLastSyncTime(new Date());
         if (merged.hasChanges) {
-          setMembers(merged.list);
-          setLastSyncTime(new Date());
           // Only rewrite caches when something actually changed
           // (unchanged members kept; new/updated/removed applied — never a blind wipe)
           saveToLocalCache(merged.list);
           saveMembersLocalCache(barrioOrg, merged.list);
         }
-        // If nothing new: keep previous members + cache intact (no wipe, no rewrite)
 
         return merged.hasChanges;
       } catch (error) {

@@ -327,6 +327,7 @@
   "churchChat.readResponseTitle": "Read",
   "churchChat.send": "Send",
   "churchChat.sendErrorDefault": "Could not get a response. Please try again.",
+  "churchChat.sendErrorTimeout": "The AI response took too long. Try again or ask a shorter question.",
   "churchChat.sendErrorTitle": "Send error",
   "churchChat.speakUnavailableDescription": "Your browser does not support speech synthesis.",
   "churchChat.speakUnavailableTitle": "Speech unavailable",

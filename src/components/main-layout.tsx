@@ -389,8 +389,9 @@ export function MainLayout({ children }: { children: ReactNode }) {
             <UserNav />
           </div>
         </header>
-        {/* refreshGeneration remounts the page so client data loaders re-run after manual refresh.
-            Offline refreshes do NOT bump generation (see refresh-context) so the UI stays put.
+        {/* refreshGeneration remounts only after *manual* header refresh so mount-only
+            loaders re-run. Silent CF auto-sync never bumps this — updates run in
+            background via registered handlers (no flash / no scroll jump).
             Scroll lives here so the header above stays fixed while the page content moves. */}
         <main className="page-shell min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain" key={refreshGeneration}>
           <OfflineContentBanner />

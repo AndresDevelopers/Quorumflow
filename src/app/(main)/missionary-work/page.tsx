@@ -124,6 +124,7 @@ import {
 import { z } from 'zod';
 import logger from '@/lib/logger';
 import { useAuth } from '@/contexts/auth-context';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { usePermission } from '@/hooks/use-permission';
 import { subHours } from 'date-fns';
 import { FriendshipForm } from './FriendshipForm';
@@ -1007,8 +1008,8 @@ export default function MissionaryWorkPage() {
     }
   }, [tabFromUrl]);
 
-   const fetchData = useCallback(async () => {
-    setLoading(true);
+   const fetchData = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoading(true);
     try {
       const [
         assignmentsData,
@@ -1038,8 +1039,8 @@ export default function MissionaryWorkPage() {
     }
   }, [barrioOrg]);
 
-  const fetchAnnotations = useCallback(async () => {
-    setLoadingAnnotations(true);
+  const fetchAnnotations = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoadingAnnotations(true);
     try {
       const q = query(
         annotationsCollection,
@@ -1068,7 +1069,7 @@ export default function MissionaryWorkPage() {
     try {
       await deleteDoc(doc(annotationsCollection, id));
       toast({ title: t('missionaryWork.success'), description: t('missionaryWork.annotations.deleted') });
-      fetchAnnotations();
+      void fetchAnnotations();
     } catch (error) {
       console.error('Error deleting annotation:', error);
       toast({ title: t('common.error'), description: t('missionaryWork.annotations.deleteError'), variant: 'destructive' });
@@ -1077,9 +1078,17 @@ export default function MissionaryWorkPage() {
 
   useEffect(() => {
     if (authLoading || !user) return; // Wait for authentication
-    fetchData();
-    fetchAnnotations();
+    void fetchData();
+    void fetchAnnotations();
   }, [authLoading, user, fetchData, fetchAnnotations]);
+
+  useOnManualRefresh(async () => {
+    await Promise.all([
+      fetchData({ quiet: true }),
+      fetchAnnotations({ quiet: true }),
+    ]);
+    return true;
+  });
 
   const availableNewConverts = newConvertsWithoutFriends.filter(
     (c) => !investigators.some((i) => i.convertId === c.id)

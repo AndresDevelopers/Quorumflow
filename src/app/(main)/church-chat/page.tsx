@@ -764,9 +764,16 @@ export default function ChurchChatPage() {
         }),
       });
 
-      const payload = (await response.json()) as { answer?: string; error?: string };
+      const payload = (await response.json().catch(() => ({}))) as {
+        answer?: string;
+        error?: string;
+      };
 
       if (!response.ok || !payload.answer) {
+        // Platform timeouts (Vercel/CDN) often return HTML, not JSON.
+        if (response.status === 504 || response.status === 408) {
+          throw new Error(t('churchChat.sendErrorTimeout'));
+        }
         throw new Error(payload.error ?? t('churchChat.sendErrorDefault'));
       }
 

@@ -31,6 +31,7 @@ import {
 import { Pencil, PlusCircle, Settings, Trash2, Users, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { usePermission } from '@/hooks/use-permission';
 import { useI18n } from '@/contexts/i18n-context';
 import { buildMemberLink } from '@/lib/navigation';
@@ -445,8 +446,9 @@ export default function MinisteringPage() {
     }
   };
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (opts?: { quiet?: boolean }) => {
+    // Quiet = CF/background sync: keep current UI (no skeleton flash).
+    if (!opts?.quiet) setLoading(true);
     try {
         let comps = await getCompanionships(barrioOrg);
         const membersList = await getMembersByStatus(undefined, { barrioOrg });
@@ -582,8 +584,14 @@ export default function MinisteringPage() {
 
   useEffect(() => {
     if (authLoading || !user) return;
-    loadData();
+    void loadData();
   }, [authLoading, user, loadData]);
+
+  // Background CF sync + header refresh: re-pull without remounting the page.
+  useOnManualRefresh(async () => {
+    await loadData({ quiet: true });
+    return true;
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;

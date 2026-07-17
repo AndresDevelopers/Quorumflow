@@ -14,3 +14,7 @@ onlyBuiltDependencies:
   - unrs-resolver
 overrides:
   postcss: '>=8.5.10'
+  # firebase-admin@14 → jwks-rsa@4 does require('jose') but jose@6 is ESM-only.
+  # Pin only jwks-rsa's jose to dual CJS/ESM 4.15.9 (importJWK/exportSPKI identical).
+  # Remove when auth0/node-jwks-rsa#508 ships. See firebase-admin-node#3181.
+  jwks-rsa>jose: 4.15.9

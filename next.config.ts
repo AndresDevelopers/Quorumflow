@@ -90,9 +90,38 @@ const withPWA = withPWAInit({
         },
       },
       {
-        // Same-origin API reads (members list, icons, etc.)
+        // AI endpoints: never SW-cache and never race with a 5s network timeout.
+        // DeepSeek/Gemini often take 8–30s; NetworkFirst would serve empty/stale
+        // cache or fail only in production (PWA is disabled in development).
         urlPattern: ({ url }: { url: URL }) =>
-          url.pathname.startsWith('/api/') && !url.pathname.includes('auth'),
+          /^\/api\/(church-chat|suggestions|service-suggestions|analyze-image)(\/|$)/.test(
+            url.pathname
+          ),
+        handler: 'NetworkOnly',
+        method: 'GET',
+        options: {
+          cacheName: 'apis-ai',
+        },
+      },
+      {
+        urlPattern: ({ url }: { url: URL }) =>
+          /^\/api\/(church-chat|suggestions|service-suggestions|analyze-image)(\/|$)/.test(
+            url.pathname
+          ),
+        handler: 'NetworkOnly',
+        method: 'POST',
+        options: {
+          cacheName: 'apis-ai',
+        },
+      },
+      {
+        // Same-origin API reads (members list, icons, etc.) — not AI (see above).
+        urlPattern: ({ url }: { url: URL }) =>
+          url.pathname.startsWith('/api/') &&
+          !url.pathname.includes('auth') &&
+          !/^\/api\/(church-chat|suggestions|service-suggestions|analyze-image)(\/|$)/.test(
+            url.pathname
+          ),
         handler: 'NetworkFirst',
         options: {
           cacheName: 'apis',

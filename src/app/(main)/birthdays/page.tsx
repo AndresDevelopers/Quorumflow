@@ -7,6 +7,7 @@ import { deleteDoc, doc } from 'firebase/firestore';
 import { birthdaysCollection, storage } from '@/lib/collections';
 import type { Birthday } from '@/lib/types';
 import { deleteObject, ref } from 'firebase/storage';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 
 import {
   Card,
@@ -85,23 +86,30 @@ export default function BirthdaysPage() {
   const { toast } = useToast();
   const { t } = useI18n();
 
-  const fetchBirthdays = useCallback(() => {
-    setLoading(true);
-    fetchBirthdaysData(barrioOrg)
-      .then(data => {
-        setBirthdays(getUpcomingBirthdays(data));
-      })
-      .catch(error => {
-        logger.error({ error, message: 'Failed to fetch birthdays' });
-        toast({ title: t('birthdays.error'), description: t('birthdays.loadError'), variant: 'destructive' });
-      })
-      .finally(() => setLoading(false));
+  const fetchBirthdays = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoading(true);
+    try {
+      const data = await fetchBirthdaysData(barrioOrg);
+      setBirthdays(getUpcomingBirthdays(data));
+    } catch (error) {
+      logger.error({ error, message: 'Failed to fetch birthdays' });
+      toast({ title: t('birthdays.error'), description: t('birthdays.loadError'), variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   }, [toast, t, barrioOrg]);
 
   useEffect(() => {
     if (authLoading || !user) return;
-    queueMicrotask(fetchBirthdays);
+    queueMicrotask(() => {
+      void fetchBirthdays();
+    });
   }, [authLoading, user, fetchBirthdays]);
+
+  useOnManualRefresh(async () => {
+    await fetchBirthdays({ quiet: true });
+    return true;
+  });
   
   const handleDelete = async (birthday: Birthday) => {
     try {

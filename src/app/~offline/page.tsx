@@ -27,9 +27,9 @@ export default function OfflineFallbackPage() {
       </div>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button asChild variant="default">
-          <Link href="/">
+          <Link href="/login">
             <Home className="mr-2 h-4 w-4" />
-            Ir al inicio
+            Ir al login
           </Link>
         </Button>
         <Button

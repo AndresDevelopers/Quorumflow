@@ -70,6 +70,7 @@ import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
 import { useAuth } from '@/contexts/auth-context';
+import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { usePermission } from '@/hooks/use-permission';
 import { useI18n } from '@/contexts/i18n-context';
 
@@ -266,13 +267,13 @@ export default function ObservationsPage() {
 
 
 
-  const fetchMembers = useCallback(async () => {
+  const fetchMembers = useCallback(async (opts?: { quiet?: boolean }) => {
 
     if (authLoading || !user) return;
 
 
 
-    setLoading(true);
+    if (!opts?.quiet) setLoading(true);
 
     try {
 
@@ -394,19 +395,28 @@ export default function ObservationsPage() {
 
 
 
-    fetchMembers();
+    void fetchMembers();
 
 
 
-    fetchCompanionships();
+    void fetchCompanionships();
 
 
 
-    loadHealthConcerns();
+    void loadHealthConcerns();
 
 
 
   }, [fetchMembers, fetchCompanionships, loadHealthConcerns]);
+
+  useOnManualRefresh(async () => {
+    await Promise.all([
+      fetchMembers({ quiet: true }),
+      fetchCompanionships(),
+      loadHealthConcerns(),
+    ]);
+    return true;
+  });
 
 
 

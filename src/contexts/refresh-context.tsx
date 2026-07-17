@@ -41,20 +41,38 @@ export type RequestRefreshOptions = {
 export type SyncSource = 'manual' | 'automatic';
 
 interface RefreshContextValue {
-  /** True while a manual refresh is in progress */
+  /**
+   * True while a *manual* refresh is in progress (header button spinner).
+   * Silent CF sync does not set this — background only.
+   */
   isRefreshing: boolean;
+  /**
+   * True while any refresh is in flight (manual or silent CF auto-sync).
+   * Used by DataSyncListener to absorb overlapping signals without UI spin.
+   */
+  isSyncInFlight: boolean;
   /** Last successful sync time (updated even when there is no new data) */
   lastSyncTime: Date | null;
   /** Whether last sync was manual (header button) or automatic (CF / silent) */
   lastSyncSource: SyncSource | null;
-  /** Bumps when a refresh finishes; use as key to remount page content */
+  /**
+   * Bumps only after a *manual* refresh finishes; used as key to remount
+   * page content so mount-only loaders re-run. Silent CF sync never bumps this.
+   */
   refreshGeneration: number;
-  /** Register a handler that runs on every manual refresh. Returns unregister fn. */
+  /**
+   * Bumps after every successful online refresh (manual + silent).
+   * Pages can depend on this to soft-reload data in place without remounting.
+   */
+  dataSyncGeneration: number;
+  /** Register a handler that runs on every refresh (manual + silent). Returns unregister fn. */
   registerRefreshHandler: (handler: RefreshHandler) => () => void;
   /**
    * Refresh page data from server/cache.
-   * Auto path (Cloud Function signal): `{ silent: true }`.
-   * Header button (fallback): default / `{ silent: false }`.
+   * Auto path (Cloud Function signal): `{ silent: true }` — in-place only
+   * (handlers + clock); never remounts the page or calls router.refresh().
+   * Header button (fallback): default / `{ silent: false }` — full refresh
+   * with remount so mount-only loaders re-run.
    * Offline / no connectivity: keeps cache, never blocks the UI.
    */
   requestRefresh: (options?: RequestRefreshOptions) => Promise<void>;
@@ -165,9 +183,11 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const { barrioOrg } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncInFlight, setIsSyncInFlight] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [lastSyncSource, setLastSyncSource] = useState<SyncSource | null>(null);
   const [refreshGeneration, setRefreshGeneration] = useState(0);
+  const [dataSyncGeneration, setDataSyncGeneration] = useState(0);
   const handlersRef = useRef(new Set<RefreshHandler>());
   const inFlightRef = useRef(false);
   /** Avoid putting lastSyncTime in requestRefresh deps (re-subscribes CF listener). */
@@ -209,7 +229,11 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     const silent = options?.silent === true;
-    setIsRefreshing(true);
+    // Manual: spin the header button. Silent CF: background only (no UI block).
+    setIsSyncInFlight(true);
+    if (!silent) {
+      setIsRefreshing(true);
+    }
 
     try {
       // 1) Fast local flag
@@ -261,9 +285,14 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // ── ONLINE: sync + force server window + remount pages ──
+      // ── ONLINE: sync + force server window ──
       // flushOfflineSync may write pending docs → CF publishes a signal.
       // DataSyncListener absorbs those echoes so the source stays "manual".
+      //
+      // Silent (CF auto-sync): update in place only — never remount the tree
+      // and never router.refresh(). Remounting made every remote write feel
+      // like a full page reload for all users (including the one who saved).
+      // Manual header button: remount so mount-only page loaders re-run.
       try {
         await withTimeout(flushOfflineSync(), 8_000, 'flushOfflineSync');
       } catch (error) {
@@ -306,15 +335,19 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
         );
       }
 
-      // Only remount when we actually have connectivity — never offline
-      try {
-        router.refresh();
-      } catch {
-        // ignore
-      }
-      setRefreshGeneration((g) => g + 1);
+      // Soft generation for in-place listeners (silent + manual).
+      setDataSyncGeneration((g) => g + 1);
 
+      // Full remount + Next RSC refresh only on *manual* refresh.
+      // Silent CF sync must stay background: handlers + event already ran.
       if (!silent) {
+        try {
+          router.refresh();
+        } catch {
+          // ignore
+        }
+        setRefreshGeneration((g) => g + 1);
+
         if (anyDataChanged) {
           toast({
             title: t('mainLayout.refreshSuccessTitle') || 'Datos actualizados',
@@ -357,6 +390,7 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
       // Do NOT clear force-server window here on success — remounted pages
       // need ~20s of getDocsFromServer (TTL in beginForceServerReads).
       inFlightRef.current = false;
+      setIsSyncInFlight(false);
       setIsRefreshing(false);
     }
   }, [router, toast, t, barrioOrg]);
@@ -364,18 +398,22 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       isRefreshing,
+      isSyncInFlight,
       lastSyncTime,
       lastSyncSource,
       refreshGeneration,
+      dataSyncGeneration,
       registerRefreshHandler,
       requestRefresh,
       markLastSyncTime,
     }),
     [
       isRefreshing,
+      isSyncInFlight,
       lastSyncTime,
       lastSyncSource,
       refreshGeneration,
+      dataSyncGeneration,
       registerRefreshHandler,
       requestRefresh,
       markLastSyncTime,
@@ -399,7 +437,13 @@ export function useRefreshOptional(): RefreshContextValue | null {
 }
 
 /**
- * Register a callback that runs when the user presses the global refresh icon.
+ * Register a callback that runs on every data refresh:
+ * - Manual header button
+ * - Silent Cloud Function auto-sync (background, no remount)
+ *
+ * Prefer this for list/detail pages so other accounts see updates in place
+ * without a full page remount. Keep loaders quiet when data is already shown.
+ *
  * Pass a stable handler (useCallback) to avoid re-registering every render.
  */
 export function useOnManualRefresh(handler: RefreshHandler) {
@@ -411,4 +455,25 @@ export function useOnManualRefresh(handler: RefreshHandler) {
     if (!refresh) return;
     return refresh.registerRefreshHandler(() => handlerRef.current());
   }, [refresh]);
+}
+
+/**
+ * Soft re-run a data loader when CF auto-sync or manual refresh completes,
+ * without remounting the page. Skips the first mount (use your own mount effect).
+ * Prefer `useOnManualRefresh` when the loader is the single source of truth.
+ */
+export function useOnDataSyncGeneration(handler: () => void | Promise<void>) {
+  const refresh = useRefreshOptional();
+  const generation = refresh?.dataSyncGeneration ?? 0;
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+  const skipFirstRef = useRef(true);
+
+  useEffect(() => {
+    if (skipFirstRef.current) {
+      skipFirstRef.current = false;
+      return;
+    }
+    void handlerRef.current();
+  }, [generation]);
 }

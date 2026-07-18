@@ -18,7 +18,7 @@ First off, thank you for considering contributing to SionFlow. It's people like 
 
 1.  Fork the repo and create your branch from `main`.
 2.  If you've added code that should be tested, add tests.
-3.  Ensure the test suite passes (`pnpm test:roles`).
+3.  Ensure the test suite passes (`pnpm test`).
 4.  Make sure your code lints (`pnpm lint`).
 5.  Issue that pull request!
 

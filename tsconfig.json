@@ -29,9 +29,6 @@
       ],
       "@/contexts/*": [
         "./src/contexts/*"
-      ],
-      "@testing-library/react": [
-        "./src/test-support/testing-library-react"
       ]
     }
   },

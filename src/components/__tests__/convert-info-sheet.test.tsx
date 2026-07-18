@@ -1,9 +1,9 @@
-import { render } from '@testing-library/react';
 import { Timestamp } from 'firebase/firestore';
 import { ConvertInfoSheet, type ConvertWithInfo } from '@/app/(main)/converts/convert-info-sheet';
+import { renderWithProviders, screen } from '@/test-support/render';
 
 describe('ConvertInfoSheet', () => {
-  it('renders with recommendation, autosuficiencia and friend mapping', () => {
+  it('renders convert name and recommendation toggle when open', () => {
     const convert: ConvertWithInfo = {
       id: 'convert_1',
       name: 'Juan Perez',
@@ -13,13 +13,13 @@ describe('ConvertInfoSheet', () => {
         convertId: 'convert_1',
         convertName: 'Juan Perez',
         friends: ['member_1'],
-        assignedAt: Timestamp.now()
+        assignedAt: Timestamp.now(),
       },
       recommendationActive: true,
-      selfRelianceCourse: false
+      selfRelianceCourse: false,
     };
 
-    render(
+    renderWithProviders(
       <ConvertInfoSheet
         convert={convert}
         isOpen={true}
@@ -27,16 +27,20 @@ describe('ConvertInfoSheet', () => {
         onSave={async () => {}}
         canWrite={true}
         saving={false}
-        availableMembers={[{
-          id: 'member_1',
-          firstName: 'Carlos',
-          lastName: 'Lopez',
-          status: 'active',
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-          createdBy: 'test'
-        }]}
-      />
+        availableMembers={[
+          {
+            id: 'member_1',
+            firstName: 'Carlos',
+            lastName: 'Lopez',
+            status: 'active',
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+            createdBy: 'test',
+          },
+        ]}
+      />,
     );
+
+    expect(screen.getByText('Juan Perez')).toBeInTheDocument();
   });
 });

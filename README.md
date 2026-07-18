@@ -458,7 +458,9 @@ pnpm dev          # Next.js en puerto 9001
 | `pnpm start` | Servidor de producción |
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | Verificación de tipos (`tsc --noEmit`) |
-| `pnpm test:roles` | Tests del sistema de roles |
+| `pnpm test` | Unitarios + smoke de páginas (Vitest) |
+| `pnpm test:watch` | Vitest en modo watch |
+| `pnpm test:roles` | Tests del sistema de roles (node:test) |
 | `pnpm check:i18n` | Verifica claves de i18n entre `es.json` y `en.json` |
 | `pnpm changelog` | Generar changelog |
 | `pnpm setup-hooks` | Configurar git hooks |

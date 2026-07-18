@@ -40,5 +40,8 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Role unit tests
+      - name: Unit and page smoke tests
+        run: pnpm test
+
+      - name: Role unit tests (node:test)
         run: pnpm test:roles

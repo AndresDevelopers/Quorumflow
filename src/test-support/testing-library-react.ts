@@ -1,21 +1,5 @@
-import type { ReactElement } from 'react';
-
-type WaitForCallback<T> = () => T | Promise<T>;
-
-type ActCallback = () => void | Promise<void>;
-
-export function render(_ui: ReactElement) {
-  return {
-    unmount() {
-      // noop stub for type-checking purposes
-    },
-  };
-}
-
-export async function waitFor<T>(_callback: WaitForCallback<T>): Promise<void> {
-  // noop stub for type-checking purposes
-}
-
-export async function act(_callback: ActCallback): Promise<void> {
-  // noop stub for type-checking purposes
-}
+/**
+ * @deprecated Use the real `@testing-library/react` package.
+ * Kept only so any stale imports resolve during migration.
+ */
+export { render, waitFor, act, cleanup, screen, within, renderHook } from '@testing-library/react';

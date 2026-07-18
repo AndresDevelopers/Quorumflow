@@ -1,6 +1,20 @@
 {
-  "current": "1.1.34",
+  "current": "1.1.35",
   "entries": [
+    {
+      "version": "1.1.35",
+      "date": "2026-07-18",
+      "changes": {
+        "es": [
+          "Mejoramos la infraestructura de pruebas migrando a Vitest, lo que hace que las pruebas sean más rápidas y confiables.",
+          "Añadimos cientos de pruebas automáticas que verifican que todas las páginas principales de la aplicación funcionan correctamente."
+        ],
+        "en": [
+          "We upgraded our testing framework to Vitest, making tests faster and more reliable.",
+          "Added hundreds of automated tests to ensure all main pages of the app work correctly."
+        ]
+      }
+    },
     {
       "version": "1.1.34",
       "date": "2026-07-17",

@@ -227,10 +227,10 @@ export default function ProfilePage() {
                 // Path under the uploader's uid (Storage rules: owner write only).
                 // Secretary may set another user's photoURL; object lives under their own tree.
                 const uploaderUid = user?.uid ?? targetUid;
-                const { userScopedStoragePath } = await import('@/lib/storage-paths');
+                const { userScopedStoragePath, storageImageUploadMetadata } = await import('@/lib/storage-paths');
                 const path = userScopedStoragePath(uploaderUid, 'profile_pictures/users', optimized.name);
                 const storageRef = ref(storage, path);
-                await uploadBytes(storageRef, optimized, { contentType: optimized.type });
+                await uploadBytes(storageRef, optimized, storageImageUploadMetadata(optimized.type));
                 nextPhotoUrl = await getDownloadURL(storageRef);
 
                 if (basePhotoUrl?.startsWith('https://firebasestorage.googleapis.com')) {

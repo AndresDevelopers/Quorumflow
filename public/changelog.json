@@ -1,6 +1,22 @@
 {
-  "current": "1.1.35",
+  "current": "1.1.36",
   "entries": [
+    {
+      "version": "1.1.36",
+      "date": "2026-07-20",
+      "changes": {
+        "es": [
+          "Hemos mejorado la velocidad de subida de archivos y reducido los costos al optimizar la compresión de imágenes de perfil, que ahora se redimensionan a un máximo de 640px y un tamaño máximo de 180KB.",
+          "Ahora las subidas de archivos usan una configuración de caché unificada, lo que hace que las imágenes y documentos se carguen más rápido en todas las partes de la aplicación.",
+          "Agregamos nuevas herramientas de mantenimiento para administradores: un comando para encontrar archivos huérfanos en el almacenamiento y otro para actualizar la configuración de caché de archivos existentes."
+        ],
+        "en": [
+          "We've improved upload speed and reduced costs by optimizing profile image compression—now resized to a max of 640px and limited to 180KB.",
+          "File uploads now use a unified cache configuration, making images and documents load faster across all parts of the app.",
+          "We added new maintenance tools for admins: a command to find orphaned storage files and another to update cache settings on existing files."
+        ]
+      }
+    },
     {
       "version": "1.1.35",
       "date": "2026-07-18",

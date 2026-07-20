@@ -170,10 +170,10 @@ export function ServiceForm({ service }: ServiceFormProps) {
     try {
       const uploadPromises = selectedFiles.map(async (file) => {
         const optimized = await compressGalleryImage(file);
-        const { userScopedStoragePath } = await import('@/lib/storage-paths');
+        const { userScopedStoragePath, storageImageUploadMetadata } = await import('@/lib/storage-paths');
         const path = userScopedStoragePath(user.uid, 'service_images', optimized.name);
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, optimized, { contentType: optimized.type });
+        await uploadBytes(storageRef, optimized, storageImageUploadMetadata(optimized.type));
         return getDownloadURL(storageRef);
       });
 

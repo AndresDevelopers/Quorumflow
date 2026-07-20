@@ -157,7 +157,8 @@ export async function uploadBytesOfflineAware(
   if (isBrowserOnline() && storage) {
     try {
       const storageRef = ref(storage, storagePath);
-      await uploadBytes(storageRef, data, { contentType });
+      const { storageImageUploadMetadata } = await import('@/lib/storage-paths');
+      await uploadBytes(storageRef, data, storageImageUploadMetadata(contentType));
       const url = await getDownloadURL(storageRef);
       return { url, path: storagePath, queued: false };
     } catch (error) {
@@ -201,7 +202,8 @@ export async function processStorageOfflineQueue(): Promise<{
     try {
       const blob = new Blob([item.data], { type: item.contentType });
       const storageRef = ref(storage, item.storagePath);
-      await uploadBytes(storageRef, blob, { contentType: item.contentType });
+      const { storageImageUploadMetadata } = await import('@/lib/storage-paths');
+      await uploadBytes(storageRef, blob, storageImageUploadMetadata(item.contentType));
       const url = await getDownloadURL(storageRef);
 
       if (item.firestorePatch && firestore) {

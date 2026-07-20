@@ -161,11 +161,15 @@ export function compressGalleryImage(file: File): Promise<File> {
   });
 }
 
-/** Profile / avatar / list photos */
+/**
+ * Profile / avatar / list photos.
+ * Lists render at 32–40px, detail at ~96px; 640px covers 2–3× retina without
+ * shipping 1280px full-frames on every members/converts list row (egress).
+ */
 export function compressProfileImage(file: File): Promise<File> {
   return compressImageForUpload(file, {
-    maxDimension: 1280,
+    maxDimension: 640,
     quality: 0.78,
-    maxBytes: 400 * 1024,
+    maxBytes: 180 * 1024,
   });
 }

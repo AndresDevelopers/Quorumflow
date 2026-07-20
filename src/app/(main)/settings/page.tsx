@@ -551,10 +551,10 @@ export default function SettingsPage() {
       if (selectedFile) {
         // User uploaded a new photo (compressed client-side)
         const optimized = await compressProfileImage(selectedFile);
-        const { userScopedStoragePath } = await import('@/lib/storage-paths');
+        const { userScopedStoragePath, storageImageUploadMetadata } = await import('@/lib/storage-paths');
         const path = userScopedStoragePath(firebaseUser.uid, 'profile_pictures/users', optimized.name);
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, optimized, { contentType: optimized.type });
+        await uploadBytes(storageRef, optimized, storageImageUploadMetadata(optimized.type));
         finalPhotoURL = await getDownloadURL(storageRef);
 
         if (firebaseUser.photoURL && firebaseUser.photoURL.startsWith('https://firebasestorage.googleapis.com')) {

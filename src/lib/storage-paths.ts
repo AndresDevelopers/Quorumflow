@@ -5,6 +5,22 @@
  * Aligns with storage.rules so clients can only write under their own uid.
  */
 
+/**
+ * Long-lived browser/CDN cache for image objects.
+ * Paths are unique per upload (timestamp + random), so objects are immutable
+ * once written — safe to cache for 1 year and cut repeat egress.
+ */
+export const STORAGE_IMAGE_CACHE_CONTROL =
+  'public, max-age=31536000, immutable' as const;
+
+/** Metadata for `uploadBytes` / Admin `save` of image objects. */
+export function storageImageUploadMetadata(contentType?: string) {
+  return {
+    contentType: contentType || 'application/octet-stream',
+    cacheControl: STORAGE_IMAGE_CACHE_CONTROL,
+  };
+}
+
 function sanitizeFileName(value: string, fallback: string): string {
   const cleaned = value
     .trim()

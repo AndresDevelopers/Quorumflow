@@ -73,6 +73,9 @@ public/swe-worker-*.js
 *-firebase-adminsdk-*.json
 quorumflow-*.json
 
+# Storage audit reports (local ops; may list object paths)
+scripts/storage-orphan-report.json
+
 # Misc
 .windsurfrules
 opencode.json

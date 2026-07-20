@@ -173,10 +173,10 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
     try {
       if (selectedFile) {
         const optimized = await compressProfileImage(selectedFile);
-        const { userScopedStoragePath } = await import('@/lib/storage-paths');
+        const { userScopedStoragePath, storageImageUploadMetadata } = await import('@/lib/storage-paths');
         const path = userScopedStoragePath(user.uid, 'profile_pictures/future_members', optimized.name);
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, optimized, { contentType: optimized.type });
+        await uploadBytes(storageRef, optimized, storageImageUploadMetadata(optimized.type));
         finalPhotoURL = await getDownloadURL(storageRef);
 
         if (isEditMode && futureMember?.photoURL && futureMember.photoURL.startsWith('https://firebasestorage.googleapis.com')) {
@@ -195,10 +195,10 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
         baptismPhotos.map(async photo => {
           if (typeof photo === 'string') return photo;
           const optimized = await compressGalleryImage(photo);
-          const { userScopedStoragePath } = await import('@/lib/storage-paths');
+          const { userScopedStoragePath, storageImageUploadMetadata } = await import('@/lib/storage-paths');
           const path = userScopedStoragePath(user.uid, 'baptism_photos/future_members', optimized.name);
           const storageRef = ref(storage, path);
-          await uploadBytes(storageRef, optimized, { contentType: optimized.type });
+          await uploadBytes(storageRef, optimized, storageImageUploadMetadata(optimized.type));
           return getDownloadURL(storageRef);
         })
       );

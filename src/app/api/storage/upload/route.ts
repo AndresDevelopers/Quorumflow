@@ -5,7 +5,7 @@ import { getAdminBucket } from '@/lib/firebase-admin';
 import logger from '@/lib/logger';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getErrorStatus, requireUid } from '@/lib/api-auth';
-import { userScopedStoragePath } from '@/lib/storage-paths';
+import { STORAGE_IMAGE_CACHE_CONTROL, userScopedStoragePath } from '@/lib/storage-paths';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -171,7 +171,7 @@ export async function POST(request: Request) {
       contentType: mimeType,
       metadata: {
         contentType: mimeType,
-        cacheControl: 'public, max-age=31536000',
+        cacheControl: STORAGE_IMAGE_CACHE_CONTROL,
         metadata: {
           // Permanent Firebase download token (does not expire like V4 signed URLs).
           firebaseStorageDownloadTokens: downloadToken,

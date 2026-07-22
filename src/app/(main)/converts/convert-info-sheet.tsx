@@ -12,10 +12,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { OfflineImage } from '@/components/offline-image';
 import { PlusCircle, Trash2, UserPlus, Users } from 'lucide-react';
 import { MemberSelector } from '@/components/members/member-selector';
-import type { Convert, Member, NewConvertFriendship, Ordinance } from '@/lib/types';
+import type { Convert, Member, NewConvertFriendship, Ordinance, FamilySearchTreeStatus } from '@/lib/types';
 import { useI18n } from '@/contexts/i18n-context';
 import { getMemberPhotoURL } from '@/lib/converts-from-members';
 
@@ -28,7 +29,24 @@ export type ConvertWithInfo = Convert & {
   notes?: string;
   recommendationActive?: boolean;
   selfRelianceCourse?: boolean;
+  hasLdsAccount?: boolean;
+  hasFamilySearchAccount?: boolean;
+  familySearchGenerations?: number | null;
+  familySearchTreeStatus?: FamilySearchTreeStatus | null;
+  familySearchPartialDetails?: string | null;
   memberId?: string;
+};
+
+export type ConvertInfoSavePayload = {
+  calling: string;
+  notes: string;
+  recommendationActive: boolean;
+  selfRelianceCourse: boolean;
+  hasLdsAccount: boolean;
+  hasFamilySearchAccount: boolean;
+  familySearchGenerations?: number | null;
+  familySearchTreeStatus?: FamilySearchTreeStatus | null;
+  familySearchPartialDetails?: string | null;
 };
 
 // Convert Info Sheet Component
@@ -36,7 +54,7 @@ interface ConvertInfoSheetProps {
   convert: ConvertWithInfo | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (convertId: string, calling: string, notes: string, recommendationActive: boolean, selfRelianceCourse: boolean) => Promise<void>;
+  onSave: (convertId: string, data: ConvertInfoSavePayload) => Promise<void>;
   onSaveFriends?: (convertId: string, convertName: string, friends: string[], friendshipId?: string) => Promise<void>;
   onSaveTeachers?: (memberId: string, teachers: string[], previousTeachers: string[]) => Promise<void>;
   saving: boolean;
@@ -60,6 +78,25 @@ export function ConvertInfoSheet({
   const [notes, setNotes] = useState(convert?.notes || '');
   const [recommendationActive, setRecommendationActive] = useState(!!convert?.recommendationActive);
   const [selfRelianceCourse, setSelfRelianceCourse] = useState(!!convert?.selfRelianceCourse);
+  const [hasLdsAccount, setHasLdsAccount] = useState(
+    !!(convert?.hasLdsAccount ?? convert?.memberData?.hasLdsAccount)
+  );
+  const [hasFamilySearchAccount, setHasFamilySearchAccount] = useState(
+    !!(convert?.hasFamilySearchAccount ?? convert?.memberData?.hasFamilySearchAccount)
+  );
+  const [familySearchGenerations, setFamilySearchGenerations] = useState(
+    convert?.familySearchGenerations != null && convert.familySearchGenerations > 0
+      ? String(convert.familySearchGenerations)
+      : convert?.memberData?.familySearchGenerations != null && convert.memberData.familySearchGenerations > 0
+        ? String(convert.memberData.familySearchGenerations)
+        : ''
+  );
+  const [familySearchTreeStatus, setFamilySearchTreeStatus] = useState<FamilySearchTreeStatus | null>(
+    convert?.familySearchTreeStatus ?? convert?.memberData?.familySearchTreeStatus ?? null
+  );
+  const [familySearchPartialDetails, setFamilySearchPartialDetails] = useState(
+    convert?.familySearchPartialDetails || convert?.memberData?.familySearchPartialDetails || ''
+  );
   const [hasChanges, setHasChanges] = useState(false);
   
   // Edit mode states
@@ -82,6 +119,21 @@ export function ConvertInfoSheet({
         setNotes(convert?.notes || '');
         setRecommendationActive(!!convert?.recommendationActive);
         setSelfRelianceCourse(!!convert?.selfRelianceCourse);
+        setHasLdsAccount(!!(convert?.hasLdsAccount ?? convert?.memberData?.hasLdsAccount));
+        setHasFamilySearchAccount(
+          !!(convert?.hasFamilySearchAccount ?? convert?.memberData?.hasFamilySearchAccount)
+        );
+        const gens =
+          convert?.familySearchGenerations ?? convert?.memberData?.familySearchGenerations;
+        setFamilySearchGenerations(
+          gens != null && gens > 0 ? String(gens) : ''
+        );
+        setFamilySearchTreeStatus(
+          convert?.familySearchTreeStatus ?? convert?.memberData?.familySearchTreeStatus ?? null
+        );
+        setFamilySearchPartialDetails(
+          convert?.familySearchPartialDetails || convert?.memberData?.familySearchPartialDetails || ''
+        );
         setHasChanges(false);
         setEditingFriends(false);
         setEditingTeachers(false);
@@ -102,7 +154,25 @@ export function ConvertInfoSheet({
     }, 0);
 
     return () => clearTimeout(timeoutId);
-  }, [currentConvertId, convert?.calling, convert?.notes, convert?.recommendationActive, convert?.selfRelianceCourse, convert?.friendship?.friends, convert?.ministeringTeachers]);
+  }, [
+    currentConvertId,
+    convert?.calling,
+    convert?.notes,
+    convert?.recommendationActive,
+    convert?.selfRelianceCourse,
+    convert?.hasLdsAccount,
+    convert?.hasFamilySearchAccount,
+    convert?.familySearchGenerations,
+    convert?.familySearchTreeStatus,
+    convert?.familySearchPartialDetails,
+    convert?.memberData?.hasLdsAccount,
+    convert?.memberData?.hasFamilySearchAccount,
+    convert?.memberData?.familySearchGenerations,
+    convert?.memberData?.familySearchTreeStatus,
+    convert?.memberData?.familySearchPartialDetails,
+    convert?.friendship?.friends,
+    convert?.ministeringTeachers,
+  ]);
 
   const handleCallingChange = (value: string) => {
     setCalling(value);
@@ -121,6 +191,21 @@ export function ConvertInfoSheet({
 
   const handleSelfRelianceCourseChange = (value: boolean) => {
     setSelfRelianceCourse(value);
+    setHasChanges(true);
+  };
+
+  const handleLdsAccountChange = (value: boolean) => {
+    setHasLdsAccount(value);
+    setHasChanges(true);
+  };
+
+  const handleFamilySearchAccountChange = (value: boolean) => {
+    setHasFamilySearchAccount(value);
+    if (!value) {
+      setFamilySearchGenerations('');
+      setFamilySearchTreeStatus(null);
+      setFamilySearchPartialDetails('');
+    }
     setHasChanges(true);
   };
 
@@ -180,7 +265,31 @@ export function ConvertInfoSheet({
 
   const handleSave = async () => {
     if (!convert) return;
-    await onSave(convert.id, calling, notes, recommendationActive, selfRelianceCourse);
+    let generations: number | null = null;
+    if (hasFamilySearchAccount) {
+      const genRaw = familySearchGenerations.trim();
+      if (genRaw) {
+        const n = parseInt(genRaw, 10);
+        if (!Number.isNaN(n) && n > 0) generations = n;
+      }
+    }
+    const treeStatus = hasFamilySearchAccount ? familySearchTreeStatus : null;
+    const partialDetails =
+      hasFamilySearchAccount && treeStatus === 'partial'
+        ? familySearchPartialDetails.trim() || null
+        : null;
+
+    await onSave(convert.id, {
+      calling,
+      notes,
+      recommendationActive,
+      selfRelianceCourse,
+      hasLdsAccount,
+      hasFamilySearchAccount,
+      familySearchGenerations: hasFamilySearchAccount ? generations : null,
+      familySearchTreeStatus: treeStatus,
+      familySearchPartialDetails: partialDetails,
+    });
     setHasChanges(false);
   };
 
@@ -399,6 +508,110 @@ export function ConvertInfoSheet({
                     checked={selfRelianceCourse}
                     onCheckedChange={handleSelfRelianceCourseChange}
                   />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-1">
+                    <Label className="text-sm font-semibold text-muted-foreground">{t('converts.sheet.hasLdsAccount')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('converts.sheet.hasLdsAccountHelp')}</p>
+                  </div>
+                  <Switch
+                    checked={hasLdsAccount}
+                    onCheckedChange={handleLdsAccountChange}
+                  />
+                </div>
+                <div className="rounded-lg border p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-semibold text-muted-foreground">{t('converts.sheet.hasFamilySearchAccount')}</Label>
+                      <p className="text-xs text-muted-foreground">{t('converts.sheet.hasFamilySearchAccountHelp')}</p>
+                    </div>
+                    <Switch
+                      checked={hasFamilySearchAccount}
+                      onCheckedChange={handleFamilySearchAccountChange}
+                    />
+                  </div>
+
+                  {hasFamilySearchAccount && (
+                    <div className="space-y-3 border-t pt-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="fs-generations" className="text-sm">
+                          {t('converts.sheet.familySearchGenerations')}
+                        </Label>
+                        <Input
+                          id="fs-generations"
+                          type="number"
+                          min={1}
+                          max={50}
+                          inputMode="numeric"
+                          placeholder={t('converts.sheet.familySearchGenerationsPlaceholder')}
+                          value={familySearchGenerations}
+                          onChange={(e) => {
+                            setFamilySearchGenerations(e.target.value);
+                            setHasChanges(true);
+                          }}
+                          className="text-sm"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {t('converts.sheet.familySearchGenerationsHelp')}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm">{t('converts.sheet.familySearchTreeStatus')}</Label>
+                        <RadioGroup
+                          value={familySearchTreeStatus || ''}
+                          onValueChange={(value) => {
+                            if (value === 'complete' || value === 'partial') {
+                              setFamilySearchTreeStatus(value);
+                              if (value === 'complete') setFamilySearchPartialDetails('');
+                            } else {
+                              setFamilySearchTreeStatus(null);
+                            }
+                            setHasChanges(true);
+                          }}
+                          className="flex flex-col gap-2 sm:flex-row sm:gap-4"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="complete" id="convert-fs-complete" />
+                            <Label htmlFor="convert-fs-complete" className="font-normal cursor-pointer text-sm">
+                              {t('converts.sheet.familySearchTreeComplete')}
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="partial" id="convert-fs-partial" />
+                            <Label htmlFor="convert-fs-partial" className="font-normal cursor-pointer text-sm">
+                              {t('converts.sheet.familySearchTreePartial')}
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                        <p className="text-xs text-muted-foreground">
+                          {t('converts.sheet.familySearchTreeStatusHelp')}
+                        </p>
+                      </div>
+
+                      {familySearchTreeStatus === 'partial' && (
+                        <div className="space-y-1.5">
+                          <Label htmlFor="fs-partial-details" className="text-sm">
+                            {t('converts.sheet.familySearchPartialDetails')}
+                          </Label>
+                          <Textarea
+                            id="fs-partial-details"
+                            placeholder={t('converts.sheet.familySearchPartialDetailsPlaceholder')}
+                            value={familySearchPartialDetails}
+                            onChange={(e) => {
+                              setFamilySearchPartialDetails(e.target.value);
+                              setHasChanges(true);
+                            }}
+                            rows={3}
+                            className="text-sm resize-none"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {t('converts.sheet.familySearchPartialDetailsHelp')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </section>

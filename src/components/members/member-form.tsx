@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,7 +51,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
-import type { Member, MemberStatus, Ordinance } from '@/lib/types';
+import type { Member, MemberStatus, Ordinance, FamilySearchTreeStatus } from '@/lib/types';
 import { OrdinanceLabels } from '@/lib/types';
 import { createMember, updateMember, uploadMemberPhoto, uploadBaptismPhotos, getMembersForSelector, searchMembersByName, getMemberById } from '@/lib/members-data';
 import { syncMinisteringAssignments } from '@/lib/ministering-sync';
@@ -84,6 +86,12 @@ const createMemberFormSchema = (t: (key: string) => string) =>
     ministeringTeachers: z.array(z.string()).optional(),
     isUrgent: z.boolean().optional(),
     isInCouncil: z.boolean().optional(),
+    hasLdsAccount: z.boolean().optional(),
+    hasFamilySearchAccount: z.boolean().optional(),
+    /** Opcional: número de generaciones (string en form para input vacío) */
+    familySearchGenerations: z.string().optional(),
+    familySearchTreeStatus: z.enum(['complete', 'partial']).optional().nullable(),
+    familySearchPartialDetails: z.string().optional(),
     inactiveSince: z.date().optional(),
     inactiveObservation: z.string().optional(),
     lessActiveSince: z.date().optional(),
@@ -156,6 +164,11 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       ordinances: [],
       templeOrdinances: [],
       ministeringTeachers: [],
+      hasLdsAccount: false,
+      hasFamilySearchAccount: false,
+      familySearchGenerations: '',
+      familySearchTreeStatus: null,
+      familySearchPartialDetails: '',
       inactiveSince: undefined,
       inactiveObservation: '',
       lessActiveSince: undefined,
@@ -230,6 +243,14 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         ministeringTeachers: currentMember.ministeringTeachers || [],
         isUrgent: currentMember.isUrgent || false,
         isInCouncil: currentMember.isInCouncil || false,
+        hasLdsAccount: currentMember.hasLdsAccount === true,
+        hasFamilySearchAccount: currentMember.hasFamilySearchAccount === true,
+        familySearchGenerations:
+          currentMember.familySearchGenerations != null && currentMember.familySearchGenerations > 0
+            ? String(currentMember.familySearchGenerations)
+            : '',
+        familySearchTreeStatus: currentMember.familySearchTreeStatus ?? null,
+        familySearchPartialDetails: currentMember.familySearchPartialDetails || '',
         inactiveSince: safeGetDate((currentMember as any).inactiveSince) ?? undefined,
         inactiveObservation: (currentMember as any).inactiveObservation || '',
         lessActiveSince: safeGetDate((currentMember as any).lessActiveSince) ?? undefined,
@@ -282,6 +303,11 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         ministeringTeachers: [],
         isUrgent: false,
         isInCouncil: false,
+        hasLdsAccount: false,
+        hasFamilySearchAccount: false,
+        familySearchGenerations: '',
+        familySearchTreeStatus: null,
+        familySearchPartialDetails: '',
         inactiveSince: undefined,
         inactiveObservation: '',
         lessActiveSince: undefined,
@@ -390,6 +416,42 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
   const watchedFirstName = useWatch({ control: form.control, name: 'firstName' });
   const watchedLastName = useWatch({ control: form.control, name: 'lastName' });
   const watchedStatus = useWatch({ control: form.control, name: 'status' });
+  const watchedHasFamilySearchAccount = useWatch({
+    control: form.control,
+    name: 'hasFamilySearchAccount',
+  });
+  const watchedFamilySearchTreeStatus = useWatch({
+    control: form.control,
+    name: 'familySearchTreeStatus',
+  });
+
+  /** Normaliza campos FS opcionales para guardar en el miembro */
+  const buildFamilySearchFields = (values: MemberFormValues) => {
+    const hasAccount = values.hasFamilySearchAccount === true;
+    if (!hasAccount) {
+      return {
+        hasFamilySearchAccount: false,
+        familySearchGenerations: null as number | null,
+        familySearchTreeStatus: null as FamilySearchTreeStatus | null,
+        familySearchPartialDetails: null as string | null,
+      };
+    }
+    const genRaw = (values.familySearchGenerations || '').trim();
+    let generations: number | null = null;
+    if (genRaw) {
+      const n = parseInt(genRaw, 10);
+      if (!Number.isNaN(n) && n > 0) generations = n;
+    }
+    const status = values.familySearchTreeStatus ?? null;
+    const partialDetails =
+      status === 'partial' ? (values.familySearchPartialDetails || '').trim() || null : null;
+    return {
+      hasFamilySearchAccount: true,
+      familySearchGenerations: generations,
+      familySearchTreeStatus: status,
+      familySearchPartialDetails: partialDetails,
+    };
+  };
 
   // Efecto para verificar duplicados automáticamente al escribir
   useEffect(() => {
@@ -939,6 +1001,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           ministeringTeachers: values.ministeringTeachers || [],
           isUrgent: values.isUrgent || false,
           isInCouncil: values.isInCouncil || false,
+          hasLdsAccount: values.hasLdsAccount === true,
+          ...buildFamilySearchFields(values),
           inactiveSince: values.status === 'inactive'
             ? values.inactiveSince
               ? Timestamp.fromDate(values.inactiveSince)
@@ -1032,6 +1096,8 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           ministeringTeachers: values.ministeringTeachers || [],
           isUrgent: values.isUrgent || false,
           isInCouncil: values.isInCouncil || false,
+          hasLdsAccount: values.hasLdsAccount === true,
+          ...buildFamilySearchFields(values),
           inactiveSince: values.status === 'inactive'
             ? values.inactiveSince
               ? Timestamp.fromDate(values.inactiveSince)
@@ -1819,6 +1885,163 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
               </FormItem>
             )}
           />
+
+          {/* Cuentas digitales (Church Account / FamilySearch) */}
+          <div className="space-y-3 rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">{t('memberForm.digitalAccounts')}</p>
+              <p className="text-xs text-muted-foreground">{t('memberForm.digitalAccountsDesc')}</p>
+            </div>
+            <FormField
+              control={form.control}
+              name="hasLdsAccount"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value === true}
+                      onCheckedChange={(checked) => field.onChange(checked === true)}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="cursor-pointer font-normal">
+                      {t('memberForm.hasLdsAccount')}
+                    </FormLabel>
+                    <FormDescription>
+                      {t('memberForm.hasLdsAccountDesc')}
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="hasFamilySearchAccount"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value === true}
+                      onCheckedChange={(checked) => {
+                        const on = checked === true;
+                        field.onChange(on);
+                        if (!on) {
+                          form.setValue('familySearchGenerations', '');
+                          form.setValue('familySearchTreeStatus', null);
+                          form.setValue('familySearchPartialDetails', '');
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="cursor-pointer font-normal">
+                      {t('memberForm.hasFamilySearchAccount')}
+                    </FormLabel>
+                    <FormDescription>
+                      {t('memberForm.hasFamilySearchAccountDesc')}
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {watchedHasFamilySearchAccount === true && (
+              <div className="ml-0 space-y-3 rounded-md border border-dashed bg-muted/30 p-3 sm:ml-7">
+                <FormField
+                  control={form.control}
+                  name="familySearchGenerations"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('memberForm.familySearchGenerations')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={50}
+                          inputMode="numeric"
+                          placeholder={t('memberForm.familySearchGenerationsPlaceholder')}
+                          value={field.value || ''}
+                          onChange={(e) => field.onChange(e.target.value)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('memberForm.familySearchGenerationsDesc')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="familySearchTreeStatus"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel>{t('memberForm.familySearchTreeStatus')}</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          value={field.value || ''}
+                          onValueChange={(value) => {
+                            if (value === 'complete' || value === 'partial') {
+                              field.onChange(value);
+                              if (value === 'complete') {
+                                form.setValue('familySearchPartialDetails', '');
+                              }
+                            } else {
+                              field.onChange(null);
+                            }
+                          }}
+                          className="flex flex-col gap-2 sm:flex-row sm:gap-4"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="complete" id="fs-status-complete" />
+                            <Label htmlFor="fs-status-complete" className="font-normal cursor-pointer">
+                              {t('memberForm.familySearchTreeComplete')}
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="partial" id="fs-status-partial" />
+                            <Label htmlFor="fs-status-partial" className="font-normal cursor-pointer">
+                              {t('memberForm.familySearchTreePartial')}
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormDescription>
+                        {t('memberForm.familySearchTreeStatusDesc')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {watchedFamilySearchTreeStatus === 'partial' && (
+                  <FormField
+                    control={form.control}
+                    name="familySearchPartialDetails"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('memberForm.familySearchPartialDetails')}</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={t('memberForm.familySearchPartialDetailsPlaceholder')}
+                            value={field.value || ''}
+                            onChange={field.onChange}
+                            rows={3}
+                            className="resize-none"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {t('memberForm.familySearchPartialDetailsDesc')}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+            )}
+          </div>
 
           {watchedStatus === 'deceased' && (
             <FormField

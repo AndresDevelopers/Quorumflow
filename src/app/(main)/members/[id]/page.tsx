@@ -311,56 +311,104 @@ export default function MemberProfilePage() {
         )}
 
         {/* Church Information */}
-        {(member.memberId || member.baptismDate || (member.baptismPhotos && member.baptismPhotos.length > 0)) && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                {t('memberProfile.churchInfo')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {member.memberId && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">
-                    {t('memberProfile.memberId')}
-                  </label>
-                  <p className="text-sm">{member.memberId}</p>
-                </div>
-              )}
-              {member.baptismDate && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">
-                    {t('memberProfile.baptismDate')}
-                  </label>
-                  <p className="text-sm">
-                    {format(member.baptismDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })}
-                  </p>
-                </div>
-              )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              {t('memberProfile.churchInfo')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {member.memberId && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  {t('memberProfile.memberId')}
+                </label>
+                <p className="text-sm">{member.memberId}</p>
+              </div>
+            )}
+            {member.baptismDate && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  {t('memberProfile.baptismDate')}
+                </label>
+                <p className="text-sm">
+                  {format(member.baptismDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })}
+                </p>
+              </div>
+            )}
 
-              {member.baptismPhotos && member.baptismPhotos.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">
-                    {t('memberProfile.baptismPhotos')}
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {member.baptismPhotos.map((photo, index) => (
-                      <OfflineImage
-                        key={index}
-                        src={photo}
-                        alt={t('memberProfile.baptismPhotoAlt', { index: index + 1 })}
-                        width={240}
-                        height={80}
-                        className="w-full h-20 object-cover rounded border"
-                      />
-                    ))}
-                  </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">
+                {t('memberProfile.digitalAccounts')}
+              </label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Badge variant={member.hasLdsAccount ? 'default' : 'outline'}>
+                  {member.hasLdsAccount
+                    ? t('memberProfile.hasLdsAccountYes')
+                    : t('memberProfile.hasLdsAccountNo')}
+                </Badge>
+                <Badge variant={member.hasFamilySearchAccount ? 'default' : 'outline'}>
+                  {member.hasFamilySearchAccount
+                    ? t('memberProfile.hasFamilySearchAccountYes')
+                    : t('memberProfile.hasFamilySearchAccountNo')}
+                </Badge>
+              </div>
+              {member.hasFamilySearchAccount && (
+                <div className="mt-3 space-y-2 rounded-md border bg-muted/30 p-3 text-sm">
+                  {member.familySearchGenerations != null && member.familySearchGenerations > 0 && (
+                    <p>
+                      <span className="text-muted-foreground">
+                        {t('memberProfile.familySearchGenerations')}:{' '}
+                      </span>
+                      {t('memberProfile.familySearchGenerationsValue', {
+                        count: member.familySearchGenerations,
+                      })}
+                    </p>
+                  )}
+                  {member.familySearchTreeStatus && (
+                    <p>
+                      <span className="text-muted-foreground">
+                        {t('memberProfile.familySearchTreeStatus')}:{' '}
+                      </span>
+                      {member.familySearchTreeStatus === 'complete'
+                        ? t('memberProfile.familySearchTreeComplete')
+                        : t('memberProfile.familySearchTreePartial')}
+                    </p>
+                  )}
+                  {member.familySearchTreeStatus === 'partial' && member.familySearchPartialDetails && (
+                    <p>
+                      <span className="text-muted-foreground">
+                        {t('memberProfile.familySearchPartialDetails')}:{' '}
+                      </span>
+                      {member.familySearchPartialDetails}
+                    </p>
+                  )}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        )}
+            </div>
+
+            {member.baptismPhotos && member.baptismPhotos.length > 0 && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  {t('memberProfile.baptismPhotos')}
+                </label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {member.baptismPhotos.map((photo, index) => (
+                    <OfflineImage
+                      key={index}
+                      src={photo}
+                      alt={t('memberProfile.baptismPhotoAlt', { index: index + 1 })}
+                      width={240}
+                      height={80}
+                      className="w-full h-20 object-cover rounded border"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Ordinances */}
         {member.ordinances && member.ordinances.length > 0 && (

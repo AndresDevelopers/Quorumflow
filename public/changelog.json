@@ -1,6 +1,18 @@
 {
-  "current": "1.1.36",
+  "current": "1.1.37",
   "entries": [
+    {
+      "version": "1.1.37",
+      "date": "2026-07-22",
+      "changes": {
+        "es": [
+          "Actualización: Add LDS and FamilySearch account tracking."
+        ],
+        "en": [
+          "Update: Add LDS and FamilySearch account tracking."
+        ]
+      }
+    },
     {
       "version": "1.1.36",
       "date": "2026-07-20",

@@ -61,6 +61,9 @@ export type Activity = {
     additionalText?: string;
 }
 
+/** Tipo de ayuda registrada desde FamilySearch → sección Ayuda */
+export type FamilySearchHelpType = 'create_account' | 'other';
+
 export type Annotation = {
     id: string;
     text: string;
@@ -69,6 +72,10 @@ export type Annotation = {
     source: 'dashboard' | 'council' | 'family-search' | 'missionary-work' | 'service' | 'activities';
     createdAt: Timestamp;
     userId: string;
+    /** Opcional: miembro relacionado (p. ej. ayuda FamilySearch) */
+    memberId?: string;
+    /** Tipo de ayuda FS (create_account se elimina al marcar Completado) */
+    helpType?: FamilySearchHelpType;
 }
 
 export type Birthday = {
@@ -262,6 +269,9 @@ export const TempleOrdinanceLabels: Record<TempleOrdinance, string> = {
     aronico_ordination: 'Ordenado Aarónico'
 };
 
+/** Estado del árbol genealógico en FamilySearch */
+export type FamilySearchTreeStatus = 'complete' | 'partial';
+
 export type Member = {
     id: string;
     firstName: string;
@@ -304,4 +314,26 @@ export type Member = {
     templeWorkCompletedAt?: Timestamp | null;
     // Ordenanzas de obra vicaria para miembros deceased
     templeOrdinances?: TempleOrdinance[];
+    /** Tiene cuenta Church Account (ChurchofJesusChrist.org / LDS Account) */
+    hasLdsAccount?: boolean;
+    /** Tiene cuenta de FamilySearch */
+    hasFamilySearchAccount?: boolean;
+    /**
+     * Marcado en Ayuda FS: el miembro sin cuenta necesita acompañamiento
+     * para crear/configurar FamilySearch (genera una anotación).
+     */
+    needsFamilySearchHelp?: boolean;
+    /**
+     * Id de la anotación de ayuda "crear cuenta" (se borra al marcar Completado).
+     */
+    familySearchCreateAccountAnnotationId?: string | null;
+    /**
+     * Hasta qué generación tiene el árbol en FamilySearch (opcional).
+     * Ej: 4 = hasta 4 generaciones.
+     */
+    familySearchGenerations?: number | null;
+    /** Árbol completo o parcial (opcional, si tiene cuenta FS) */
+    familySearchTreeStatus?: FamilySearchTreeStatus | null;
+    /** Qué está parcial / qué falta (si familySearchTreeStatus === 'partial') */
+    familySearchPartialDetails?: string | null;
 }

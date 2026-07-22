@@ -51,7 +51,8 @@ import { useI18n } from '@/contexts/i18n-context';
 import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
-import { ConvertInfoSheet, type ConvertWithInfo } from '@/app/(main)/converts/convert-info-sheet';
+import { ConvertInfoSheet, type ConvertWithInfo, type ConvertInfoSavePayload } from '@/app/(main)/converts/convert-info-sheet';
+import { parseMemberIdFromConvertId } from '@/lib/converts-from-members';
 import { syncMinisteringAssignments } from '@/lib/ministering-sync';
 
 
@@ -434,9 +435,21 @@ export default function CouncilPage() {
     }
 
   // ── Convert Info Sheet handlers ────────────────────────────────────────
-  const handleSaveConvertInfo = async (convertId: string, calling: string, notes: string, recommendationActive: boolean, selfRelianceCourse: boolean) => {
+  const handleSaveConvertInfo = async (convertId: string, data: ConvertInfoSavePayload) => {
     setSheetSaving(true);
     try {
+      const {
+        calling,
+        notes,
+        recommendationActive,
+        selfRelianceCourse,
+        hasLdsAccount,
+        hasFamilySearchAccount,
+        familySearchGenerations,
+        familySearchTreeStatus,
+        familySearchPartialDetails,
+      } = data;
+
       const infoRef = convertInfoCollection(convertId);
       const { requireBarrioOrg } = await import('@/lib/tenant-scope');
       await setDoc(infoRef, {
@@ -447,6 +460,24 @@ export default function CouncilPage() {
         barrioOrg: requireBarrioOrg(barrioOrg),
         updatedAt: Timestamp.now(),
       }, { merge: true });
+
+      const memberId =
+        selectedConvert?.memberId ||
+        selectedConvert?.memberData?.id ||
+        parseMemberIdFromConvertId(convertId);
+      if (memberId) {
+        await updateMember(memberId, {
+          hasLdsAccount,
+          hasFamilySearchAccount,
+          familySearchGenerations: hasFamilySearchAccount ? (familySearchGenerations ?? null) : null,
+          familySearchTreeStatus: hasFamilySearchAccount ? (familySearchTreeStatus ?? null) : null,
+          familySearchPartialDetails:
+            hasFamilySearchAccount && familySearchTreeStatus === 'partial'
+              ? (familySearchPartialDetails ?? null)
+              : null,
+        });
+      }
+
       toast({ title: t("council.action.convertInfoSavedTitle"), description: t("council.action.convertInfoSavedDescription") });
     } catch (error) {
       logger.error({ error, convertId, message: 'Error saving convert info from council' });
@@ -539,6 +570,11 @@ export default function CouncilPage() {
         notes: info?.notes || '',
         recommendationActive: info?.recommendationActive === true,
         selfRelianceCourse: info?.selfRelianceCourse === true,
+        hasLdsAccount: freshMember.hasLdsAccount === true,
+        hasFamilySearchAccount: freshMember.hasFamilySearchAccount === true,
+        familySearchGenerations: freshMember.familySearchGenerations ?? null,
+        familySearchTreeStatus: freshMember.familySearchTreeStatus ?? null,
+        familySearchPartialDetails: freshMember.familySearchPartialDetails ?? null,
       } as ConvertWithInfo);
 
       setIsSheetOpen(true);

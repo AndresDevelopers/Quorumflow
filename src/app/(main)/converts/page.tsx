@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 import { usePermission } from '@/hooks/use-permission';
 import { useI18n } from '@/contexts/i18n-context';
-import { ConvertInfoSheet, type ConvertWithInfo } from './convert-info-sheet';
+import { ConvertInfoSheet, type ConvertWithInfo, type ConvertInfoSavePayload } from './convert-info-sheet';
 import { MemberForm } from '@/components/members/member-form';
 import { syncMinisteringAssignments } from '@/lib/ministering-sync';
 import { useToast } from '@/hooks/use-toast';
@@ -253,6 +253,11 @@ async function getConvertsWithInfo(barrioOrg: string): Promise<ConvertWithInfo[]
       notes: info?.notes || '',
       recommendationActive: info?.recommendationActive || false,
       selfRelianceCourse: info?.selfRelianceCourse || false,
+      hasLdsAccount: memberData?.hasLdsAccount === true,
+      hasFamilySearchAccount: memberData?.hasFamilySearchAccount === true,
+      familySearchGenerations: memberData?.familySearchGenerations ?? null,
+      familySearchTreeStatus: memberData?.familySearchTreeStatus ?? null,
+      familySearchPartialDetails: memberData?.familySearchPartialDetails ?? null,
     };
   });
 }
@@ -328,9 +333,21 @@ export default function ConvertsPage() {
     return true;
   });
 
-  const handleSaveConvertInfo = async (convertId: string, calling: string, notes: string, recommendationActive: boolean, selfRelianceCourse: boolean) => {
+  const handleSaveConvertInfo = async (convertId: string, data: ConvertInfoSavePayload) => {
     setSaving(true);
     try {
+      const {
+        calling,
+        notes,
+        recommendationActive,
+        selfRelianceCourse,
+        hasLdsAccount,
+        hasFamilySearchAccount,
+        familySearchGenerations,
+        familySearchTreeStatus,
+        familySearchPartialDetails,
+      } = data;
+
       const infoRef = convertInfoCollection(convertId);
       const { requireBarrioOrg } = await import('@/lib/tenant-scope');
       await setDoc(infoRef, {
@@ -342,10 +359,39 @@ export default function ConvertsPage() {
         updatedAt: Timestamp.now()
       }, { merge: true });
 
+      // Cuentas LDS / FamilySearch viven en el miembro (fuente de verdad compartida)
+      const current = converts.find((c) => c.id === convertId);
+      const memberId = current?.memberId || current?.memberData?.id || parseMemberIdFromConvertId(convertId);
+      const fsFields = {
+        hasLdsAccount,
+        hasFamilySearchAccount,
+        familySearchGenerations: hasFamilySearchAccount ? (familySearchGenerations ?? null) : null,
+        familySearchTreeStatus: hasFamilySearchAccount ? (familySearchTreeStatus ?? null) : null,
+        familySearchPartialDetails:
+          hasFamilySearchAccount && familySearchTreeStatus === 'partial'
+            ? (familySearchPartialDetails ?? null)
+            : null,
+      };
+      if (memberId) {
+        const { updateMember } = await import('@/lib/members-data');
+        await updateMember(memberId, fsFields);
+      }
+
+      const mergeLocal = (c: ConvertWithInfo): ConvertWithInfo => ({
+        ...c,
+        calling,
+        notes,
+        recommendationActive,
+        selfRelianceCourse,
+        ...fsFields,
+        memberData: c.memberData ? { ...c.memberData, ...fsFields } : c.memberData,
+      });
+
       // Update local state
-      setConverts(prev => prev.map(c =>
-        c.id === convertId ? { ...c, calling, notes, recommendationActive, selfRelianceCourse } : c
-      ));
+      setConverts((prev) => prev.map((c) => (c.id === convertId ? mergeLocal(c) : c)));
+      if (selectedConvert?.id === convertId) {
+        setSelectedConvert((prev) => (prev ? mergeLocal(prev) : prev));
+      }
       toast({ title: t('converts.saveInfoSuccessTitle'), description: t('converts.saveInfoSuccessDescription') });
     } catch (error) {
       console.error("Failed to save convert info:", error);
@@ -570,6 +616,25 @@ export default function ConvertsPage() {
                         locale: getDateFnsLocale(),
                       })}
                     </p>
+
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <Badge
+                        variant={item.hasLdsAccount ? 'default' : 'outline'}
+                        className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                      >
+                        {item.hasLdsAccount
+                          ? t('converts.badge.ldsYes')
+                          : t('converts.badge.ldsNo')}
+                      </Badge>
+                      <Badge
+                        variant={item.hasFamilySearchAccount ? 'default' : 'outline'}
+                        className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                      >
+                        {item.hasFamilySearchAccount
+                          ? t('converts.badge.familySearchYes')
+                          : t('converts.badge.familySearchNo')}
+                      </Badge>
+                    </div>
 
                     <div className="mt-1 flex flex-wrap items-center gap-0.5 -ml-1.5">
                       <Button variant="ghost" size="icon" className="h-8 w-8" asChild>

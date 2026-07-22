@@ -129,6 +129,26 @@ export async function createMember(memberData: Omit<Member, 'id'>, barrioOrg: st
       cleanData.ministeringTeachers = memberData.ministeringTeachers;
     }
 
+    if (memberData.hasLdsAccount !== undefined) {
+      cleanData.hasLdsAccount = memberData.hasLdsAccount === true;
+    }
+
+    if (memberData.hasFamilySearchAccount !== undefined) {
+      cleanData.hasFamilySearchAccount = memberData.hasFamilySearchAccount === true;
+    }
+
+    if (memberData.familySearchGenerations !== undefined && memberData.familySearchGenerations !== null) {
+      cleanData.familySearchGenerations = memberData.familySearchGenerations;
+    }
+
+    if (memberData.familySearchTreeStatus) {
+      cleanData.familySearchTreeStatus = memberData.familySearchTreeStatus;
+    }
+
+    if (memberData.familySearchPartialDetails?.trim()) {
+      cleanData.familySearchPartialDetails = memberData.familySearchPartialDetails.trim();
+    }
+
     if (memberData.lastActiveDate) {
       cleanData.lastActiveDate = memberData.lastActiveDate;
     }
@@ -234,6 +254,13 @@ export async function updateMember(
       inactiveObservation: memberData.inactiveObservation,
       lessActiveSince: memberData.lessActiveSince,
       lessActiveObservation: memberData.lessActiveObservation,
+      hasLdsAccount: memberData.hasLdsAccount,
+      hasFamilySearchAccount: memberData.hasFamilySearchAccount,
+      needsFamilySearchHelp: memberData.needsFamilySearchHelp,
+      familySearchCreateAccountAnnotationId: memberData.familySearchCreateAccountAnnotationId,
+      familySearchGenerations: memberData.familySearchGenerations,
+      familySearchTreeStatus: memberData.familySearchTreeStatus,
+      familySearchPartialDetails: memberData.familySearchPartialDetails,
     };
 
     // Manejar inactiveSince según el estado

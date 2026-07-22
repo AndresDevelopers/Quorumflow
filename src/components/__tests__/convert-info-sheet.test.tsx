@@ -3,7 +3,7 @@ import { ConvertInfoSheet, type ConvertWithInfo } from '@/app/(main)/converts/co
 import { renderWithProviders, screen } from '@/test-support/render';
 
 describe('ConvertInfoSheet', () => {
-  it('renders convert name and recommendation toggle when open', () => {
+  it('renders convert name, recommendation and digital account toggles when open', () => {
     const convert: ConvertWithInfo = {
       id: 'convert_1',
       name: 'Juan Perez',
@@ -17,6 +17,19 @@ describe('ConvertInfoSheet', () => {
       },
       recommendationActive: true,
       selfRelianceCourse: false,
+      hasLdsAccount: true,
+      hasFamilySearchAccount: false,
+      memberData: {
+        id: 'member_1',
+        firstName: 'Juan',
+        lastName: 'Perez',
+        status: 'active',
+        hasLdsAccount: true,
+        hasFamilySearchAccount: false,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        createdBy: 'test',
+      },
     };
 
     renderWithProviders(
@@ -42,5 +55,7 @@ describe('ConvertInfoSheet', () => {
     );
 
     expect(screen.getByText('Juan Perez')).toBeInTheDocument();
+    expect(screen.getAllByText(/Cuenta LDS|LDS Account/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/FamilySearch/i).length).toBeGreaterThan(0);
   });
 });

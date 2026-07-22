@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useTransition, useRef, useCallback } from 'react';
+import { useState, useEffect, useTransition, useRef, useCallback, useMemo } from 'react';
 import { query, orderBy, addDoc, serverTimestamp, deleteDoc, updateDoc, doc } from 'firebase/firestore';
 import { getDocs } from '@/lib/firestore-query';
 import {
@@ -9,8 +9,9 @@ import {
   familySearchTasksCollection,
   annotationsCollection,
 } from '@/lib/collections';
-import type { FamilySearchTraining, FamilySearchTask, Annotation, Member } from '@/lib/types';
+import type { FamilySearchTraining, Annotation, Member, FamilySearchHelpType } from '@/lib/types';
 import { FamilySelector } from '@/components/family-search/family-selector';
+import { getMembersForSelector, updateMember } from '@/lib/members-data';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
@@ -45,7 +46,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Trash2, Library, BookUser, ListTodo, NotebookPen, Users, Pencil, Type, Minus, Plus } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { PlusCircle, Trash2, Library, BookUser, Users, Type, Minus, Plus, CircleHelp, CheckCircle2, Search, HandHelping } from 'lucide-react';
 import logger from '@/lib/logger';
 import { VoiceAnnotations } from '@/components/shared/voice-annotations';
 import { where, deleteDoc as deleteDocFirestore } from 'firebase/firestore';
@@ -88,6 +91,16 @@ export default function FamilySearchPage() {
     const trainingFormRef = useRef<HTMLFormElement>(null);
     const taskFormRef = useRef<HTMLFormElement>(null);
 
+    // Miembros sin cuenta de FamilySearch (sección Ayuda)
+    const [membersWithoutFs, setMembersWithoutFs] = useState<Member[]>([]);
+    const [loadingMembersWithoutFs, setLoadingMembersWithoutFs] = useState(true);
+    const [markingMemberId, setMarkingMemberId] = useState<string | null>(null);
+    const [markingAction, setMarkingAction] = useState<'help' | 'completed' | null>(null);
+    const [helpSearch, setHelpSearch] = useState('');
+    const [helpDialogMember, setHelpDialogMember] = useState<Member | null>(null);
+    const [helpType, setHelpType] = useState<FamilySearchHelpType>('create_account');
+    const [helpOtherDetails, setHelpOtherDetails] = useState('');
+
     const fetchData = useCallback(async (opts?: { quiet?: boolean }) => {
         if (!opts?.quiet) setLoading(true);
         const trainingsSnap = await getDocs(query(familySearchTrainingsCollection, where('barrioOrg', '==', barrioOrg), orderBy('createdAt', 'desc')));
@@ -121,19 +134,260 @@ export default function FamilySearchPage() {
         }
     }, [barrioOrg]);
 
+    const fetchMembersWithoutFs = useCallback(async (opts?: { quiet?: boolean }) => {
+        if (!barrioOrg) {
+            setMembersWithoutFs([]);
+            setLoadingMembersWithoutFs(false);
+            return;
+        }
+        if (!opts?.quiet) setLoadingMembersWithoutFs(true);
+        try {
+            // Activos y menos activos (no fallecidos); solo sin cuenta FS
+            // Prioriza quienes ya tienen solicitud de ayuda
+            const members = await getMembersForSelector(false, barrioOrg);
+            const withoutFs = members.filter((m) => m.hasFamilySearchAccount !== true);
+            setMembersWithoutFs(
+                [...withoutFs].sort((a, b) => {
+                    const helpA = a.needsFamilySearchHelp === true ? 0 : 1;
+                    const helpB = b.needsFamilySearchHelp === true ? 0 : 1;
+                    if (helpA !== helpB) return helpA - helpB;
+                    const last = (a.lastName || '').localeCompare(b.lastName || '', undefined, { sensitivity: 'base' });
+                    if (last !== 0) return last;
+                    return (a.firstName || '').localeCompare(b.firstName || '', undefined, { sensitivity: 'base' });
+                })
+            );
+        } catch (error) {
+            console.error('Error fetching members without FamilySearch account:', error);
+            setMembersWithoutFs([]);
+        } finally {
+            setLoadingMembersWithoutFs(false);
+        }
+    }, [barrioOrg]);
+
     useEffect(() => {
         if (authLoading || !user) return;
         void fetchData();
         void fetchAnnotations();
-    }, [authLoading, user, fetchData, fetchAnnotations]);
+        void fetchMembersWithoutFs();
+    }, [authLoading, user, fetchData, fetchAnnotations, fetchMembersWithoutFs]);
 
     useOnManualRefresh(async () => {
         await Promise.all([
             fetchData({ quiet: true }),
             fetchAnnotations({ quiet: true }),
+            fetchMembersWithoutFs({ quiet: true }),
         ]);
         return true;
     });
+
+    const sortMembersWithoutFs = useCallback((list: Member[]) => {
+        return [...list].sort((a, b) => {
+            const helpA = a.needsFamilySearchHelp === true ? 0 : 1;
+            const helpB = b.needsFamilySearchHelp === true ? 0 : 1;
+            if (helpA !== helpB) return helpA - helpB;
+            const last = (a.lastName || '').localeCompare(b.lastName || '', undefined, { sensitivity: 'base' });
+            if (last !== 0) return last;
+            return (a.firstName || '').localeCompare(b.firstName || '', undefined, { sensitivity: 'base' });
+        });
+    }, []);
+
+    const filteredMembersWithoutFs = useMemo(() => {
+        const q = helpSearch.trim().toLowerCase();
+        if (!q) return membersWithoutFs;
+        return membersWithoutFs.filter((m) => {
+            const full = `${m.firstName || ''} ${m.lastName || ''}`.toLowerCase();
+            return full.includes(q);
+        });
+    }, [membersWithoutFs, helpSearch]);
+
+    const openHelpDialog = (member: Member) => {
+        if (!canWrite) return;
+        const hasCreateAccountHelp = Boolean(member.familySearchCreateAccountAnnotationId);
+        setHelpDialogMember(member);
+        setHelpType(hasCreateAccountHelp ? 'other' : 'create_account');
+        setHelpOtherDetails('');
+    };
+
+    const closeHelpDialog = () => {
+        if (isPending && markingAction === 'help') return;
+        setHelpDialogMember(null);
+        setHelpOtherDetails('');
+        setHelpType('create_account');
+    };
+
+    const handleConfirmFamilySearchHelp = () => {
+        if (!canWrite || !user || !helpDialogMember) return;
+        const member = helpDialogMember;
+        const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim() || t('common.notSpecified');
+        const hasCreateAccountHelp = Boolean(member.familySearchCreateAccountAnnotationId);
+
+        if (helpType === 'create_account' && hasCreateAccountHelp) {
+            toast({
+                title: t('common.error'),
+                description: t('familySearch.help.helpAlreadyCreateAccount', { name: fullName }),
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        if (helpType === 'other' && helpOtherDetails.trim().length < 3) {
+            toast({
+                title: t('common.error'),
+                description: t('familySearch.help.otherDetailsRequired'),
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setMarkingMemberId(member.id);
+        setMarkingAction('help');
+        startTransition(async () => {
+            try {
+                const { requireBarrioOrg } = await import('@/lib/tenant-scope');
+                const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
+
+                const noteText =
+                    helpType === 'create_account'
+                        ? t('familySearch.help.helpNoteCreateAccount', { name: fullName })
+                        : t('familySearch.help.helpNoteOther', {
+                              name: fullName,
+                              details: helpOtherDetails.trim() || t('familySearch.help.helpNoteOtherDefault'),
+                          });
+
+                // Nota primero (visible en Anotaciones); luego el flag del miembro
+                const annotationRef = await addDoc(annotationsCollection, {
+                    text: noteText,
+                    source: 'family-search',
+                    isCouncilAction: false,
+                    isResolved: false,
+                    createdAt: serverTimestamp(),
+                    userId: user.uid,
+                    barrioOrg: scopedBarrioOrg,
+                    memberId: member.id,
+                    helpType,
+                });
+
+                const memberUpdate: Partial<Member> = { needsFamilySearchHelp: true };
+                if (helpType === 'create_account') {
+                    memberUpdate.familySearchCreateAccountAnnotationId = annotationRef.id;
+                }
+                await updateMember(member.id, memberUpdate);
+
+                setMembersWithoutFs((prev) =>
+                    sortMembersWithoutFs(
+                        prev.map((m) =>
+                            m.id === member.id
+                                ? {
+                                      ...m,
+                                      needsFamilySearchHelp: true,
+                                      ...(helpType === 'create_account'
+                                          ? { familySearchCreateAccountAnnotationId: annotationRef.id }
+                                          : {}),
+                                  }
+                                : m
+                        )
+                    )
+                );
+                setHelpDialogMember(null);
+                setHelpOtherDetails('');
+                await fetchAnnotations({ quiet: true });
+                toast({
+                    title: t('common.success'),
+                    description: t('familySearch.help.helpRequested', { name: fullName }),
+                });
+            } catch (error) {
+                logger.error({ error, message: 'Error marking FamilySearch help needed' });
+                toast({
+                    title: t('common.error'),
+                    description: t('familySearch.help.helpError'),
+                    variant: 'destructive',
+                });
+            } finally {
+                setMarkingMemberId(null);
+                setMarkingAction(null);
+            }
+        });
+    };
+
+    const deleteCreateAccountHelpNotes = async (member: Member) => {
+        const idsToDelete = new Set<string>();
+
+        if (member.familySearchCreateAccountAnnotationId) {
+            idsToDelete.add(member.familySearchCreateAccountAnnotationId);
+        }
+
+        // Respaldo: notas de ayuda "crear cuenta" del miembro ya cargadas en memoria
+        for (const annotation of annotations) {
+            if (
+                annotation.memberId === member.id &&
+                annotation.helpType === 'create_account'
+            ) {
+                idsToDelete.add(annotation.id);
+            }
+        }
+
+        // Respaldo por texto (notas antiguas sin helpType)
+        const createAccountPrefixEs = 'Ayuda FamilySearch:';
+        const createAccountPrefixEn = 'FamilySearch help:';
+        for (const annotation of annotations) {
+            if (annotation.memberId !== member.id) continue;
+            const text = annotation.text || '';
+            const looksLikeCreateAccount =
+                (text.startsWith(createAccountPrefixEs) && text.includes('crear su cuenta')) ||
+                (text.startsWith(createAccountPrefixEn) && text.includes('creating their account'));
+            if (looksLikeCreateAccount) {
+                idsToDelete.add(annotation.id);
+            }
+        }
+
+        await Promise.all(
+            Array.from(idsToDelete).map(async (id) => {
+                try {
+                    await deleteDocFirestore(doc(annotationsCollection, id));
+                } catch (error) {
+                    // Si ya no existe, continuar
+                    logger.error({ error, message: `Error deleting create-account help note ${id}` });
+                }
+            })
+        );
+
+        return idsToDelete.size;
+    };
+
+    const handleMarkHasFamilySearchAccount = (member: Member) => {
+        if (!canWrite) return;
+        setMarkingMemberId(member.id);
+        setMarkingAction('completed');
+        startTransition(async () => {
+            try {
+                // Completado: borra la nota de "crear cuenta" y marca cuenta lista
+                await deleteCreateAccountHelpNotes(member);
+                await updateMember(member.id, {
+                    hasFamilySearchAccount: true,
+                    needsFamilySearchHelp: false,
+                    familySearchCreateAccountAnnotationId: null,
+                });
+                setMembersWithoutFs((prev) => prev.filter((m) => m.id !== member.id));
+                await fetchAnnotations({ quiet: true });
+                toast({
+                    title: t('common.success'),
+                    description: t('familySearch.help.markedHasAccount', {
+                        name: `${member.firstName} ${member.lastName}`.trim(),
+                    }),
+                });
+            } catch (error) {
+                logger.error({ error, message: 'Error marking FamilySearch account' });
+                toast({
+                    title: t('common.error'),
+                    description: t('familySearch.help.markError'),
+                    variant: 'destructive',
+                });
+            } finally {
+                setMarkingMemberId(null);
+                setMarkingAction(null);
+            }
+        });
+    };
 
     const handleAddTraining = (data: { familyName: string; memberId?: string; memberName?: string }) => {
         const validated = trainingSchema.safeParse(data);
@@ -310,6 +564,257 @@ export default function FamilySearchPage() {
                 </CardContent>
             </Card>
 
+            {/* Ayuda: miembros sin cuenta de FamilySearch */}
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <CircleHelp className="h-6 w-6 text-primary shrink-0" />
+                            <div>
+                                <CardTitle className="flex flex-wrap items-center gap-2">
+                                    {t('familySearch.help.title')}
+                                    {!loadingMembersWithoutFs && (
+                                        <Badge variant="secondary" className="tabular-nums font-normal">
+                                            {membersWithoutFs.length}
+                                        </Badge>
+                                    )}
+                                </CardTitle>
+                                <CardDescription>{t('familySearch.help.description')}</CardDescription>
+                            </div>
+                        </div>
+                    </div>
+                    {membersWithoutFs.length > 5 && (
+                        <div className="relative mt-2">
+                            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={helpSearch}
+                                onChange={(e) => setHelpSearch(e.target.value)}
+                                placeholder={t('familySearch.help.searchPlaceholder')}
+                                className="pl-9"
+                                aria-label={t('familySearch.help.searchPlaceholder')}
+                            />
+                        </div>
+                    )}
+                </CardHeader>
+                <CardContent>
+                    {loadingMembersWithoutFs ? (
+                        <div className="space-y-2">
+                            <Skeleton className="h-12 w-full" />
+                            <Skeleton className="h-12 w-full" />
+                            <Skeleton className="h-12 w-full" />
+                        </div>
+                    ) : filteredMembersWithoutFs.length === 0 ? (
+                        <p className="text-sm text-center py-4 text-muted-foreground">
+                            {helpSearch.trim()
+                                ? t('familySearch.help.noSearchResults')
+                                : t('familySearch.help.empty')}
+                        </p>
+                    ) : (
+                        <ul className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
+                            {filteredMembersWithoutFs.map((member) => {
+                                const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+                                const isMarking = markingMemberId === member.id;
+                                const isSavingHelp = isMarking && markingAction === 'help';
+                                const isSavingCompleted = isMarking && markingAction === 'completed';
+                                const needsHelp = member.needsFamilySearchHelp === true;
+                                const hasCreateAccountHelp = Boolean(member.familySearchCreateAccountAnnotationId);
+                                return (
+                                    <li
+                                        key={member.id}
+                                        className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                                    >
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-medium text-sm sm:text-base break-words">
+                                                {fullName || t('common.notSpecified')}
+                                            </p>
+                                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                                                >
+                                                    {t(`member.status.${member.status}`)}
+                                                </Badge>
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-[10px] px-1.5 py-0 h-5 font-normal text-amber-700 border-amber-300 dark:text-amber-400"
+                                                >
+                                                    {t('familySearch.help.noAccountBadge')}
+                                                </Badge>
+                                                {hasCreateAccountHelp && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="text-[10px] px-1.5 py-0 h-5 font-normal text-sky-700 border-sky-300 dark:text-sky-400"
+                                                    >
+                                                        {t('familySearch.help.createAccountBadge')}
+                                                    </Badge>
+                                                )}
+                                                {needsHelp && !hasCreateAccountHelp && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="text-[10px] px-1.5 py-0 h-5 font-normal text-violet-700 border-violet-300 dark:text-violet-400"
+                                                    >
+                                                        {t('familySearch.help.otherHelpBadge')}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {canWrite && (
+                                            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:shrink-0">
+                                                <Button
+                                                    size="sm"
+                                                    variant={needsHelp ? 'outline' : 'default'}
+                                                    className="w-full sm:w-auto"
+                                                    disabled={isPending || isMarking}
+                                                    onClick={() => openHelpDialog(member)}
+                                                >
+                                                    <HandHelping className="mr-1.5 h-4 w-4" />
+                                                    {isSavingHelp
+                                                        ? t('common.saving')
+                                                        : t('familySearch.help.helpAction')}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    className="w-full sm:w-auto"
+                                                    disabled={isPending || isMarking}
+                                                    onClick={() => handleMarkHasFamilySearchAccount(member)}
+                                                >
+                                                    <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                                                    {isSavingCompleted
+                                                        ? t('common.saving')
+                                                        : t('familySearch.help.completedAction')}
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Diálogo: tipo de ayuda FamilySearch */}
+            <Dialog
+                open={Boolean(helpDialogMember)}
+                onOpenChange={(open) => {
+                    if (!open) closeHelpDialog();
+                }}
+            >
+                <DialogContent className="w-full max-w-[90vw] sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {t('familySearch.help.dialogTitle', {
+                                name:
+                                    helpDialogMember
+                                        ? `${helpDialogMember.firstName || ''} ${helpDialogMember.lastName || ''}`.trim() ||
+                                          t('common.notSpecified')
+                                        : '',
+                            })}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {t('familySearch.help.dialogDescription')}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <Label>{t('familySearch.help.typeLabel')}</Label>
+                            <RadioGroup
+                                value={helpType}
+                                onValueChange={(value) => setHelpType(value as FamilySearchHelpType)}
+                                className="gap-3"
+                                disabled={isPending && markingAction === 'help'}
+                            >
+                                <label
+                                    htmlFor="fs-help-create-account"
+                                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                                        helpType === 'create_account' ? 'border-primary bg-primary/5' : 'hover:bg-muted/40'
+                                    } ${
+                                        helpDialogMember?.familySearchCreateAccountAnnotationId
+                                            ? 'cursor-not-allowed opacity-60'
+                                            : ''
+                                    }`}
+                                >
+                                    <RadioGroupItem
+                                        value="create_account"
+                                        id="fs-help-create-account"
+                                        disabled={Boolean(helpDialogMember?.familySearchCreateAccountAnnotationId)}
+                                        className="mt-0.5"
+                                    />
+                                    <div className="space-y-0.5">
+                                        <p className="text-sm font-medium leading-none">
+                                            {t('familySearch.help.typeCreateAccount')}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {helpDialogMember?.familySearchCreateAccountAnnotationId
+                                                ? t('familySearch.help.helpAlreadyCreateAccount', {
+                                                      name:
+                                                          `${helpDialogMember.firstName || ''} ${helpDialogMember.lastName || ''}`.trim() ||
+                                                          t('common.notSpecified'),
+                                                  })
+                                                : t('familySearch.help.typeCreateAccountDesc')}
+                                        </p>
+                                    </div>
+                                </label>
+                                <label
+                                    htmlFor="fs-help-other"
+                                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                                        helpType === 'other' ? 'border-primary bg-primary/5' : 'hover:bg-muted/40'
+                                    }`}
+                                >
+                                    <RadioGroupItem value="other" id="fs-help-other" className="mt-0.5" />
+                                    <div className="space-y-0.5">
+                                        <p className="text-sm font-medium leading-none">
+                                            {t('familySearch.help.typeOther')}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t('familySearch.help.typeOtherDesc')}
+                                        </p>
+                                    </div>
+                                </label>
+                            </RadioGroup>
+                        </div>
+                        {helpType === 'other' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="fs-help-other-details">
+                                    {t('familySearch.help.otherDetailsLabel')}
+                                </Label>
+                                <Textarea
+                                    id="fs-help-other-details"
+                                    value={helpOtherDetails}
+                                    onChange={(e) => setHelpOtherDetails(e.target.value)}
+                                    placeholder={t('familySearch.help.otherDetailsPlaceholder')}
+                                    rows={3}
+                                    disabled={isPending && markingAction === 'help'}
+                                />
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={closeHelpDialog}
+                            disabled={isPending && markingAction === 'help'}
+                        >
+                            {t('familySearch.help.dialogCancel')}
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleConfirmFamilySearchHelp}
+                            disabled={
+                                isPending ||
+                                (helpType === 'create_account' &&
+                                    Boolean(helpDialogMember?.familySearchCreateAccountAnnotationId))
+                            }
+                        >
+                            {isPending && markingAction === 'help'
+                                ? t('common.saving')
+                                : t('familySearch.help.dialogConfirm')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
              {/* Anotaciones */}
             <VoiceAnnotations

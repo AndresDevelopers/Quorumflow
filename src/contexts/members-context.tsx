@@ -16,7 +16,22 @@ import { getAppStoragePrefix } from '@/lib/app-config';
 import { useOnManualRefresh } from '@/contexts/refresh-context';
 import { saveMembersLocalCache } from '@/hooks/use-members-local';
 import { mergeMembersCache } from '@/lib/members-cache-merge';
-import { isBrowserOnline, withTimeout } from '@/lib/network';
+import { isBrowserOnline, isNetworkError } from '@/lib/network';
+
+/** Hard cap for members API so refresh never hangs the UI. */
+const MEMBERS_FETCH_TIMEOUT_MS = 8_000;
+
+function isAbortError(error: unknown): boolean {
+  if (!error) return false;
+  if (typeof error === 'object' && error !== null && 'name' in error) {
+    const name = String((error as { name?: string }).name);
+    if (name === 'AbortError' || name === 'TimeoutError') return true;
+  }
+  if (error instanceof Error && /aborted|AbortError|timed out/i.test(error.message)) {
+    return true;
+  }
+  return false;
+}
 
 interface MembersContextValue {
   members: Member[];
@@ -135,7 +150,24 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       }
 
       const controller = new AbortController();
-      const abortTimer = setTimeout(() => controller.abort(), 8_000);
+      // Timed abort is expected (slow network / hung API). Pass a reason so
+      // browsers don't report the generic "signal is aborted without reason".
+      const abortTimer = setTimeout(() => {
+        try {
+          if (typeof DOMException !== 'undefined') {
+            controller.abort(
+              new DOMException(
+                `Members fetch timed out after ${MEMBERS_FETCH_TIMEOUT_MS}ms`,
+                'AbortError'
+              )
+            );
+          } else {
+            controller.abort();
+          }
+        } catch {
+          // ignore — aborting a completed controller is a no-op in some engines
+        }
+      }, MEMBERS_FETCH_TIMEOUT_MS);
 
       try {
         const idToken = await firebaseUser?.getIdToken().catch(() => null);
@@ -144,18 +176,15 @@ export function MembersProvider({ children }: { children: ReactNode }) {
         }
         const cacheBuster = forceRefresh ? `&t=${Date.now()}` : '';
         const url = `/api/members?barrioOrg=${encodeURIComponent(barrioOrg)}${cacheBuster}`;
-        const response = await withTimeout(
-          fetch(url, {
-            cache: forceRefresh ? 'no-store' : 'default',
-            headers: {
-              Authorization: `Bearer ${idToken}`,
-              ...(forceRefresh ? { 'Cache-Control': 'no-cache' } : {}),
-            },
-            signal: controller.signal,
-          }),
-          8_500,
-          'members-fetch'
-        );
+        // Single timeout via AbortController (no second withTimeout race).
+        const response = await fetch(url, {
+          cache: forceRefresh ? 'no-store' : 'default',
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            ...(forceRefresh ? { 'Cache-Control': 'no-cache' } : {}),
+          },
+          signal: controller.signal,
+        });
         if (!response.ok) {
           throw new Error(`Failed to fetch members: ${response.status}`);
         }
@@ -184,7 +213,18 @@ export function MembersProvider({ children }: { children: ReactNode }) {
 
         return merged.hasChanges;
       } catch (error) {
-        console.error('[MembersProvider] fetch failed', error);
+        // Timeout/abort is intentional — fall back to cache without alarming the console.
+        if (isAbortError(error) || controller.signal.aborted) {
+          if (process.env.NODE_ENV === 'development') {
+            console.debug(
+              '[MembersProvider] members fetch timed out; using cache if available'
+            );
+          }
+        } else if (!isNetworkError(error)) {
+          console.error('[MembersProvider] fetch failed', error);
+        } else if (process.env.NODE_ENV === 'development') {
+          console.debug('[MembersProvider] network error; using cache if available', error);
+        }
         // On error keep whatever we already have — never clear cache
         const cached = loadFromLocalCache();
         if (cached) {

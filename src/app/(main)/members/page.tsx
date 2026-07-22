@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { OfflineImage } from '@/components/offline-image';
-import { Plus, Search, Filter, Edit, Trash2, Users, UserCheck, UserX, Eye, ChevronUp, AlertTriangle, IdCard } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Users, UserCheck, UserX, Eye, ChevronUp, AlertTriangle, KeyRound, Library } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -104,6 +104,8 @@ export default function MembersPage() {
   const [statusFilter, setStatusFilter] = useState<MemberStatus | 'all'>('all');
   const [baptismFilter, setBaptismFilter] = useState<'all' | 'baptized' | 'not_baptized'>('all');
   const [urgentFilter, setUrgentFilter] = useState<'all' | 'urgent' | 'not_urgent'>('all');
+  const [ldsAccountFilter, setLdsAccountFilter] = useState<'all' | 'with' | 'without'>('all');
+  const [familySearchFilter, setFamilySearchFilter] = useState<'all' | 'with' | 'without'>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -111,7 +113,6 @@ export default function MembersPage() {
   const [urgentMember, setUrgentMember] = useState<Member | null>(null);
   const [urgentReason, setUrgentReason] = useState('');
   const [returnTo, setReturnTo] = useState<string | null>(null);
-  const [noCedulaDialogOpen, setNoCedulaDialogOpen] = useState(false);
   const editingRef = useRef(false);
 
 
@@ -301,7 +302,17 @@ export default function MembersPage() {
       (urgentFilter === 'urgent' && member.isUrgent) ||
       (urgentFilter === 'not_urgent' && !member.isUrgent);
 
-    return matchesSearch && matchesStatus && matchesBaptism && matchesUrgent;
+    const hasLds = member.hasLdsAccount === true;
+    const matchesLds = ldsAccountFilter === 'all' ||
+      (ldsAccountFilter === 'with' && hasLds) ||
+      (ldsAccountFilter === 'without' && !hasLds);
+
+    const hasFs = member.hasFamilySearchAccount === true;
+    const matchesFamilySearch = familySearchFilter === 'all' ||
+      (familySearchFilter === 'with' && hasFs) ||
+      (familySearchFilter === 'without' && !hasFs);
+
+    return matchesSearch && matchesStatus && matchesBaptism && matchesUrgent && matchesLds && matchesFamilySearch;
   });
 
   const memberCounts = {
@@ -309,11 +320,10 @@ export default function MembersPage() {
     less_active: members.filter(m => m.status === 'less_active').length,
     inactive: members.filter(m => m.status === 'inactive').length,
     urgent: members.filter(m => m.isUrgent).length,
-    withoutCedula: members.filter(m => !m.memberId || m.memberId.trim() === '').length,
+    withoutLdsAccount: members.filter(m => m.hasLdsAccount !== true).length,
+    withoutFamilySearch: members.filter(m => m.hasFamilySearchAccount !== true).length,
     total: members.length
   };
-
-  const membersWithoutCedula = members.filter(m => !m.memberId || m.memberId.trim() === '');
 
   return (
     <section className="page-section">
@@ -357,10 +367,7 @@ export default function MembersPage() {
 
 
       {/* Stats Cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-
-
-
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('members.stats.total')}</CardTitle>
@@ -411,14 +418,52 @@ export default function MembersPage() {
             <p className="text-xs text-muted-foreground">{t('members.stats.urgentDesc')}</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setNoCedulaDialogOpen(true)}>
+        <Card
+          className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+            ldsAccountFilter === 'without' ? 'ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-950/20' : ''
+          }`}
+          onClick={() => setLdsAccountFilter((prev) => (prev === 'without' ? 'all' : 'without'))}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setLdsAccountFilter((prev) => (prev === 'without' ? 'all' : 'without'));
+            }
+          }}
+          aria-pressed={ldsAccountFilter === 'without'}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('members.stats.withoutId')}</CardTitle>
-            <IdCard className="h-4 w-4 text-purple-600" />
+            <CardTitle className="text-sm font-medium">{t('members.stats.withoutLds')}</CardTitle>
+            <KeyRound className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{memberCounts.withoutCedula}</div>
-            <p className="text-xs text-muted-foreground">{t('members.stats.withoutIdDesc')}</p>
+            <div className="text-2xl font-bold text-blue-600">{memberCounts.withoutLdsAccount}</div>
+            <p className="text-xs text-muted-foreground">{t('members.stats.withoutLdsDesc')}</p>
+          </CardContent>
+        </Card>
+        <Card
+          className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+            familySearchFilter === 'without' ? 'ring-2 ring-teal-500 bg-teal-50/50 dark:bg-teal-950/20' : ''
+          }`}
+          onClick={() => setFamilySearchFilter((prev) => (prev === 'without' ? 'all' : 'without'))}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setFamilySearchFilter((prev) => (prev === 'without' ? 'all' : 'without'));
+            }
+          }}
+          aria-pressed={familySearchFilter === 'without'}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t('members.stats.withoutFamilySearch')}</CardTitle>
+            <Library className="h-4 w-4 text-teal-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-teal-600">{memberCounts.withoutFamilySearch}</div>
+            <p className="text-xs text-muted-foreground">{t('members.stats.withoutFamilySearchDesc')}</p>
           </CardContent>
         </Card>
       </div>
@@ -477,6 +522,34 @@ export default function MembersPage() {
                 <SelectItem value="not_urgent">{t('members.filter.notUrgent')}</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={ldsAccountFilter}
+              onValueChange={(value: 'all' | 'with' | 'without') => setLdsAccountFilter(value)}
+            >
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <KeyRound className="mr-2 h-4 w-4" />
+                <SelectValue placeholder={t('members.filterLdsPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                <SelectItem value="with">{t('members.filter.withLds')}</SelectItem>
+                <SelectItem value="without">{t('members.filter.withoutLds')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={familySearchFilter}
+              onValueChange={(value: 'all' | 'with' | 'without') => setFamilySearchFilter(value)}
+            >
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <Library className="mr-2 h-4 w-4" />
+                <SelectValue placeholder={t('members.filterFamilySearchPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
+                <SelectItem value="with">{t('members.filter.withFamilySearch')}</SelectItem>
+                <SelectItem value="without">{t('members.filter.withoutFamilySearch')}</SelectItem>
+              </SelectContent>
+            </Select>
 
           </div>
 
@@ -515,7 +588,12 @@ export default function MembersPage() {
                 ) : filteredMembers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="h-24 text-center">
-                      {searchTerm || statusFilter !== 'all'
+                      {searchTerm ||
+                      statusFilter !== 'all' ||
+                      baptismFilter !== 'all' ||
+                      urgentFilter !== 'all' ||
+                      ldsAccountFilter !== 'all' ||
+                      familySearchFilter !== 'all'
                         ? t('members.empty.filtered')
                         : syncStatus === 'syncing'
                           ? t('members.empty.loading')
@@ -690,7 +768,12 @@ export default function MembersPage() {
               <div className="text-center py-12">
                 <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">
-                  {searchTerm || statusFilter !== 'all'
+                  {searchTerm ||
+                  statusFilter !== 'all' ||
+                  baptismFilter !== 'all' ||
+                  urgentFilter !== 'all' ||
+                  ldsAccountFilter !== 'all' ||
+                  familySearchFilter !== 'all'
                     ? t('members.empty.filtered')
                     : syncStatus === 'syncing'
                       ? t('members.empty.loading')
@@ -736,6 +819,25 @@ export default function MembersPage() {
                         <Badge variant={statusInfo.variant} className="gap-1">
                           <StatusIcon className="h-3 w-3" />
                           {t(`member.status.${member.status}`)}
+                        </Badge>
+                      </div>
+
+                      <div className="mb-3 flex flex-wrap gap-1">
+                        <Badge
+                          variant={member.hasLdsAccount ? 'default' : 'outline'}
+                          className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                        >
+                          {member.hasLdsAccount
+                            ? t('converts.badge.ldsYes')
+                            : t('converts.badge.ldsNo')}
+                        </Badge>
+                        <Badge
+                          variant={member.hasFamilySearchAccount ? 'default' : 'outline'}
+                          className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                        >
+                          {member.hasFamilySearchAccount
+                            ? t('converts.badge.familySearchYes')
+                            : t('converts.badge.familySearchNo')}
                         </Badge>
                       </div>
 
@@ -889,77 +991,6 @@ export default function MembersPage() {
           <ChevronUp className="h-4 w-4" />
         </Button>
       )}
-
-      {/* No Cedula Dialog */}
-      <Dialog open={noCedulaDialogOpen} onOpenChange={setNoCedulaDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <IdCard className="h-5 w-5 text-purple-600" />
-              {t('members.noCedula.title')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('members.noCedula.description')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {loading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : membersWithoutCedula.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">
-                {t('members.noCedula.empty')}
-              </p>
-            ) : (
-              membersWithoutCedula.map((member) => {
-                const statusInfo = statusConfig[member.status] ?? statusConfig.active;
-                const StatusIcon = statusInfo.icon;
-                return (
-                  <div
-                    key={member.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => {
-                      setNoCedulaDialogOpen(false);
-                      handleEditMember(member);
-                    }}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {member.photoURL ? (
-                        <OfflineImage
-                          src={member.photoURL}
-                          alt={`${member.firstName} ${member.lastName}`}
-                          width={32}
-                          height={32}
-                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">
-                          {member.firstName} {member.lastName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {member.phoneNumber || t('common.noPhone')}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant={statusInfo.variant} className="gap-1 flex-shrink-0">
-                      <StatusIcon className="h-3 w-3" />
-                      {t(`member.status.${member.status}`)}
-                    </Badge>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Urgent Reason Dialog */}
       <Dialog open={urgentDialogOpen} onOpenChange={(open) => {

@@ -1,6 +1,6 @@
 import type { firestore as FirestoreNamespace } from "firebase-admin";
 import * as admin from "firebase-admin";
-export type NotificationContextType = "convert" | "activity" | "service" | "member" | "council" | "baptism" | "birthday" | "investigator" | "urgent_family" | "missionary_assignment" | "observations" | "family_search" | "future_member" | "admin_user";
+export type NotificationContextType = "convert" | "activity" | "service" | "member" | "council" | "baptism" | "birthday" | "investigator" | "urgent_family" | "missionary_assignment" | "observations" | "family_search" | "future_member" | "admin_user" | "ministering_interview";
 export interface NotificationContext {
     contextType?: NotificationContextType;
     contextId?: string;

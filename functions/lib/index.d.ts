@@ -19,6 +19,7 @@ export declare const syncOnMembersWrite: functions.CloudFunction<functions.Chang
 export declare const syncOnAnnotationsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
 export declare const syncOnMinisteringWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
 export declare const syncOnMinisteringDistrictsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
+export declare const syncOnMinisteringInterviewsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
 export declare const syncOnActivitiesWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
 export declare const syncOnServicesWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;
 export declare const syncOnMissionaryAssignmentsWrite: functions.CloudFunction<functions.Change<functions.firestore.DocumentSnapshot>>;

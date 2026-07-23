@@ -5,112 +5,168 @@
       "version": "1.1.38",
       "date": "2026-07-23",
       "changes": {
-        "es": [
-          "Actualización: Add full interview scheduling, tracking and reminder system."
-        ],
-        "en": [
-          "Update: Add full interview scheduling, tracking and reminder system."
-        ]
+        "es": {
+          "added": [
+            "Agregamos: add patriarchal blessing, lifecycle badges, and tooling.",
+            "Agregamos: add full interview scheduling, tracking and reminder system."
+          ]
+        },
+        "en": {
+          "added": [
+            "We added: add patriarchal blessing, lifecycle badges, and tooling.",
+            "We added: add full interview scheduling, tracking and reminder system."
+          ]
+        }
       }
     },
     {
       "version": "1.1.37",
       "date": "2026-07-22",
       "changes": {
-        "es": [
-          "Actualización: Add LDS and FamilySearch account tracking."
-        ],
-        "en": [
-          "Update: Add LDS and FamilySearch account tracking."
-        ]
+        "es": {
+          "added": [
+            "Ahora puedes registrar si cada miembro y converso ya tiene cuenta de la Iglesia (LDS Account) y cuenta de FamilySearch, para dar un seguimiento más claro a su progreso digital.",
+            "Añadimos filtros y etiquetas en la lista de miembros y en conversos para ver rápidamente quién ya tiene esas cuentas y a quién aún hay que ayudar a crearlas."
+          ]
+        },
+        "en": {
+          "added": [
+            "You can now record whether each member and convert already has a Church Account (LDS Account) and a FamilySearch account, for clearer follow-up on their digital progress.",
+            "We added filters and badges on the members list and converts so you can quickly see who already has those accounts and who still needs help creating them."
+          ]
+        }
       }
     },
     {
       "version": "1.1.36",
       "date": "2026-07-20",
       "changes": {
-        "es": [
-          "Hemos mejorado la velocidad de subida de archivos y reducido los costos al optimizar la compresión de imágenes de perfil, que ahora se redimensionan a un máximo de 640px y un tamaño máximo de 180KB.",
-          "Ahora las subidas de archivos usan una configuración de caché unificada, lo que hace que las imágenes y documentos se carguen más rápido en todas las partes de la aplicación.",
-          "Agregamos nuevas herramientas de mantenimiento para administradores: un comando para encontrar archivos huérfanos en el almacenamiento y otro para actualizar la configuración de caché de archivos existentes."
-        ],
-        "en": [
-          "We've improved upload speed and reduced costs by optimizing profile image compression—now resized to a max of 640px and limited to 180KB.",
-          "File uploads now use a unified cache configuration, making images and documents load faster across all parts of the app.",
-          "We added new maintenance tools for admins: a command to find orphaned storage files and another to update cache settings on existing files."
-        ]
+        "es": {
+          "added": [
+            "Agregamos nuevas herramientas de mantenimiento para administradores: un comando para encontrar archivos huérfanos en el almacenamiento y otro para actualizar la configuración de caché de archivos existentes."
+          ],
+          "improved": [
+            "Hemos mejorado la velocidad de subida de archivos y reducido los costos al optimizar la compresión de imágenes de perfil, que ahora se redimensionan a un máximo de 640px y un tamaño máximo de 180KB.",
+            "Ahora las subidas de archivos usan una configuración de caché unificada, lo que hace que las imágenes y documentos se carguen más rápido en todas las partes de la aplicación."
+          ]
+        },
+        "en": {
+          "added": [
+            "We added new maintenance tools for admins: a command to find orphaned storage files and another to update cache settings on existing files."
+          ],
+          "improved": [
+            "We've improved upload speed and reduced costs by optimizing profile image compression—now resized to a max of 640px and limited to 180KB.",
+            "File uploads now use a unified cache configuration, making images and documents load faster across all parts of the app."
+          ]
+        }
       }
     },
     {
       "version": "1.1.35",
       "date": "2026-07-18",
       "changes": {
-        "es": [
-          "Mejoramos la infraestructura de pruebas migrando a Vitest, lo que hace que las pruebas sean más rápidas y confiables.",
-          "Añadimos cientos de pruebas automáticas que verifican que todas las páginas principales de la aplicación funcionan correctamente."
-        ],
-        "en": [
-          "We upgraded our testing framework to Vitest, making tests faster and more reliable.",
-          "Added hundreds of automated tests to ensure all main pages of the app work correctly."
-        ]
+        "es": {
+          "added": [
+            "Añadimos cientos de pruebas automáticas que verifican que todas las páginas principales de la aplicación funcionan correctamente."
+          ],
+          "improved": [
+            "Mejoramos la infraestructura de pruebas migrando a Vitest, lo que hace que las pruebas sean más rápidas y confiables."
+          ]
+        },
+        "en": {
+          "added": [
+            "Added hundreds of automated tests to ensure all main pages of the app work correctly."
+          ],
+          "improved": [
+            "We upgraded our testing framework to Vitest, making tests faster and more reliable."
+          ]
+        }
       }
     },
     {
       "version": "1.1.34",
       "date": "2026-07-17",
       "changes": {
-        "es": [
-          "Añadimos el campo de apellido a los perfiles de usuario, con traducciones en español e inglés.",
-          "Implementamos anotaciones de servicio en la página de servicio, permitiendo filtrar por año.",
-          "Mejoramos la instalación de la PWA con iconos optimizados y actualizamos el manifiesto web.",
-          "Corregimos redirecciones inseguras al iniciar sesión y actualizamos dependencias para evitar errores.",
-          "Reducimos los tiempos de espera en las funciones de IA, mejorando la sincronización de datos y la gestión de errores.",
-          "Optimizamos el diseño móvil, el soporte sin conexión y la configuración de donaciones."
-        ],
-        "en": [
-          "Added a last name field to user profiles, with translations in English and Spanish.",
-          "Introduced service annotations on the service page, with a year filter for easier browsing.",
-          "Improved PWA setup with optimized icons, updated web manifest, and better offline caching.",
-          "Fixed unsafe login redirects and updated dependencies to prevent compatibility issues.",
-          "Reduced AI function timeouts, improved data sync with separate manual and silent states, and added error handling.",
-          "Enhanced mobile layout, offline support, and donation configuration with better error logging."
-        ]
+        "es": {
+          "added": [
+            "Añadimos el campo de apellido a los perfiles de usuario, con traducciones en español e inglés.",
+            "Implementamos anotaciones de servicio en la página de servicio, permitiendo filtrar por año."
+          ],
+          "improved": [
+            "Mejoramos la instalación de la PWA con iconos optimizados y actualizamos el manifiesto web.",
+            "Reducimos los tiempos de espera en las funciones de IA, mejorando la sincronización de datos y la gestión de errores.",
+            "Optimizamos el diseño móvil, el soporte sin conexión y la configuración de donaciones."
+          ],
+          "fixed": [
+            "Corregimos redirecciones inseguras al iniciar sesión y actualizamos dependencias para evitar errores."
+          ]
+        },
+        "en": {
+          "added": [
+            "Added a last name field to user profiles, with translations in English and Spanish.",
+            "Introduced service annotations on the service page, with a year filter for easier browsing."
+          ],
+          "improved": [
+            "Improved PWA setup with optimized icons, updated web manifest, and better offline caching.",
+            "Reduced AI function timeouts, improved data sync with separate manual and silent states, and added error handling.",
+            "Enhanced mobile layout, offline support, and donation configuration with better error logging."
+          ],
+          "fixed": [
+            "Fixed unsafe login redirects and updated dependencies to prevent compatibility issues."
+          ]
+        }
       }
     },
     {
       "version": "1.1.33",
       "date": "2026-07-16",
       "changes": {
-        "es": [
-          "Ahora la aplicación verifica que el GPS esté activado antes de solicitar tu ubicación, mostrando un mensaje claro si está desactivado.",
-          "Mejoramos el control de permisos: ahora puedes gestionar el acceso al GPS y al micrófono para cada dispositivo por separado desde la configuración."
-        ],
-        "en": [
-          "The app now checks if GPS is enabled before asking for your location, showing a clear message if it's off.",
-          "We improved permission management: you can now control GPS and microphone access for each device separately from the settings."
-        ]
+        "es": {
+          "improved": [
+            "Ahora la aplicación verifica que el GPS esté activado antes de solicitar tu ubicación, mostrando un mensaje claro si está desactivado.",
+            "Mejoramos el control de permisos: ahora puedes gestionar el acceso al GPS y al micrófono para cada dispositivo por separado desde la configuración."
+          ]
+        },
+        "en": {
+          "improved": [
+            "The app now checks if GPS is enabled before asking for your location, showing a clear message if it's off.",
+            "We improved permission management: you can now control GPS and microphone access for each device separately from the settings."
+          ]
+        }
       }
     },
     {
       "version": "1.1.32",
       "date": "2026-07-15",
       "changes": {
-        "es": [
-          "Agregamos páginas de aterrizaje en español e inglés con metadatos SEO completos, incluyendo Open Graph y Twitter Cards, para mejorar tu visibilidad en buscadores.",
-          "Ahora las notificaciones se pueden descartar suavemente en lugar de eliminarse permanentemente, dándote más control sobre tu bandeja de entrada.",
-          "Corregimos problemas de inicio de sesión que causaban bucles de redirección y fallos en cookies de sesión, haciendo que el acceso sea más confiable.",
-          "Actualizamos varias dependencias de seguridad para proteger tu información y garantizar un funcionamiento más estable de la aplicación.",
-          "Mejoramos el manejo de errores en la carga de datos, mostrando información almacenada en caché cuando hay problemas de permisos en la base de datos.",
-          "Optimizamos la instalación de la aplicación en dispositivos móviles (PWA) para que funcione correctamente sin fallos de iconos."
-        ],
-        "en": [
-          "We added Spanish and English landing pages with full SEO metadata, including Open Graph and Twitter Cards, to boost your search engine visibility.",
-          "Notifications can now be softly dismissed instead of permanently deleted, giving you more control over your inbox.",
-          "Fixed login issues that caused redirect loops and session cookie failures, making sign-in more reliable.",
-          "Updated several security dependencies to protect your data and ensure smoother app performance.",
-          "Improved error handling when loading data, showing cached information when database permission errors occur.",
-          "Optimized the mobile app installation (PWA) so it works correctly without icon-related failures."
-        ]
+        "es": {
+          "added": [
+            "Agregamos páginas de aterrizaje en español e inglés con metadatos SEO completos, incluyendo Open Graph y Twitter Cards, para mejorar tu visibilidad en buscadores."
+          ],
+          "improved": [
+            "Ahora las notificaciones se pueden descartar suavemente en lugar de eliminarse permanentemente, dándote más control sobre tu bandeja de entrada.",
+            "Actualizamos varias dependencias de seguridad para proteger tu información y garantizar un funcionamiento más estable de la aplicación.",
+            "Mejoramos el manejo de errores en la carga de datos, mostrando información almacenada en caché cuando hay problemas de permisos en la base de datos.",
+            "Optimizamos la instalación de la aplicación en dispositivos móviles (PWA) para que funcione correctamente sin fallos de iconos."
+          ],
+          "fixed": [
+            "Corregimos problemas de inicio de sesión que causaban bucles de redirección y fallos en cookies de sesión, haciendo que el acceso sea más confiable."
+          ]
+        },
+        "en": {
+          "added": [
+            "We added Spanish and English landing pages with full SEO metadata, including Open Graph and Twitter Cards, to boost your search engine visibility."
+          ],
+          "improved": [
+            "Notifications can now be softly dismissed instead of permanently deleted, giving you more control over your inbox.",
+            "Updated several security dependencies to protect your data and ensure smoother app performance.",
+            "Improved error handling when loading data, showing cached information when database permission errors occur.",
+            "Optimized the mobile app installation (PWA) so it works correctly without icon-related failures."
+          ],
+          "fixed": [
+            "Fixed login issues that caused redirect loops and session cookie failures, making sign-in more reliable."
+          ]
+        }
       }
     },
     {

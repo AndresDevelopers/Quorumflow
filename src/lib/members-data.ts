@@ -137,6 +137,10 @@ export async function createMember(memberData: Omit<Member, 'id'>, barrioOrg: st
       cleanData.hasFamilySearchAccount = memberData.hasFamilySearchAccount === true;
     }
 
+    if (memberData.hasPatriarchalBlessing !== undefined) {
+      cleanData.hasPatriarchalBlessing = memberData.hasPatriarchalBlessing === true;
+    }
+
     if (memberData.familySearchGenerations !== undefined && memberData.familySearchGenerations !== null) {
       cleanData.familySearchGenerations = memberData.familySearchGenerations;
     }
@@ -256,6 +260,7 @@ export async function updateMember(
       lessActiveObservation: memberData.lessActiveObservation,
       hasLdsAccount: memberData.hasLdsAccount,
       hasFamilySearchAccount: memberData.hasFamilySearchAccount,
+      hasPatriarchalBlessing: memberData.hasPatriarchalBlessing,
       needsFamilySearchHelp: memberData.needsFamilySearchHelp,
       familySearchCreateAccountAnnotationId: memberData.familySearchCreateAccountAnnotationId,
       familySearchGenerations: memberData.familySearchGenerations,

@@ -10,6 +10,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   Timestamp,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -18,12 +19,14 @@ import {
   ministeringCollection,
   ministeringDistrictsCollection,
   ministeringInterviewsCollection,
+  usersCollection,
 } from '@/lib/collections';
 import type { Companionship, Family, MinisteringDistrict, MinisteringInterview } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
 import Link from 'next/link';
 import { removeMinisteringTeachersFromFamilies } from '@/lib/ministering-reverse-sync';
+import { createBulkNotifications, createNotification } from '@/lib/notification-helpers';
 import { format } from 'date-fns';
 import { getDateFnsLocale } from '@/lib/i18n-date';
 import { cn } from '@/lib/utils';
@@ -335,9 +338,24 @@ export default function ManageCompanionshipPage() {
         completedBy: user?.uid ?? null,
         updatedAt: serverTimestamp(),
       });
+
+      // Solo con observación: avisar a secretarios del barrio (in-app + push).
+      if (observation) {
+        await notifySecretariesInterviewCompleted({
+          interviewId: interviewToComplete.id,
+          companionshipName:
+            interviewToComplete.companionshipName?.trim() ||
+            companionshipName.trim() ||
+            t('ministering.interview.listTitle'),
+          observation,
+        });
+      }
+
       toast({
         title: t('ministering.success'),
-        description: t('ministering.interview.completedDescription'),
+        description: observation
+          ? t('ministering.interview.completedWithObservationDescription')
+          : t('ministering.interview.completedDescription'),
       });
       closeCompleteDialog();
       await fetchInterviews();
@@ -407,6 +425,192 @@ export default function ManageCompanionshipPage() {
     };
   };
 
+  /**
+   * Una sola cuenta del líder del distrito (syncedMemberId), scoped al barrio.
+   * Query compuesta: 0–1 lecturas (no recorre todo el barrio).
+   */
+  const findLeaderUserId = async (leaderMemberId: string): Promise<string | null> => {
+    if (!barrioOrg || !leaderMemberId.trim()) return null;
+    try {
+      const snap = await getDocs(
+        query(
+          usersCollection,
+          where('barrioOrg', '==', barrioOrg),
+          where('syncedMemberId', '==', leaderMemberId.trim()),
+          limit(1),
+        ),
+      );
+      return snap.docs[0]?.id ?? null;
+    } catch (error) {
+      logger.warn({
+        error,
+        message: 'Could not resolve district leader user account for interview notification',
+        leaderMemberId,
+      });
+      return null;
+    }
+  };
+
+  /** true solo si cambió día, hora o asistentes (evita push al guardar sin cambios). */
+  const didInterviewScheduleChange = (
+    existing: MinisteringInterview | undefined,
+    next: { date: Date; time: string; attendees: string[] },
+  ): boolean => {
+    if (!existing) return true;
+
+    const prevDay = existing.date?.toDate?.();
+    const sameDay =
+      !!prevDay &&
+      prevDay.getFullYear() === next.date.getFullYear() &&
+      prevDay.getMonth() === next.date.getMonth() &&
+      prevDay.getDate() === next.date.getDate();
+
+    const sameTime = (existing.time || '').trim() === next.time.trim();
+
+    const prevAttendees = getInterviewAttendees(existing)
+      .map((n) => n.trim())
+      .filter(Boolean)
+      .sort();
+    const nextAttendees = [...next.attendees].map((n) => n.trim()).filter(Boolean).sort();
+    const sameAttendees =
+      prevAttendees.length === nextAttendees.length &&
+      prevAttendees.every((name, i) => name === nextAttendees[i]);
+
+    return !(sameDay && sameTime && sameAttendees);
+  };
+
+  /**
+   * Notifica in-app + push al líder del distrito cuando se reagenda de verdad.
+   * Costo acotado: 1 query (≤1 user) + 1 write in-app + 1 push dirigido.
+   * No bloquea el flujo principal si falla el envío.
+   */
+  const notifyLeaderInterviewRescheduled = async (params: {
+    leaderMemberId: string;
+    companionshipName: string;
+    date: Date;
+    time: string;
+    interviewId: string;
+  }) => {
+    if (!barrioOrg) return;
+    try {
+      const leaderUserId = await findLeaderUserId(params.leaderMemberId);
+      if (!leaderUserId) {
+        logger.warn({
+          message: 'Interview rescheduled but no user account linked to district leader',
+          leaderMemberId: params.leaderMemberId,
+        });
+        return;
+      }
+
+      const dateLabel = format(params.date, 'PPP', { locale: getDateFnsLocale() });
+      const timeLabel = params.time.trim();
+      const title = t('ministering.interview.rescheduleNotificationTitle');
+      const body = timeLabel
+        ? t('ministering.interview.rescheduleNotificationBody', {
+            companionshipName: params.companionshipName,
+            date: dateLabel,
+            time: timeLabel,
+          })
+        : t('ministering.interview.rescheduleNotificationBodyNoTime', {
+            companionshipName: params.companionshipName,
+            date: dateLabel,
+          });
+
+      // Un solo destinatario → 1 doc + 1 push API (sin broadcast al barrio).
+      await createNotification({
+        userId: leaderUserId,
+        title,
+        body,
+        contextType: 'ministering_interview',
+        contextId: params.interviewId,
+        actionUrl: '/ministering',
+        barrioOrg,
+      });
+    } catch (error) {
+      logger.warn({
+        error,
+        message: 'Failed to notify district leader about interview reschedule',
+        interviewId: params.interviewId,
+      });
+    }
+  };
+
+  /**
+   * Secretarios del barrioOrg (rol canónico "secretary").
+   * Query acotada: no recorre todos los usuarios; limit bajo.
+   */
+  const findSecretaryUserIds = async (): Promise<string[]> => {
+    if (!barrioOrg) return [];
+    try {
+      const snap = await getDocs(
+        query(
+          usersCollection,
+          where('barrioOrg', '==', barrioOrg),
+          where('role', '==', 'secretary'),
+          limit(5),
+        ),
+      );
+      return snap.docs.map((d) => d.id);
+    } catch (error) {
+      logger.warn({
+        error,
+        message: 'Could not resolve secretary accounts for interview completion notification',
+      });
+      return [];
+    }
+  };
+
+  /**
+   * Al completar con observación: in-app + push a secretarios del barrio.
+   * Sin observación → no notifica (cero costo extra).
+   */
+  const notifySecretariesInterviewCompleted = async (params: {
+    interviewId: string;
+    companionshipName: string;
+    observation: string;
+  }) => {
+    if (!barrioOrg) return;
+    try {
+      const secretaryIds = await findSecretaryUserIds();
+      if (secretaryIds.length === 0) {
+        logger.warn({
+          message: 'Interview completed with observation but no secretary accounts found',
+          interviewId: params.interviewId,
+        });
+        return;
+      }
+
+      // Truncar observación para no inflar payload FCM / in-app.
+      const maxObs = 160;
+      const obs =
+        params.observation.length > maxObs
+          ? `${params.observation.slice(0, maxObs - 1)}…`
+          : params.observation;
+
+      const title = t('ministering.interview.completedObservationNotificationTitle');
+      const body = t('ministering.interview.completedObservationNotificationBody', {
+        companionshipName: params.companionshipName,
+        observation: obs,
+      });
+
+      // Push dirigido por userId (no broadcast al barrio).
+      await createBulkNotifications(secretaryIds, {
+        title,
+        body,
+        contextType: 'ministering_interview',
+        contextId: params.interviewId,
+        actionUrl: companionshipId ? `/ministering/${companionshipId}` : '/ministering',
+        barrioOrg,
+      });
+    } catch (error) {
+      logger.warn({
+        error,
+        message: 'Failed to notify secretaries about completed interview observation',
+        interviewId: params.interviewId,
+      });
+    }
+  };
+
   const handleScheduleInterview = async () => {
     if (!companionshipId || !companionship || !barrioOrg || !user?.uid) return;
 
@@ -461,6 +665,24 @@ export default function ManageCompanionshipPage() {
         companionshipName.trim() || attendees.join(t('ministering.and'));
 
       if (editingInterviewId) {
+        const existingInterview = interviews.find((i) => i.id === editingInterviewId);
+        let leaderMemberId =
+          typeof existingInterview?.leaderMemberId === 'string'
+            ? existingInterview.leaderMemberId.trim()
+            : '';
+
+        // Si el doc legacy no tiene líder, re-resolver desde el distrito
+        if (!leaderMemberId) {
+          const leaderInfo = await resolveDistrictLeader();
+          leaderMemberId = leaderInfo?.leaderMemberId?.trim() || '';
+        }
+
+        const scheduleChanged = didInterviewScheduleChange(existingInterview, {
+          date: dateAtNoon,
+          time: interviewTime.trim(),
+          attendees,
+        });
+
         await updateDoc(doc(ministeringInterviewsCollection, editingInterviewId), {
           companionshipName: autoCompanionshipName,
           intervieweeNames: attendees,
@@ -470,7 +692,19 @@ export default function ManageCompanionshipPage() {
           completedAt: null,
           completedBy: null,
           updatedAt: serverTimestamp(),
+          ...(leaderMemberId ? { leaderMemberId } : {}),
         });
+
+        // Solo notificar si hubo cambio real (ahorra lecturas + FCM en re-guardados).
+        if (scheduleChanged && leaderMemberId) {
+          await notifyLeaderInterviewRescheduled({
+            leaderMemberId,
+            companionshipName: autoCompanionshipName,
+            date: dateAtNoon,
+            time: interviewTime.trim(),
+            interviewId: editingInterviewId,
+          });
+        }
 
         toast({
           title: t('ministering.success'),

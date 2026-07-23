@@ -114,6 +114,42 @@ function hasConventionalPrefix(text) {
   return /^\s*(feat|fix|chore|docs|refactor|perf|test|build|ci|style|revert)(\([^)]+\))?(!)?\s*:\s*/i.test(text);
 }
 
+/** Category keys used in changelog.json (Keep a Changelog–style). */
+const CHANGE_CATEGORIES = ['added', 'improved', 'fixed'];
+
+function emptyLocalizedCategories() {
+  return {
+    es: { added: [], improved: [], fixed: [] },
+    en: { added: [], improved: [], fixed: [] },
+  };
+}
+
+/**
+ * Guess category from a conventional commit subject.
+ * feat → added, fix → fixed, everything else → improved.
+ */
+function guessCategoryFromCommit(message) {
+  const subject = extractSubject(message).toLowerCase();
+  if (/^\s*fix(\(|:|!)/i.test(subject) || /\bfix(es|ed)?\b/.test(subject)) {
+    return 'fixed';
+  }
+  if (
+    /^\s*feat(\(|:|!)/i.test(subject) ||
+    /\b(add|adds|added|introduce|introduces)\b/.test(subject)
+  ) {
+    return 'added';
+  }
+  return 'improved';
+}
+
+function flattenLocalized(langBlock) {
+  if (!langBlock) return [];
+  if (Array.isArray(langBlock)) return langBlock;
+  return CHANGE_CATEGORIES.flatMap((key) =>
+    Array.isArray(langBlock[key]) ? langBlock[key] : []
+  );
+}
+
 function isLikelyRaw(items, normalizedCommits) {
   if (!Array.isArray(items) || items.length === 0) return true;
   return items.every((item) => {
@@ -122,22 +158,125 @@ function isLikelyRaw(items, normalizedCommits) {
   });
 }
 
+/**
+ * Normalize AI / fallback payload into:
+ * { es: { added, improved, fixed }, en: { added, improved, fixed } }
+ * Accepts legacy flat arrays under es/en for resilience.
+ */
+function normalizeCategorizedChanges(raw) {
+  const out = emptyLocalizedCategories();
+  if (!raw || typeof raw !== 'object') return out;
+
+  for (const lang of ['es', 'en']) {
+    const block = raw[lang];
+    if (Array.isArray(block)) {
+      // Legacy: put everything under improved
+      out[lang].improved = block
+        .map((s) => String(s).trim())
+        .filter(Boolean)
+        .slice(0, 6);
+      continue;
+    }
+    if (!block || typeof block !== 'object') continue;
+
+    for (const key of CHANGE_CATEGORIES) {
+      const list = block[key];
+      if (!Array.isArray(list)) continue;
+      out[lang][key] = list
+        .map((s) => String(s).trim())
+        .filter(Boolean)
+        .slice(0, 6);
+    }
+  }
+
+  // Drop empty category keys for a cleaner JSON file
+  for (const lang of ['es', 'en']) {
+    for (const key of CHANGE_CATEGORIES) {
+      if (!out[lang][key].length) delete out[lang][key];
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Offline fallback when DeepSeek is unavailable.
+ * Buckets by conventional commit type; quality is lower than the AI path.
+ */
 function createFriendlyChanges(commits) {
-  const subjects = commits.map(extractSubject).filter(Boolean);
-  const cleaned = subjects.map(stripConventionalPrefix);
-  const limited = cleaned.slice(0, 6);
+  const out = emptyLocalizedCategories();
+  const limited = commits.slice(0, 6);
 
-  const es = limited.map((item) => {
-    const base = item || 'Cambios internos';
-    return `Actualización: ${ensureSentence(base)}`;
-  });
+  for (const message of limited) {
+    const category = guessCategoryFromCommit(message);
+    const base = stripConventionalPrefix(extractSubject(message)) || 'cambios internos';
+    const es = ensureSentence(
+      category === 'fixed'
+        ? `Corregimos: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
+        : category === 'added'
+          ? `Agregamos: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
+          : `Mejoramos: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
+    );
+    const en = ensureSentence(
+      category === 'fixed'
+        ? `We fixed: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
+        : category === 'added'
+          ? `We added: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
+          : `We improved: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
+    );
+    out.es[category].push(es);
+    out.en[category].push(en);
+  }
 
-  const en = limited.map((item) => {
-    const base = item || 'Internal updates';
-    return `Update: ${ensureSentence(base)}`;
-  });
+  return normalizeCategorizedChanges(out);
+}
 
-  return { es, en };
+/** True if text looks like English (used to reject "Spanish" that is still English). */
+function looksMostlyEnglish(text) {
+  const sample = String(text || '').toLowerCase();
+  if (!sample.trim()) return false;
+  // Common English function words / commit-ish verbs
+  const enHits = (
+    sample.match(
+      /\b(the|and|with|for|from|this|that|added|add|fix|fixed|update|updated|improve|improved|implement|implemented|refactor|feature|support|system|tracking|scheduling|reminder)\b/g
+    ) || []
+  ).length;
+  const esHits = (
+    sample.match(
+      /\b(el|la|los|las|de|del|que|con|para|por|una|unos|unas|hemos|añadimos|mejoramos|ahora|puedes|puede|miembros|aplicación|cuenta|seguimiento|corregimos|agregamos)\b/g
+    ) || []
+  ).length;
+  return enHits >= 2 && enHits > esHits;
+}
+
+/**
+ * Rejects AI output that is still raw commits, bilingual-mixed, or too terse.
+ * Accepts either categorized objects or legacy flat arrays.
+ */
+function isLowQualityChangelog(result, normalizedCommits) {
+  if (!result || typeof result !== 'object') return true;
+
+  const esItems = flattenLocalized(result.es);
+  const enItems = flattenLocalized(result.en);
+  if (esItems.length === 0 || enItems.length === 0) return true;
+
+  if (isLikelyRaw(esItems, normalizedCommits) || isLikelyRaw(enItems, normalizedCommits)) {
+    return true;
+  }
+
+  // Spanish side must actually read as Spanish
+  if (esItems.some(looksMostlyEnglish)) return true;
+
+  // Reject short codelike bullets / "Actualización: Foo bar" leftovers
+  const badPrefix = /^(actualizaci[oó]n|update|fix|feat|chore)\s*:/i;
+  for (const item of [...esItems, ...enItems]) {
+    const t = String(item || '').trim();
+    if (t.length < 40) return true; // too terse vs style of 1.1.36
+    if (badPrefix.test(t)) return true;
+    if (hasConventionalPrefix(t)) return true;
+  }
+
+  return false;
 }
 
 function readJSON(filePath) {
@@ -165,20 +304,64 @@ async function callDeepSeek(commits) {
 
   const numbered = commits.map((m, i) => `${i + 1}. ${m}`).join('\n');
 
-  const systemPrompt =
-    'You are a changelog writer. Transform git commit messages into friendly, ' +
-    'non-technical release notes for end users. ' +
-    'Group similar items when it makes sense. Maximum 6 bullet points per language. ' +
-    'Return ONLY valid JSON – no markdown, no extra text.';
+  const systemPrompt = [
+    'You write end-user release notes for SionFlow, a ward/organization management app',
+    'for The Church of Jesus Christ of Latter-day Saints (ministración, miembros, conversos, FamilySearch, etc.).',
+    '',
+    'GOAL: Help a non-technical leader see WHAT is new, WHAT was improved, and WHAT was fixed — and WHY it helps.',
+    'Write like a warm product update, NOT like a git log.',
+    '',
+    'CATEGORIES (required — put each bullet in exactly one):',
+    '- "added": brand-new capability the user did not have before (new screens, new fields, new workflows).',
+    '- "improved": better behavior of something that already existed (faster, clearer, smarter, more offline, better UX).',
+    '- "fixed": a bug or broken behavior that no longer happens.',
+    'Omit a category entirely if it has no bullets. Never invent categories.',
+    '',
+    'STYLE (required):',
+    '- First-person plural where natural: "Hemos…", "Añadimos…", "Ahora puedes…", "We\'ve…", "You can now…".',
+    '- Full sentences (40–180 characters ideal). Explain the benefit, not just the feature name.',
+    '- Spanish bullets must be real Spanish (never leave English commit text under "es").',
+    '- English bullets must be real English.',
+    '- Group related commits into one richer bullet when they are the same user story.',
+    '- Skip pure internal work (tests, refactors, CI, dependency bumps) unless it clearly helps users.',
+    '- Max 6 bullets total per language across all categories. Prefer 2–4 clear bullets.',
+    '- Do NOT use prefixes like "Actualización:", "Update:", "feat:", "fix:".',
+    '- Do NOT copy commit subjects verbatim. Rewrite in plain language.',
+    '- Avoid jargon: no "API", "JSON", "Firestore", "hook", "PR", "refactor" unless necessary.',
+    '',
+    'GOOD examples:',
+    'added ES: "Ahora puedes programar entrevistas de ministración con fecha, hora y quién del compañerismo asistirá."',
+    'improved ES: "Hemos mejorado la velocidad de subida al comprimir las fotos de perfil (máx. 640px y 180KB)."',
+    'fixed ES: "Corregimos un fallo al iniciar sesión que a veces dejaba la sesión a medias y obligaba a reintentar."',
+    '',
+    'BAD examples (never do this):',
+    '- Flat arrays without categories',
+    '- "Actualización: Add full interview scheduling…"',
+    '- "feat(ministering): add interviews"',
+    '',
+    'Return ONLY valid JSON – no markdown fences, no commentary.',
+  ].join('\n');
 
-  const userPrompt =
-    `Git commits from today:\n${numbered}\n\n` +
-    'Produce a JSON object with two arrays:\n' +
-    '{\n' +
-    '  "es": ["punto 1 en español", "punto 2 en español"],\n' +
-    '  "en": ["point 1 in English", "point 2 in English"]\n' +
-    '}\n' +
-    'Each item must be a complete, friendly sentence describing a user-facing improvement or fix.';
+  const userPrompt = [
+    'Git commits from today (rewrite into user-facing notes; do not echo them raw):',
+    numbered,
+    '',
+    'Produce JSON exactly in this shape (omit empty category arrays):',
+    '{',
+    '  "es": {',
+    '    "added": ["frase completa en español…"],',
+    '    "improved": ["…"],',
+    '    "fixed": ["…"]',
+    '  },',
+    '  "en": {',
+    '    "added": ["complete sentence in English…"],',
+    '    "improved": ["…"],',
+    '    "fixed": ["…"]',
+    '  }',
+    '}',
+    'es and en must cover the same changes (same categories, same count per category).',
+    'Focus on what leaders and members can do now that they could not before.',
+  ].join('\n');
 
   const body = JSON.stringify({
     model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
@@ -186,8 +369,9 @@ async function callDeepSeek(commits) {
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: userPrompt   },
     ],
-    temperature: 0.5,
-    max_tokens: 1200,
+    // Slightly higher temp for natural prose; still constrained by the style guide.
+    temperature: 0.65,
+    max_tokens: 1600,
     response_format: { type: 'json_object' },
     thinking: { type: 'disabled' },
   });
@@ -218,16 +402,22 @@ async function callDeepSeek(commits) {
           const match   = content.match(/\{[\s\S]*\}/);
           if (match) {
             const result = JSON.parse(match[0]);
-            if (Array.isArray(result.es) && Array.isArray(result.en)) {
+            const hasEs = result.es && (Array.isArray(result.es) || typeof result.es === 'object');
+            const hasEn = result.en && (Array.isArray(result.en) || typeof result.en === 'object');
+            if (hasEs && hasEn) {
               const normalizedCommits = buildNormalizedCommitSet(commits);
-              if (isLikelyRaw(result.es, normalizedCommits) || isLikelyRaw(result.en, normalizedCommits)) {
-                console.warn('[changelog] DeepSeek returned raw commits, using friendly fallback.');
+              if (isLowQualityChangelog(result, normalizedCommits)) {
+                console.warn(
+                  '[changelog] DeepSeek output failed quality checks (raw/too short/not Spanish). Using fallback.'
+                );
+                console.warn('[changelog] Rejected es:', JSON.stringify(result.es));
+                console.warn('[changelog] Rejected en:', JSON.stringify(result.en));
                 return resolve(friendlyFallback);
               }
-              return resolve(result);
+              return resolve(normalizeCategorizedChanges(result));
             }
           }
-          console.warn('[changelog] Unexpected DeepSeek response, using raw commits.');
+          console.warn('[changelog] Unexpected DeepSeek response, using friendly fallback.');
           resolve(friendlyFallback);
         } catch (e) {
           console.error('[changelog] DeepSeek parse error:', e.message);
@@ -337,12 +527,18 @@ if (require.main === module) {
 }
 
 module.exports = {
+  CHANGE_CATEGORIES,
   normalizeText,
   extractSubject,
   stripConventionalPrefix,
   ensureSentence,
   buildNormalizedCommitSet,
   isLikelyRaw,
+  looksMostlyEnglish,
+  isLowQualityChangelog,
   createFriendlyChanges,
+  normalizeCategorizedChanges,
+  guessCategoryFromCommit,
+  flattenLocalized,
   shouldSkipCommit,
 };

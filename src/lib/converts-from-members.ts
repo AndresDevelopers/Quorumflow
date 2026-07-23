@@ -6,6 +6,7 @@
 import { Timestamp } from 'firebase/firestore';
 import type { Convert, Member } from '@/lib/types';
 import { normalizeMemberStatus } from '@/lib/members-data';
+import { safeGetDate } from '@/lib/date-utils';
 
 export const RECENT_CONVERT_MONTHS = 24;
 
@@ -20,15 +21,14 @@ export function parseMemberIdFromConvertId(convertId: string): string | null {
   return null;
 }
 
-/** Fecha de bautismo del miembro como Date, o null. */
+/**
+ * Fecha de bautismo del miembro como Date, o null.
+ * Soporta Timestamp, Date, ISO string y objetos {seconds}/{_seconds}
+ * (p. ej. tras JSON.parse del caché local de miembros).
+ */
 export function getMemberBaptismDate(member: Pick<Member, 'baptismDate'> | null | undefined): Date | null {
   if (!member?.baptismDate) return null;
-  const bd = member.baptismDate as Timestamp | Date;
-  if (typeof (bd as Timestamp).toDate === 'function') {
-    return (bd as Timestamp).toDate();
-  }
-  if (bd instanceof Date) return bd;
-  return null;
+  return safeGetDate(member.baptismDate);
 }
 
 export function getRecentConvertCutoff(now = new Date()): Date {

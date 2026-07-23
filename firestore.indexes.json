@@ -123,6 +123,22 @@
       ]
     },
     {
+      "collectionGroup": "c_users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "barrioOrg", "order": "ASCENDING" },
+        { "fieldPath": "syncedMemberId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "c_users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "barrioOrg", "order": "ASCENDING" },
+        { "fieldPath": "role", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "c_ministracion_entrevistas",
       "queryScope": "COLLECTION",
       "fields": [

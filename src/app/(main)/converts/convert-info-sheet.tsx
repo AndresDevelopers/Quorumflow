@@ -339,13 +339,68 @@ export function ConvertInfoSheet({
                 </div>
               );
             })()}
-            <div className="text-left">
+            <div className="text-left min-w-0">
               <SheetTitle className="text-lg">{convert.name}</SheetTitle>
               <SheetDescription>
                 {t('converts.sheet.baptizedOn', {
                   date: format(convert.baptismDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() }),
                 })}
               </SheetDescription>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {convert.calling?.trim() ? (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">
+                    {t('converts.badge.calling', { calling: convert.calling.trim() })}
+                  </Badge>
+                ) : null}
+                <Badge
+                  variant={convert.recommendationActive ? 'default' : 'outline'}
+                  className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                >
+                  {convert.recommendationActive
+                    ? t('converts.badge.recommendationYes')
+                    : t('converts.badge.recommendationNo')}
+                </Badge>
+                <Badge
+                  variant={convert.selfRelianceCourse ? 'default' : 'outline'}
+                  className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                >
+                  {convert.selfRelianceCourse
+                    ? t('converts.badge.selfRelianceYes')
+                    : t('converts.badge.selfRelianceNo')}
+                </Badge>
+                <Badge
+                  variant={
+                    (convert.hasLdsAccount ?? convert.memberData?.hasLdsAccount)
+                      ? 'default'
+                      : 'outline'
+                  }
+                  className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                >
+                  {(convert.hasLdsAccount ?? convert.memberData?.hasLdsAccount)
+                    ? t('converts.badge.ldsYes')
+                    : t('converts.badge.ldsNo')}
+                </Badge>
+                <Badge
+                  variant={
+                    (convert.hasFamilySearchAccount ?? convert.memberData?.hasFamilySearchAccount)
+                      ? 'default'
+                      : 'outline'
+                  }
+                  className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                >
+                  {(convert.hasFamilySearchAccount ?? convert.memberData?.hasFamilySearchAccount)
+                    ? t('converts.badge.familySearchYes')
+                    : t('converts.badge.familySearchNo')}
+                </Badge>
+                <Badge
+                  variant={hasFriendship ? 'secondary' : 'outline'}
+                  className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                >
+                  {hasFriendship
+                    ? t('converts.badge.friendsYes')
+                    : t('converts.badge.friendsNo')}
+                </Badge>
+              </div>
             </div>
           </div>
         </SheetHeader>

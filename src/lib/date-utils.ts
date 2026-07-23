@@ -60,9 +60,24 @@ export function safeGetDate(timestamp: any): Date | null {
             return new Date(timestamp);
         }
 
-        // If it's an object with seconds property (Firestore Timestamp-like)
-        if (typeof timestamp === 'object' && timestamp.seconds) {
-            return new Date(timestamp.seconds * 1000);
+        // Firestore Timestamp-like after JSON (localStorage / API)
+        // { seconds, nanoseconds } or admin-style { _seconds, _nanoseconds }
+        if (typeof timestamp === 'object') {
+            const seconds =
+                typeof timestamp.seconds === 'number'
+                    ? timestamp.seconds
+                    : typeof timestamp._seconds === 'number'
+                      ? timestamp._seconds
+                      : null;
+            if (seconds != null) {
+                const nanos =
+                    typeof timestamp.nanoseconds === 'number'
+                        ? timestamp.nanoseconds
+                        : typeof timestamp._nanoseconds === 'number'
+                          ? timestamp._nanoseconds
+                          : 0;
+                return new Date(seconds * 1000 + Math.floor(nanos / 1e6));
+            }
         }
 
         return null;

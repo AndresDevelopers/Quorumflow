@@ -62,6 +62,13 @@ import { updateMember, getMemberById } from '@/lib/members-data';
 import { createNotificationsForAll } from '@/lib/notification-helpers';
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { safeGetDate, safeFormatDate } from '@/lib/date-utils';
+import { differenceInYears } from 'date-fns';
+import {
+  getMemberLifecycleKind,
+  getMemberLifecycleBadgeKey,
+  getMemberLifecycleBadgeVariant,
+  getDigitalAccountCoverBadges,
+} from '@/lib/member-lifecycle';
 
 const statusConfig = {
   active: {
@@ -626,7 +633,53 @@ export default function MembersPage() {
                                 <Users className="h-4 w-4 text-muted-foreground" />
                               </div>
                             )}
-                            <span>{member.firstName} {member.lastName}</span>
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span>{member.firstName} {member.lastName}</span>
+                                {member.isUrgent && (
+                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 font-normal gap-0.5">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {t('members.badge.urgent')}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {(() => {
+                                  const kind = getMemberLifecycleKind(member);
+                                  const accounts = getDigitalAccountCoverBadges(member, kind);
+                                  return (
+                                    <>
+                                      <Badge
+                                        variant={getMemberLifecycleBadgeVariant(kind)}
+                                        className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                                      >
+                                        {t(getMemberLifecycleBadgeKey(kind))}
+                                      </Badge>
+                                      {accounts.showLds && (
+                                        <Badge
+                                          variant={accounts.hasLds ? 'default' : 'outline'}
+                                          className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                                        >
+                                          {accounts.hasLds
+                                            ? t('converts.badge.ldsYes')
+                                            : t('converts.badge.ldsNo')}
+                                        </Badge>
+                                      )}
+                                      {accounts.showFamilySearch && (
+                                        <Badge
+                                          variant={accounts.hasFamilySearch ? 'default' : 'outline'}
+                                          className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                                        >
+                                          {accounts.hasFamilySearch
+                                            ? t('converts.badge.familySearchYes')
+                                            : t('converts.badge.familySearchNo')}
+                                        </Badge>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>{member.phoneNumber || t('common.notSpecified')}</TableCell>
@@ -786,26 +839,49 @@ export default function MembersPage() {
                 const isDeceased = member.status === 'deceased';
                 const StatusIcon = statusInfo.icon;
 
+                const isBaptized = member.ordinances?.includes('baptism') ?? false;
+                const baptismDate = safeGetDate(member.baptismDate);
+                const birthDate = safeGetDate(member.birthDate);
+                const age = birthDate ? differenceInYears(new Date(), birthDate) : null;
+                const hasTeachers = !!(member.ministeringTeachers && member.ministeringTeachers.length > 0);
+                const badgeClass = 'text-[10px] px-1.5 py-0 h-5 font-normal';
+                const lifecycleKind = getMemberLifecycleKind(member);
+                const lifecycleLabel = t(getMemberLifecycleBadgeKey(lifecycleKind));
+                const lifecycleVariant = getMemberLifecycleBadgeVariant(lifecycleKind);
+                const accountBadges = getDigitalAccountCoverBadges(member, lifecycleKind);
+
                 return (
-                  <Card key={member.id} className={isDeceased ? 'bg-muted/40 text-muted-foreground' : undefined}>
+                  <Card
+                    key={member.id}
+                    className={
+                      isDeceased
+                        ? 'bg-muted/40 text-muted-foreground'
+                        : member.isUrgent
+                          ? 'border-orange-500/40 bg-orange-500/[0.03]'
+                          : undefined
+                    }
+                  >
                     <CardContent className="pt-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
+                      {/* Portada: foto, nombre, contacto y estado */}
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="flex items-start gap-3 min-w-0">
                           {member.photoURL ? (
                             <OfflineImage
                               src={member.photoURL}
                               alt={`${member.firstName} ${member.lastName}`}
-                              width={40}
-                              height={40}
-                              className="w-10 h-10 rounded-full object-cover"
+                              width={48}
+                              height={48}
+                              className="w-12 h-12 rounded-full object-cover shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center shrink-0">
                               <Users className="h-5 w-5 text-muted-foreground" />
                             </div>
                           )}
-                          <div>
-                            <h3 className="font-semibold">{member.firstName} {member.lastName}</h3>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold leading-snug">
+                              {member.firstName} {member.lastName}
+                            </h3>
                             {member.phoneNumber && (
                               <a
                                 href={`tel:${member.phoneNumber.replace(/\D/g, '')}`}
@@ -814,71 +890,95 @@ export default function MembersPage() {
                                 {member.phoneNumber}
                               </a>
                             )}
+                            {(birthDate || age != null) && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {birthDate
+                                  ? t('members.birthLabel', {
+                                      date: safeFormatDate(member.birthDate, 'd MMM yyyy', {
+                                        locale: getDateFnsLocale(),
+                                      }),
+                                    })
+                                  : null}
+                                {age != null ? ` · ${t('members.ageLabel', { age })}` : null}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <Badge variant={statusInfo.variant} className="gap-1">
-                          <StatusIcon className="h-3 w-3" />
-                          {t(`member.status.${member.status}`)}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <Badge variant={statusInfo.variant} className="gap-1">
+                            <StatusIcon className="h-3 w-3" />
+                            {t(`member.status.${member.status}`)}
+                          </Badge>
+                          {member.isUrgent && (
+                            <Badge variant="destructive" className={`${badgeClass} gap-0.5`}>
+                              <AlertTriangle className="h-3 w-3" />
+                              {t('members.badge.urgent')}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
 
+                      {/* Etiquetas de identificación del miembro */}
                       <div className="mb-3 flex flex-wrap gap-1">
-                        <Badge
-                          variant={member.hasLdsAccount ? 'default' : 'outline'}
-                          className="text-[10px] px-1.5 py-0 h-5 font-normal"
-                        >
-                          {member.hasLdsAccount
-                            ? t('converts.badge.ldsYes')
-                            : t('converts.badge.ldsNo')}
+                        <Badge variant={lifecycleVariant} className={badgeClass}>
+                          {lifecycleLabel}
                         </Badge>
-                        <Badge
-                          variant={member.hasFamilySearchAccount ? 'default' : 'outline'}
-                          className="text-[10px] px-1.5 py-0 h-5 font-normal"
-                        >
-                          {member.hasFamilySearchAccount
-                            ? t('converts.badge.familySearchYes')
-                            : t('converts.badge.familySearchNo')}
-                        </Badge>
+                        {accountBadges.showLds && (
+                          <Badge
+                            variant={accountBadges.hasLds ? 'default' : 'outline'}
+                            className={badgeClass}
+                          >
+                            {accountBadges.hasLds
+                              ? t('converts.badge.ldsYes')
+                              : t('converts.badge.ldsNo')}
+                          </Badge>
+                        )}
+                        {accountBadges.showFamilySearch && (
+                          <Badge
+                            variant={accountBadges.hasFamilySearch ? 'default' : 'outline'}
+                            className={badgeClass}
+                          >
+                            {accountBadges.hasFamilySearch
+                              ? t('converts.badge.familySearchYes')
+                              : t('converts.badge.familySearchNo')}
+                          </Badge>
+                        )}
                       </div>
-
-                      {safeGetDate(member.birthDate) && (
-                        <p className="text-sm text-muted-foreground mb-3">
-                          {t('members.birthLabel', {
-                            date: safeFormatDate(member.birthDate, 'd MMM yyyy', { locale: getDateFnsLocale() }),
-                          })}
-                        </p>
-                      )}
 
                       {member.deathDate && (
-                        <p className="text-sm text-muted-foreground mb-3">
+                        <p className="text-sm text-muted-foreground mb-2">
                           {t('members.deathLabel', {
-                            date: safeFormatDate(member.deathDate, 'd MMM yyyy', { locale: getDateFnsLocale() }),
+                            date: safeFormatDate(member.deathDate, 'd MMM yyyy', {
+                              locale: getDateFnsLocale(),
+                            }),
                           })}
                         </p>
                       )}
 
-                      {(() => {
-                        const isBaptized = member.ordinances?.includes('baptism') ?? false;
-                        const baptismDate = safeGetDate(member.baptismDate);
-                        if (baptismDate) {
-                          const dateStr = safeFormatDate(member.baptismDate, 'd MMM yyyy', { locale: getDateFnsLocale() });
-                          return (
-                            <p className="text-sm text-muted-foreground mb-3">
-                              {isBaptized
-                                ? t('members.baptismLabel', { date: dateStr })
-                                : t('members.baptismLabel', {
-                                    date: t('members.baptismScheduled', { date: dateStr }),
-                                  })}
-                            </p>
-                          );
-                        }
-                        return null;
-                      })()}
+                      {baptismDate && (
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {isBaptized
+                            ? t('members.baptismLabel', {
+                                date: safeFormatDate(member.baptismDate, 'd MMM yyyy', {
+                                  locale: getDateFnsLocale(),
+                                }),
+                              })
+                            : t('members.baptismLabel', {
+                                date: t('members.baptismScheduled', {
+                                  date: safeFormatDate(member.baptismDate, 'd MMM yyyy', {
+                                    locale: getDateFnsLocale(),
+                                  }),
+                                }),
+                              })}
+                        </p>
+                      )}
 
-                      {/* Ordenanzas en móvil */}
+                      {/* Ordenanzas: nombres reales, no solo el conteo */}
                       {member.ordinances && member.ordinances.length > 0 && (
                         <div className="mb-3">
-                          <p className="text-sm font-medium mb-2">{t('members.ordinancesLabel')}</p>
+                          <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                            {t('members.ordinancesLabel')}
+                          </p>
                           <div className="flex flex-wrap gap-1">
                             {member.ordinances.map((ordinance, index) => (
                               <Badge key={`${ordinance}-${index}`} variant="outline" className="text-xs">
@@ -889,18 +989,25 @@ export default function MembersPage() {
                         </div>
                       )}
 
-                      {/* Ministrantes en móvil */}
+                      {/* Ministrantes: nombres reales; alerta solo si faltan */}
                       <div className="mb-3">
-                        <p className="text-sm font-medium mb-2">{t('members.ministeringLabel')}</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                          {t('members.ministeringLabel')}
+                        </p>
                         <div className="flex flex-wrap gap-1">
-                          {member.ministeringTeachers && member.ministeringTeachers.length > 0 ? (
-                            member.ministeringTeachers.map((teacher, index) => (
+                          {hasTeachers ? (
+                            member.ministeringTeachers!.map((teacher, index) => (
                               <Badge key={index} variant="secondary" className="text-xs">
                                 {teacher}
                               </Badge>
                             ))
                           ) : (
-                            <span className="text-muted-foreground text-sm">{t('common.unassigned')}</span>
+                            <Badge
+                              variant="outline"
+                              className={`${badgeClass} border-amber-500/50 text-amber-700 dark:text-amber-400`}
+                            >
+                              {t('members.badge.ministeringNo')}
+                            </Badge>
                           )}
                         </div>
                       </div>

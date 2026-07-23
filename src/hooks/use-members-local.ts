@@ -35,6 +35,14 @@ export function getMembersLocalCacheKeys(barrioOrg: string) {
   };
 }
 
+/**
+ * En desarrollo no usamos caché local de miembros: siempre se prueba
+ * contra datos frescos del servidor (evita timestamps viejos / estado stale).
+ */
+export function isMembersLocalCacheEnabled(): boolean {
+  return process.env.NODE_ENV === 'production';
+}
+
 function normalizeStatus(status?: unknown): MemberStatus {
   if (typeof status !== 'string') return 'active';
   const n = status.toLowerCase().trim();
@@ -57,12 +65,25 @@ export function normalizeMembersList(raw: Member[]): Member[] {
 /** Persist members list for the members page local-first cache */
 export function saveMembersLocalCache(barrioOrg: string, list: Member[]) {
   if (typeof window === 'undefined') return;
+  if (!isMembersLocalCacheEnabled()) return;
   try {
     const keys = getMembersLocalCacheKeys(barrioOrg);
     localStorage.setItem(keys.data, JSON.stringify(list));
     localStorage.setItem(keys.ts, String(Date.now()));
   } catch {
     // quota / private mode — ignore
+  }
+}
+
+/** Quita claves de caché de miembros (útil al arrancar en dev). */
+export function clearMembersLocalCacheKeys(barrioOrg: string) {
+  if (typeof window === 'undefined' || !barrioOrg) return;
+  try {
+    const keys = getMembersLocalCacheKeys(barrioOrg);
+    localStorage.removeItem(keys.data);
+    localStorage.removeItem(keys.ts);
+  } catch {
+    // ignore
   }
 }
 
@@ -75,7 +96,8 @@ export function applyServerMembersToLocalCache(
   barrioOrg: string,
   serverList: Member[]
 ): { list: Member[]; hasChanges: boolean } {
-  if (typeof window === 'undefined') {
+  // Dev: no localStorage — always use server list as-is
+  if (!isMembersLocalCacheEnabled() || typeof window === 'undefined') {
     return { list: serverList, hasChanges: true };
   }
 
@@ -113,8 +135,9 @@ export function useMembersLocal(): UseMembersLocalReturn {
   const membersRef = useRef<Member[]>([]);
   membersRef.current = members;
 
-  /** Lee miembros desde localStorage */
+  /** Lee miembros desde localStorage (desactivado en development). */
   const loadFromLocal = useCallback((): { members: Member[]; ts: number } | null => {
+    if (!isMembersLocalCacheEnabled()) return null;
     if (!barrioOrg || typeof window === 'undefined') return null;
     try {
       const keys = getMembersLocalCacheKeys(barrioOrg);
@@ -131,10 +154,10 @@ export function useMembersLocal(): UseMembersLocalReturn {
     }
   }, [barrioOrg]);
 
-  /** Guarda miembros en localStorage */
+  /** Guarda miembros en localStorage (no-op en development). */
   const saveToLocal = useCallback(
     (list: Member[]) => {
-      if (!barrioOrg) return;
+      if (!barrioOrg || !isMembersLocalCacheEnabled()) return;
       saveMembersLocalCache(barrioOrg, list);
     },
     [barrioOrg]
@@ -191,7 +214,9 @@ export function useMembersLocal(): UseMembersLocalReturn {
     }
   }, [user, firebaseUser, barrioOrg, loadFromLocal]);
 
-  // Carga inicial: localStorage primero. Solo va al servidor si NO hay cache.
+  // Carga inicial:
+  // - production: localStorage primero; red solo si no hay cache
+  // - development: siempre red (sin cache) para probar con datos frescos
   // Espera firebaseUser antes de marcar "done" cuando hay que ir a red.
   // Se re-ejecuta si barrioOrg / firebaseUser cambian (PWA / auth hidratación).
   useEffect(() => {
@@ -208,16 +233,21 @@ export function useMembersLocal(): UseMembersLocalReturn {
     }
     if (initialLoadDone.current) return;
 
-    const cached = loadFromLocal();
-    if (cached) {
-      initialLoadDone.current = true;
-      setMembers(cached.members);
-      setLastSyncTime(new Date(cached.ts));
-      setLoading(false);
-      return;
+    // Dev: limpia restos de caché viejos y no hidrata desde localStorage
+    if (!isMembersLocalCacheEnabled()) {
+      clearMembersLocalCacheKeys(barrioOrg);
+    } else {
+      const cached = loadFromLocal();
+      if (cached) {
+        initialLoadDone.current = true;
+        setMembers(cached.members);
+        setLastSyncTime(new Date(cached.ts));
+        setLoading(false);
+        return;
+      }
     }
 
-    // No cache: need network — wait for Firebase user/token first
+    // Need network — wait for Firebase user/token first
     if (!firebaseUser) {
       return;
     }

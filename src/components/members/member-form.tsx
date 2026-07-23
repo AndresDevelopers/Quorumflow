@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -88,6 +89,8 @@ const createMemberFormSchema = (t: (key: string) => string) =>
     isInCouncil: z.boolean().optional(),
     hasLdsAccount: z.boolean().optional(),
     hasFamilySearchAccount: z.boolean().optional(),
+    /** Opcional: bendición patriarcal */
+    hasPatriarchalBlessing: z.boolean().optional(),
     /** Opcional: número de generaciones (string en form para input vacío) */
     familySearchGenerations: z.string().optional(),
     familySearchTreeStatus: z.enum(['complete', 'partial']).optional().nullable(),
@@ -166,6 +169,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
       ministeringTeachers: [],
       hasLdsAccount: false,
       hasFamilySearchAccount: false,
+      hasPatriarchalBlessing: false,
       familySearchGenerations: '',
       familySearchTreeStatus: null,
       familySearchPartialDetails: '',
@@ -245,6 +249,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         isInCouncil: currentMember.isInCouncil || false,
         hasLdsAccount: currentMember.hasLdsAccount === true,
         hasFamilySearchAccount: currentMember.hasFamilySearchAccount === true,
+        hasPatriarchalBlessing: currentMember.hasPatriarchalBlessing === true,
         familySearchGenerations:
           currentMember.familySearchGenerations != null && currentMember.familySearchGenerations > 0
             ? String(currentMember.familySearchGenerations)
@@ -305,6 +310,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         isInCouncil: false,
         hasLdsAccount: false,
         hasFamilySearchAccount: false,
+        hasPatriarchalBlessing: false,
         familySearchGenerations: '',
         familySearchTreeStatus: null,
         familySearchPartialDetails: '',
@@ -1002,6 +1008,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           isUrgent: values.isUrgent || false,
           isInCouncil: values.isInCouncil || false,
           hasLdsAccount: values.hasLdsAccount === true,
+          hasPatriarchalBlessing: values.hasPatriarchalBlessing === true,
           ...buildFamilySearchFields(values),
           inactiveSince: values.status === 'inactive'
             ? values.inactiveSince
@@ -1097,6 +1104,7 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
           isUrgent: values.isUrgent || false,
           isInCouncil: values.isInCouncil || false,
           hasLdsAccount: values.hasLdsAccount === true,
+          hasPatriarchalBlessing: values.hasPatriarchalBlessing === true,
           ...buildFamilySearchFields(values),
           inactiveSince: values.status === 'inactive'
             ? values.inactiveSince
@@ -1780,6 +1788,30 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
                 </FormItem>
               );
             }}
+          />
+
+          {/* Bendición patriarcal (opcional) */}
+          <FormField
+            control={form.control}
+            name="hasPatriarchalBlessing"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5 pr-4">
+                  <FormLabel className="text-base">
+                    {t('memberForm.hasPatriarchalBlessing')}
+                  </FormLabel>
+                  <FormDescription>
+                    {t('memberForm.hasPatriarchalBlessingDesc')}
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value === true}
+                    onCheckedChange={(checked) => field.onChange(checked === true)}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
           />
 
           {/* Maestros Ministrantes */}

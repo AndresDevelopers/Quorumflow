@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { OfflineImage } from '@/components/offline-image';
-import { ArrowLeft, User, Phone, Calendar, MapPin, Users, FileText, Camera } from 'lucide-react';
+import { ArrowLeft, User, Phone, Calendar, MapPin, Users, FileText, Camera, AlertTriangle } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -24,6 +24,12 @@ import { buildMemberEditUrl } from '@/lib/navigation';
 import { format, differenceInYears } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { PhoneLink, AddressLink } from '@/lib/contact-links';
+import {
+  getMemberLifecycleKind,
+  getMemberLifecycleBadgeKey,
+  getMemberLifecycleBadgeVariant,
+  getDigitalAccountCoverBadges,
+} from '@/lib/member-lifecycle';
 
 const statusConfig = {
   active: {
@@ -164,6 +170,10 @@ export default function MemberProfilePage() {
   const memberStatusKey = normalizeMemberStatus(member.status);
   const statusInfo = statusConfig[memberStatusKey];
   const isDeceased = normalizeMemberStatus(member.status) === 'deceased';
+  const lifecycleKind = getMemberLifecycleKind(member);
+  const lifecycleLabel = t(getMemberLifecycleBadgeKey(lifecycleKind));
+  const lifecycleVariant = getMemberLifecycleBadgeVariant(lifecycleKind);
+  const accountBadges = getDigitalAccountCoverBadges(member, lifecycleKind);
 
   return (
     <section className="page-section">
@@ -195,12 +205,65 @@ export default function MemberProfilePage() {
               )}
             </div>
 
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 space-y-3">
               <div>
                 <h2 className="text-xl font-semibold sm:text-2xl">{member.firstName} {member.lastName}</h2>
-                <Badge variant={statusInfo.variant} className="mt-2">
-                  {t(`member.status.${memberStatusKey}`)}
-                </Badge>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Badge variant={statusInfo.variant}>
+                    {t(`member.status.${memberStatusKey}`)}
+                  </Badge>
+                  {member.isUrgent && (
+                    <Badge variant="destructive" className="gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      {t('members.badge.urgent')}
+                    </Badge>
+                  )}
+                  <Badge variant={lifecycleVariant}>
+                    {lifecycleLabel}
+                  </Badge>
+                  {accountBadges.showLds && (
+                    <Badge variant={accountBadges.hasLds ? 'default' : 'outline'}>
+                      {accountBadges.hasLds
+                        ? t('converts.badge.ldsYes')
+                        : t('converts.badge.ldsNo')}
+                    </Badge>
+                  )}
+                  {accountBadges.showFamilySearch && (
+                    <Badge variant={accountBadges.hasFamilySearch ? 'default' : 'outline'}>
+                      {accountBadges.hasFamilySearch
+                        ? t('converts.badge.familySearchYes')
+                        : t('converts.badge.familySearchNo')}
+                    </Badge>
+                  )}
+                  <Badge variant={member.hasPatriarchalBlessing ? 'default' : 'outline'}>
+                    {member.hasPatriarchalBlessing
+                      ? t('members.badge.patriarchalYes')
+                      : t('members.badge.patriarchalNo')}
+                  </Badge>
+                  {/* Ordenanzas concretas (no solo el conteo) */}
+                  {member.ordinances && member.ordinances.length > 0
+                    ? member.ordinances.map((ordinance) => (
+                        <Badge key={ordinance} variant="outline">
+                          {t(`ordinance.${ordinance}`)}
+                        </Badge>
+                      ))
+                    : null}
+                  {/* Ministrantes: nombres reales; alerta solo si faltan */}
+                  {member.ministeringTeachers && member.ministeringTeachers.length > 0
+                    ? member.ministeringTeachers.map((teacher, index) => (
+                        <Badge key={`teacher-${index}`} variant="secondary">
+                          {teacher}
+                        </Badge>
+                      ))
+                    : (
+                      <Badge
+                        variant="outline"
+                        className="border-amber-500/50 text-amber-700 dark:text-amber-400"
+                      >
+                        {t('members.badge.ministeringNo')}
+                      </Badge>
+                    )}
+                </div>
               </div>
 
               {member.phoneNumber && (
@@ -212,6 +275,19 @@ export default function MemberProfilePage() {
                   <Calendar className="h-4 w-4" />
                   <span>
                     {format(member.birthDate.toDate(), 'd MMMM yyyy', { locale: getDateFnsLocale() })} ({differenceInYears(new Date(), member.birthDate.toDate())})
+                  </span>
+                </div>
+              )}
+
+              {member.baptismDate && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>
+                    {t('members.baptismLabel', {
+                      date: format(member.baptismDate.toDate(), 'd MMMM yyyy', {
+                        locale: getDateFnsLocale(),
+                      }),
+                    })}
                   </span>
                 </div>
               )}
@@ -337,6 +413,19 @@ export default function MemberProfilePage() {
                 </p>
               </div>
             )}
+
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">
+                {t('memberProfile.hasPatriarchalBlessing')}
+              </label>
+              <div className="mt-1">
+                <Badge variant={member.hasPatriarchalBlessing ? 'default' : 'outline'}>
+                  {member.hasPatriarchalBlessing
+                    ? t('memberProfile.hasPatriarchalBlessingYes')
+                    : t('memberProfile.hasPatriarchalBlessingNo')}
+                </Badge>
+              </div>
+            </div>
 
             <div>
               <label className="text-sm font-medium text-muted-foreground">

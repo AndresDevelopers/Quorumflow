@@ -46,7 +46,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Info, Pencil, Eye, Users, Plus } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInMonths } from 'date-fns';
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -568,16 +568,48 @@ export default function ConvertsPage() {
                 ? buildMemberEditUrl(item.memberId, '/converts')
                 : `/members?search=${encodeURIComponent(item.name)}`;
 
+              const monthsSinceBaptism = Math.max(
+                0,
+                differenceInMonths(new Date(), item.baptismDate.toDate())
+              );
+              const calling = item.calling?.trim() || '';
+              const hasFriends = !!(item.friendship?.friends && item.friendship.friends.length > 0);
+              const teachers = item.ministeringTeachers || [];
+              const hasTeachers = teachers.length > 0;
+              const ordinances = item.memberData?.ordinances || [];
+              const statusBadge =
+                convertAlertStatus === 'inactive'
+                  ? {
+                      label: t('converts.alertInactiveTitle'),
+                      className: 'border-red-500/60 text-red-600 dark:text-red-400',
+                    }
+                  : convertAlertStatus === 'less_active'
+                    ? {
+                        label: t('converts.alertLessActiveTitle'),
+                        className: 'border-yellow-400/60 text-yellow-700 dark:text-yellow-400',
+                      }
+                    : {
+                        label: t('converts.badge.statusActive'),
+                        className: 'border-green-500/50 text-green-700 dark:text-green-400',
+                      };
+              const badgeClass = 'text-[10px] px-1.5 py-0 h-5 font-normal';
+
               return (
                 <div
                   key={item.id}
-                  className="flex items-start gap-3 rounded-lg border p-3 sm:p-4"
+                  className={`flex items-start gap-3 rounded-lg border p-3 sm:p-4 ${
+                    convertAlertStatus === 'inactive'
+                      ? 'border-red-500/30 bg-red-500/[0.03]'
+                      : convertAlertStatus === 'less_active'
+                        ? 'border-yellow-400/30 bg-yellow-400/[0.03]'
+                        : ''
+                  }`}
                 >
                   <div className="relative shrink-0 mt-0.5">
                     <ConvertAvatar
                       photoURL={item.photoURL || item.memberData?.photoURL}
                       name={item.name}
-                      size={40}
+                      size={48}
                     />
                     {convertAlertStatus && (
                       <span
@@ -600,27 +632,67 @@ export default function ConvertsPage() {
                     )}
                   </div>
 
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <p
-                      className="text-sm font-medium leading-snug text-foreground sm:text-base"
-                      style={{
-                        overflowWrap: 'anywhere',
-                        wordBreak: 'break-word',
-                        whiteSpace: 'normal',
-                      }}
-                    >
-                      {item.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground sm:text-sm">
-                      {format(item.baptismDate.toDate(), 'd LLLL yyyy', {
-                        locale: getDateFnsLocale(),
-                      })}
-                    </p>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="text-sm font-semibold leading-snug text-foreground sm:text-base"
+                          style={{
+                            overflowWrap: 'anywhere',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'normal',
+                          }}
+                        >
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground sm:text-sm">
+                          {format(item.baptismDate.toDate(), 'd LLLL yyyy', {
+                            locale: getDateFnsLocale(),
+                          })}
+                          {' · '}
+                          {monthsSinceBaptism === 0
+                            ? t('converts.badge.monthsRecent')
+                            : monthsSinceBaptism === 1
+                              ? t('converts.badge.monthsOne')
+                              : t('converts.badge.monthsMany', { count: monthsSinceBaptism })}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={`${badgeClass} shrink-0 ${statusBadge.className}`}>
+                        {statusBadge.label}
+                      </Badge>
+                    </div>
 
-                    <div className="mt-1 flex flex-wrap gap-1">
+                    {/* Etiquetas de identificación / seguimiento del converso */}
+                    <div className="flex flex-wrap gap-1">
+                      {calling ? (
+                        <Badge variant="secondary" className={badgeClass}>
+                          {t('converts.badge.calling', { calling })}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className={`${badgeClass} text-muted-foreground`}>
+                          {t('converts.badge.noCalling')}
+                        </Badge>
+                      )}
+
+                      <Badge
+                        variant={item.recommendationActive ? 'default' : 'outline'}
+                        className={badgeClass}
+                      >
+                        {item.recommendationActive
+                          ? t('converts.badge.recommendationYes')
+                          : t('converts.badge.recommendationNo')}
+                      </Badge>
+                      <Badge
+                        variant={item.selfRelianceCourse ? 'default' : 'outline'}
+                        className={badgeClass}
+                      >
+                        {item.selfRelianceCourse
+                          ? t('converts.badge.selfRelianceYes')
+                          : t('converts.badge.selfRelianceNo')}
+                      </Badge>
                       <Badge
                         variant={item.hasLdsAccount ? 'default' : 'outline'}
-                        className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                        className={badgeClass}
                       >
                         {item.hasLdsAccount
                           ? t('converts.badge.ldsYes')
@@ -628,15 +700,55 @@ export default function ConvertsPage() {
                       </Badge>
                       <Badge
                         variant={item.hasFamilySearchAccount ? 'default' : 'outline'}
-                        className="text-[10px] px-1.5 py-0 h-5 font-normal"
+                        className={badgeClass}
                       >
                         {item.hasFamilySearchAccount
                           ? t('converts.badge.familySearchYes')
                           : t('converts.badge.familySearchNo')}
                       </Badge>
+                      <Badge
+                        variant={hasFriends ? 'secondary' : 'outline'}
+                        className={`${badgeClass} ${!hasFriends ? 'border-amber-500/50 text-amber-700 dark:text-amber-400' : ''}`}
+                      >
+                        {hasFriends
+                          ? t('converts.badge.friendsYes')
+                          : t('converts.badge.friendsNo')}
+                      </Badge>
+                      <Badge
+                        variant={hasTeachers ? 'secondary' : 'outline'}
+                        className={`${badgeClass} ${!hasTeachers ? 'border-amber-500/50 text-amber-700 dark:text-amber-400' : ''}`}
+                      >
+                        {hasTeachers
+                          ? t('converts.badge.teachersYes')
+                          : t('converts.badge.teachersNo')}
+                      </Badge>
                     </div>
 
-                    <div className="mt-1 flex flex-wrap items-center gap-0.5 -ml-1.5">
+                    {hasTeachers && (
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        {t('converts.card.teachersLabel', { names: teachers.join(', ') })}
+                      </p>
+                    )}
+
+                    {ordinances.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="text-[11px] text-muted-foreground">
+                          {t('converts.card.ordinancesLabel')}:
+                        </span>
+                        {ordinances.slice(0, 4).map((ordinance) => (
+                          <Badge key={ordinance} variant="outline" className={badgeClass}>
+                            {t(`ordinance.${ordinance}`)}
+                          </Badge>
+                        ))}
+                        {ordinances.length > 4 && (
+                          <Badge variant="outline" className={badgeClass}>
+                            +{ordinances.length - 4}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-0.5 -ml-1.5">
                       <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
                         <Link href={memberHref} aria-label={t('converts.view') || 'Ver'}>
                           <Eye className="h-4 w-4" />

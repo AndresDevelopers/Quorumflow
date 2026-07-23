@@ -360,6 +360,8 @@ export type Member = {
     hasLdsAccount?: boolean;
     /** Tiene cuenta de FamilySearch */
     hasFamilySearchAccount?: boolean;
+    /** Ha recibido la bendición patriarcal (opcional) */
+    hasPatriarchalBlessing?: boolean;
     /**
      * Marcado en Ayuda FS: el miembro sin cuenta necesita acompañamiento
      * para crear/configurar FamilySearch (genera una anotación).

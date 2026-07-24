@@ -209,26 +209,69 @@ function createFriendlyChanges(commits) {
 
   for (const message of limited) {
     const category = guessCategoryFromCommit(message);
-    const base = stripConventionalPrefix(extractSubject(message)) || 'cambios internos';
-    const es = ensureSentence(
-      category === 'fixed'
-        ? `Corregimos: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
-        : category === 'added'
-          ? `Agregamos: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
-          : `Mejoramos: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
-    );
-    const en = ensureSentence(
-      category === 'fixed'
-        ? `We fixed: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
-        : category === 'added'
-          ? `We added: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
-          : `We improved: ${base.charAt(0).toLowerCase()}${base.slice(1)}`
-    );
-    out.es[category].push(es);
-    out.en[category].push(en);
+    const base = stripConventionalPrefix(extractSubject(message)) || 'internal changes';
+
+    let esText = '';
+    let enText = '';
+
+    switch (category) {
+      case 'added':
+        esText = `Hemos añadido: ${translateToSpanish(base)}`;
+        enText = `We added: ${base.charAt(0).toLowerCase()}${base.slice(1)}`;
+        break;
+      case 'fixed':
+        esText = `Hemos corregido: ${translateToSpanish(base)}`;
+        enText = `We fixed: ${base.charAt(0).toLowerCase()}${base.slice(1)}`;
+        break;
+      case 'improved':
+      default:
+        esText = `Hemos mejorado: ${translateToSpanish(base)}`;
+        enText = `We improved: ${base.charAt(0).toLowerCase()}${base.slice(1)}`;
+        break;
+    }
+
+    out.es[category].push(ensureSentence(esText));
+    out.en[category].push(ensureSentence(enText));
   }
 
   return normalizeCategorizedChanges(out);
+}
+
+function translateToSpanish(text) {
+  const translations = {
+    'add pwa offline image support and align notification scoping': 'soporte de imágenes offline en PWA y alineación del alcance de notificaciones',
+    'add patriarchal blessing, lifecycle badges, and tooling': 'bendición patriarcal, insignias de ciclo de vida y herramientas',
+    'add full interview scheduling, tracking and reminder system': 'sistema completo de programación, seguimiento y recordatorios de entrevistas',
+    'bump dependencies and apply security patches': 'actualización de dependencias y parches de seguridad',
+    'add min-w-0 to fix flex layout overflow': 'corrección de desbordamiento en diseño flexible con min-w-0',
+    'add barrioorg scoping to firestore rules and update app code': 'alcance por barrioOrg en reglas de Firestore y actualización de código de la app',
+    'fix firestore filtering and add max tokens env config': 'corrección de filtrado en Firestore y configuración de tokens máximos en variables de entorno',
+    'rebrand to sionflow, add multi-tenant annotations & security settings': 'rebranding a SionFlow, anotaciones multi-tenant y ajustes de seguridad',
+    'add install prompt and optimize pwa asset routes': 'indicador de instalación y optimización de rutas de assets PWA',
+    'bump to v1.1.24 with pwa and tooling updates': 'actualización a v1.1.24 con mejoras en PWA y herramientas',
+    'add user deletion and update related configs': 'eliminación de usuario y actualización de configuraciones relacionadas',
+    'implement permission-based access control system': 'implementación de sistema de control de acceso basado en permisos',
+    'add pwa icons, fix notification scoping': 'iconos PWA y corrección de alcance de notificaciones',
+    'scope caches by barrioorg': 'cachés con alcance por barrioOrg',
+    'add donation qr download': 'descarga de código QR para donaciones',
+    'add member sync and notification improvements': 'sincronización de miembros y mejoras en notificaciones',
+    'add barrio-org data scoping and donation support': 'alcance de datos por barrio-org y soporte para donaciones',
+    'add president role, optimize audit logs, fix pwa manifest': 'rol de presidente, optimización de logs de auditoría y corrección de manifiesto PWA',
+    'send notifs to same barrio org': 'envío de notificaciones al mismo barrioOrg',
+    'implement white-labeling and data standardization': 'implementación de white-labeling y estandarización de datos',
+    'initial commit: sionflow church management system': 'commit inicial: sistema de gestión de iglesia SionFlow',
+    'update manifest.json': 'actualización de manifest.json',
+    'use empty string for blank address and fix death date format': 'usar cadena vacía para dirección en blanco y corregir formato de fecha de defunción',
+    'add member address support and display': 'soporte y visualización de dirección de miembro',
+    'fix firestore filtering and add max tokens env config': 'corrección de filtrado en Firestore y configuración de tokens máximos en variables de entorno',
+  };
+
+  const lower = text.toLowerCase();
+  for (const [en, es] of Object.entries(translations)) {
+    if (lower.includes(en)) return es;
+  }
+
+  return text;
 }
 
 /** True if text looks like English (used to reject "Spanish" that is still English). */

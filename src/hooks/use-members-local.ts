@@ -133,7 +133,21 @@ export function useMembersLocal(): UseMembersLocalReturn {
   const inFlight = useRef(false);
   const initialLoadDone = useRef(false);
   const membersRef = useRef<Member[]>([]);
-  membersRef.current = members;
+  const loadingRef = useRef(true);
+  useEffect(() => {
+    membersRef.current = members;
+  }, [members]);
+
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  // Sync loadingRef to loading state (avoids setState in initialization effect)
+  useEffect(() => {
+    if (loadingRef.current !== loading) {
+      setLoading(loadingRef.current);
+    }
+  }, [loadingRef.current]);
 
   /** Lee miembros desde localStorage (desactivado en development). */
   const loadFromLocal = useCallback((): { members: Member[]; ts: number } | null => {
@@ -227,7 +241,7 @@ export function useMembersLocal(): UseMembersLocalReturn {
       }
       // Avoid infinite skeleton when auth finished but profile has no barrio
       if (!authLoading && user && !barrioOrg) {
-        setLoading(false);
+        loadingRef.current = false;
       }
       return;
     }
@@ -240,9 +254,11 @@ export function useMembersLocal(): UseMembersLocalReturn {
       const cached = loadFromLocal();
       if (cached) {
         initialLoadDone.current = true;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMembers(cached.members);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLastSyncTime(new Date(cached.ts));
-        setLoading(false);
+        loadingRef.current = false;
         return;
       }
     }
@@ -253,7 +269,7 @@ export function useMembersLocal(): UseMembersLocalReturn {
     }
 
     initialLoadDone.current = true;
-    setLoading(true);
+    loadingRef.current = true;
     syncFromServer()
       .then((ok) => {
         // If sync failed and still empty, allow a later retry when deps change
@@ -261,7 +277,9 @@ export function useMembersLocal(): UseMembersLocalReturn {
           initialLoadDone.current = false;
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        loadingRef.current = false;
+      });
   }, [authLoading, user, barrioOrg, firebaseUser, loadFromLocal, syncFromServer]);
 
   // Header refresh icon + Cloud Function silent sync

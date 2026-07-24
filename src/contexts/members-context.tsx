@@ -86,7 +86,9 @@ export function MembersProvider({ children }: { children: ReactNode }) {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const inFlight = useRef(false);
   const membersRef = useRef<Member[]>([]);
-  membersRef.current = members;
+  useEffect(() => {
+    membersRef.current = members;
+  }, [members]);
 
   const clearCache = useCallback(() => {
     if (!barrioOrg || typeof window === 'undefined') return;

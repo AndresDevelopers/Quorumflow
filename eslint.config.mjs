@@ -1,4 +1,6 @@
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import reactHooks from "eslint-plugin-react-hooks";
+import importPlugin from "eslint-plugin-import";
 
 const eslintConfig = [
   {
@@ -8,6 +10,12 @@ const eslintConfig = [
       "functions/lib/**",
       "public/**",
     ],
+  },
+  {
+    plugins: {
+      "react-hooks": reactHooks,
+      import: importPlugin,
+    },
   },
   ...nextCoreWebVitals,
   {

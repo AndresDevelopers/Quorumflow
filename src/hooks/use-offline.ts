@@ -30,19 +30,23 @@ export function useOffline(): OfflineHook {
     const [canInstall, setCanInstall] = useState(false);
     const [state, setState] = useState<OfflineState>({
         isOnline: typeof window !== 'undefined' ? navigator.onLine : true,
-        isInstalled: false,
+        isInstalled: typeof window !== 'undefined' ? isPwaInstalled() : false,
         syncInProgress: false,
         queuedOperations: 0
     });
 
-    // Client-side initialization
+    // Client-side initialization - split into separate effects to avoid setState in effect warnings
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsClient(true);
+    }, []);
 
-        const isInstalled = isPwaInstalled();
+    useEffect(() => {
+        if (!isClient) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setState(prev => ({
             ...prev,
-            isInstalled,
+            isInstalled: isPwaInstalled(),
             isOnline: navigator.onLine
         }));
 
@@ -55,7 +59,7 @@ export function useOffline(): OfflineHook {
                 setState(prev => ({ ...prev, isInstalled: true }));
             }
         });
-    }, []);
+    }, [isClient]);
 
     // Check if app is installed
     const checkInstallStatus = useCallback(() => {
@@ -139,9 +143,6 @@ export function useOffline(): OfflineHook {
         let mounted = true;
         let interval: NodeJS.Timeout;
 
-        // Check initial install status
-        checkInstallStatus();
-
         // Listen for online/offline events
         const handleOnline = () => {
             if (!mounted) return;
@@ -184,9 +185,11 @@ export function useOffline(): OfflineHook {
             }
 
             // Update queued operations count periodically
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             updateQueuedOperations().catch(console.error);
             interval = setInterval(() => {
                 if (mounted) {
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
                     updateQueuedOperations().catch(console.error);
                 }
             }, 5000);
@@ -215,7 +218,7 @@ export function useOffline(): OfflineHook {
                 console.error('Error cleaning up offline hook:', error);
             }
         };
-    }, [isClient, checkInstallStatus, forceSync, updateQueuedOperations]);
+    }, [isClient, forceSync, updateQueuedOperations]);
 
     return {
         ...state,

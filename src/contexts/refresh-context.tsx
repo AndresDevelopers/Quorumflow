@@ -192,7 +192,9 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
   const inFlightRef = useRef(false);
   /** Avoid putting lastSyncTime in requestRefresh deps (re-subscribes CF listener). */
   const lastSyncTimeRef = useRef<Date | null>(null);
-  lastSyncTimeRef.current = lastSyncTime;
+  useEffect(() => {
+    lastSyncTimeRef.current = lastSyncTime;
+  }, [lastSyncTime]);
 
   // Restore last sync time/source for this ward/org (so user always sees when they last synced)
   useEffect(() => {
@@ -449,7 +451,9 @@ export function useRefreshOptional(): RefreshContextValue | null {
 export function useOnManualRefresh(handler: RefreshHandler) {
   const refresh = useRefreshOptional();
   const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
 
   useEffect(() => {
     if (!refresh) return;
@@ -466,7 +470,9 @@ export function useOnDataSyncGeneration(handler: () => void | Promise<void>) {
   const refresh = useRefreshOptional();
   const generation = refresh?.dataSyncGeneration ?? 0;
   const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
   const skipFirstRef = useRef(true);
 
   useEffect(() => {

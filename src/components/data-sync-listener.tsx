@@ -41,7 +41,9 @@ export function DataSyncListener() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingVersionRef = useRef<number | null>(null);
   const isSyncInFlightRef = useRef(isSyncInFlight);
-  isSyncInFlightRef.current = isSyncInFlight;
+  useEffect(() => {
+    isSyncInFlightRef.current = isSyncInFlight;
+  }, [isSyncInFlight]);
 
   const cancelPendingAutoRefresh = () => {
     if (debounceRef.current) {

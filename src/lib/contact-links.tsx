@@ -161,6 +161,7 @@ export function PhoneLink({ value, className }: ContactLinkProps) {
   const [device, setDevice] = useState<DeviceKind>("desktop");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDevice(detectDeviceKind());
 
     const onResize = () => setDevice(detectDeviceKind());

@@ -7,12 +7,18 @@
       "changes": {
         "es": {
           "improved": [
-            "Mejoramos: bump dependencies and apply security patches."
+            "Hemos mejorado: actualización de dependencias y parches de seguridad."
+          ],
+          "fixed": [
+            "Hemos corregido: update tooling, fix lint issues and bump dependencies."
           ]
         },
         "en": {
           "improved": [
             "We improved: bump dependencies and apply security patches."
+          ],
+          "fixed": [
+            "We fixed: update tooling, fix lint issues and bump dependencies."
           ]
         }
       }
@@ -23,16 +29,16 @@
       "changes": {
         "es": {
           "added": [
-            "Agregamos: add PWA offline image support and align notification scoping.",
-            "Agregamos: add patriarchal blessing, lifecycle badges, and tooling.",
-            "Agregamos: add full interview scheduling, tracking and reminder system."
+            "Añadimos soporte para imágenes sin conexión en PWA y alineamos el alcance de las notificaciones.",
+            "Incluimos bendición patriarcal, insignias de ciclo de vida y herramientas.",
+            "Agregamos un sistema completo de programación, seguimiento y recordatorios de entrevistas."
           ]
         },
         "en": {
           "added": [
-            "We added: add PWA offline image support and align notification scoping.",
-            "We added: add patriarchal blessing, lifecycle badges, and tooling.",
-            "We added: add full interview scheduling, tracking and reminder system."
+            "We added PWA offline image support and aligned notification scoping.",
+            "We added patriarchal blessing, lifecycle badges, and tooling.",
+            "We added a full interview scheduling, tracking and reminder system."
           ]
         }
       }

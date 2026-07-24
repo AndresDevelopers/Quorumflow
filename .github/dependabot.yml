@@ -1,4 +1,5 @@
 version: 2
+enabled: false
 updates:
   - package-ecosystem: npm
     directory: /

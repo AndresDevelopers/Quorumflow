@@ -215,6 +215,18 @@ export function FutureMemberForm({ futureMember }: FutureMemberFormProps) {
         }));
       }
 
+      void import('@/lib/image-offline-cache')
+        .then(({ notifyStorageImageChange }) =>
+          notifyStorageImageChange({
+            previous: [
+              futureMember?.photoURL,
+              ...(futureMember?.baptismPhotos ?? []),
+            ],
+            next: [finalPhotoURL, ...finalBaptismPhotos],
+          })
+        )
+        .catch(() => {});
+
       const { requireBarrioOrg } = await import('@/lib/tenant-scope');
       const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
 

@@ -526,7 +526,8 @@ export const onUrgentFamilyFlagged = functions
         }
 
         const allUsers = await getUsersForDocBarrioOrg(docBarrioOrg);
-        const eligible = getEligibleUsers(allUsers, "council", docBarrioOrg);
+        // Page is /ministering/urgent → require ministering visibility (not council)
+        const eligible = getEligibleUsers(allUsers, "ministering", docBarrioOrg);
 
         await Promise.all(
             newlyUrgent.map(async (family) => {
@@ -2382,7 +2383,8 @@ export const councilNotifications = functions
                 await notificationDispatcher.broadcastToUsers(
                     councilEligible.inAppUserIds,
                     {
-                        title: "Recordatorio – Consejo de Cuórum",
+                        // Organization-neutral (Elders Quorum, Relief Society, etc.)
+                        title: "Recordatorio – Consejo",
                         body: bodyParts.join(", ") + ".",
                         url: "/council",
                         tag: `council-reminder-${dateTag}-${barrioOrg}`,

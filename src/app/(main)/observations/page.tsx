@@ -1090,7 +1090,7 @@ export default function ObservationsPage() {
 
     try {
 
-      await deleteHealthConcern(concern.id, concern.photoPath);
+      await deleteHealthConcern(concern.id, concern.photoPath, concern.photoURL);
 
       setHealthConcerns((prev) => prev.filter((item) => item.id !== concern.id));
 

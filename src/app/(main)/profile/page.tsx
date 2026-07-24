@@ -249,6 +249,17 @@ export default function ProfilePage() {
                 nextPhotoUrl = null;
             }
 
+            if (nextPhotoUrl !== basePhotoUrl) {
+                void import('@/lib/image-offline-cache')
+                    .then(({ notifyStorageImageChange }) =>
+                        notifyStorageImageChange({
+                            previous: [basePhotoUrl],
+                            next: [nextPhotoUrl],
+                        })
+                    )
+                    .catch(() => {});
+            }
+
             const updates: Partial<UserProfileData> & { updatedAt: Timestamp } = {
                 name: trimmedName,
                 lastName: trimmedLastName || undefined,

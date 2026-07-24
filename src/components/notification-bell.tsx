@@ -33,6 +33,7 @@ import type { AppNotification } from "@/lib/types";
 import { formatRelative } from "date-fns";
 import { getDateFnsLocale } from "@/lib/i18n-date";
 import { sanitizeNotificationActionUrl } from "@/lib/url-safety";
+import { userCanReceiveNotification } from "@/lib/notification-visibility";
 import { Skeleton } from "./ui/skeleton";
 import { useOnManualRefresh } from "@/contexts/refresh-context";
 
@@ -63,7 +64,7 @@ function deduplicateNotifications(items: AppNotification[]): AppNotification[] {
 }
 
 export function NotificationBell() {
-  const { user, barrio, organizacion, barrioOrg } = useAuth();
+  const { user, barrio, organizacion, barrioOrg, visiblePages } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -83,13 +84,33 @@ export function NotificationBell() {
     );
   }, [barrio, organizacion, barrioOrg]);
 
+  /**
+   * Only notifications for THIS user + THIS barrio/org + pages they can see.
+   * Fail closed on missing barrioOrg; hide pages the admin revoked in visibility.
+   */
+  const isNotificationForCurrentUser = useCallback(
+    (notification: AppNotification, barrioOrgKey: string): boolean => {
+      if (notification.isDismissed) return false;
+      if (!barrioOrgKey) return false;
+      if (!notification.barrioOrg || notification.barrioOrg !== barrioOrgKey) {
+        return false;
+      }
+      // visiblePages empty/null ⇒ all pages (same as sidebar / CF)
+      return userCanReceiveNotification(visiblePages, {
+        actionUrl: notification.actionUrl,
+        contextType: notification.contextType,
+      });
+    },
+    [visiblePages]
+  );
+
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
       const barrioOrgKey = resolveBarrioOrgKey();
 
-      // Query by user only (rules: owner read). Filter client-side by barrioOrg.
+      // Query by user only (rules: owner read). Filter client-side by barrioOrg + visibility.
       // Fail closed: hide unscoped legacy notifications (could be cross-tenant).
       // Offline: getDocs uses cache with timeout (never hangs the refresh spinner).
       const q = query(
@@ -101,21 +122,15 @@ export function NotificationBell() {
       const snapshot = await getDocs(q);
       const userNotifications = snapshot.docs
         .map((d) => ({ id: d.id, ...d.data() } as AppNotification))
-        .filter((notification) => {
-          // Soft-dismissed stay in Firestore so CF idempotent creates do not reappear
-          if (notification.isDismissed) return false;
-          if (!barrioOrgKey) return false;
-          return (
-            Boolean(notification.barrioOrg) &&
-            notification.barrioOrg === barrioOrgKey
-          );
-        })
+        .filter((notification) =>
+          isNotificationForCurrentUser(notification, barrioOrgKey)
+        )
         .slice(0, 30);
 
       const deduplicated = deduplicateNotifications(userNotifications);
       setNotifications(deduplicated);
 
-      // Query ligera separada: no leídas del usuario, filtradas por scope en cliente
+      // Query ligera separada: no leídas del usuario, filtradas por scope + visibilidad
       const unreadQuery = query(
         notificationsCollection,
         where("userId", "==", user.uid),
@@ -123,10 +138,8 @@ export function NotificationBell() {
       );
       const unreadSnapshot = await getDocs(unreadQuery);
       const unreadCount = unreadSnapshot.docs.filter((d) => {
-        const data = d.data() as AppNotification;
-        if (data.isDismissed) return false;
-        if (!barrioOrgKey) return false;
-        return Boolean(data.barrioOrg) && data.barrioOrg === barrioOrgKey;
+        const data = { id: d.id, ...d.data() } as AppNotification;
+        return isNotificationForCurrentUser(data, barrioOrgKey);
       }).length;
       setHasUnread(unreadCount > 0);
     } catch (error) {
@@ -138,7 +151,7 @@ export function NotificationBell() {
     } finally {
       setLoading(false);
     }
-  }, [user, resolveBarrioOrgKey]);
+  }, [user, resolveBarrioOrgKey, isNotificationForCurrentUser]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -177,10 +190,8 @@ export function NotificationBell() {
       const unreadSnapshot = await getDocs(unreadQuery);
       unreadIds = unreadSnapshot.docs
         .filter((d) => {
-          const data = d.data() as AppNotification;
-          if (data.isDismissed) return false;
-          if (!barrioOrgKey) return false;
-          return Boolean(data.barrioOrg) && data.barrioOrg === barrioOrgKey;
+          const data = { id: d.id, ...d.data() } as AppNotification;
+          return isNotificationForCurrentUser(data, barrioOrgKey);
         })
         .map((d) => d.id);
     } catch {
@@ -232,10 +243,8 @@ export function NotificationBell() {
         const snap = await getDocs(allQuery);
         idsToDismiss = snap.docs
           .filter((d) => {
-            const data = d.data() as AppNotification;
-            if (data.isDismissed) return false;
-            if (!barrioOrgKey) return false;
-            return Boolean(data.barrioOrg) && data.barrioOrg === barrioOrgKey;
+            const data = { id: d.id, ...d.data() } as AppNotification;
+            return isNotificationForCurrentUser(data, barrioOrgKey);
           })
           .map((d) => d.id);
       } catch {

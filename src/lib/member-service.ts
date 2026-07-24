@@ -107,7 +107,11 @@ export async function handleBaptismPhotosUpload(
  */
 async function deletePhotoFromStorage(photoURL: string): Promise<void> {
   try {
-    if (photoURL.startsWith('https://firebasestorage.googleapis.com')) {
+    if (
+      photoURL.startsWith('https://firebasestorage.googleapis.com') ||
+      photoURL.includes('firebasestorage.app') ||
+      photoURL.includes('storage.googleapis.com')
+    ) {
       const photoRef = ref(storage, photoURL);
       await deleteObject(photoRef);
       console.log('✅ Photo deleted from storage');
@@ -116,6 +120,12 @@ async function deletePhotoFromStorage(photoURL: string): Promise<void> {
     console.warn('⚠️ Could not delete photo from storage:', error);
     // No lanzar error para no interrumpir el flujo
   }
+  // Drop local PWA / Cache Storage copy even if Storage delete failed
+  void import('@/lib/image-offline-cache')
+    .then(({ notifyStorageImageChange }) =>
+      notifyStorageImageChange({ previous: [photoURL], next: [] })
+    )
+    .catch(() => {});
 }
 
 /**

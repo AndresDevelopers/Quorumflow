@@ -200,6 +200,15 @@ export function ActivityForm({ activity }: ActivityFormProps) {
       const [newUrls] = await Promise.all([uploadPromise, deletePromise]);
       finalImageUrls = [...finalImageUrls, ...newUrls];
 
+      void import('@/lib/image-offline-cache')
+        .then(({ notifyStorageImageChange }) =>
+          notifyStorageImageChange({
+            previous: activity?.imageUrls,
+            next: finalImageUrls,
+          })
+        )
+        .catch(() => {});
+
       const { requireBarrioOrg } = await import('@/lib/tenant-scope');
       const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
 

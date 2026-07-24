@@ -231,6 +231,11 @@ export function BirthdayForm({ isOpen, onOpenChange, onFormSubmit, birthday }: B
 
     const oldImageRef = ref(storage, photoUrl);
     await deleteObject(oldImageRef).catch(err => logger.warn({ err, message: 'Image could not be deleted' }));
+    void import('@/lib/image-offline-cache')
+      .then(({ notifyStorageImageChange }) =>
+        notifyStorageImageChange({ previous: [photoUrl], next: [] })
+      )
+      .catch(() => {});
   };
 
   const uploadNewImage = async (file: File) => {
@@ -239,7 +244,13 @@ export function BirthdayForm({ isOpen, onOpenChange, onFormSubmit, birthday }: B
     const path = userScopedStoragePath(user?.uid || 'unknown', 'profile_pictures/birthdays', optimized.name);
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, optimized, storageImageUploadMetadata(optimized.type));
-    return getDownloadURL(storageRef);
+    const url = await getDownloadURL(storageRef);
+    void import('@/lib/image-offline-cache')
+      .then(({ notifyStorageImageChange }) =>
+        notifyStorageImageChange({ next: [url] })
+      )
+      .catch(() => {});
+    return url;
   };
 
   const resolvePhotoUrl = async () => {

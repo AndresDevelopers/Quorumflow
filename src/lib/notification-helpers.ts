@@ -2,6 +2,10 @@ import { addDoc, Timestamp, getDocs } from "firebase/firestore";
 import { notificationsCollection, usersCollection } from "./collections";
 import type { AppNotification } from "./types";
 import { auth } from "./firebase";
+import {
+  resolveNotificationCategory,
+  userCanReceiveNotification,
+} from "./notification-visibility";
 
 /**
  * Helper function to create notifications with navigation context
@@ -407,11 +411,12 @@ export async function createBulkNotifications(
 }
 
 /**
- * Create notifications for all users in the system who have notifications enabled
- * and belong to the same barrioOrg.
- * @param notificationParams - Notification parameters (excluding userId)
- * @param barrioOrg - Optional barrioOrg scope. If provided, only users with matching barrioOrg will be notified.
- * @returns Promise<string[]> - Array of created notification IDs
+ * Create notifications for all users in the same barrioOrg who:
+ * - have in-app notifications enabled (default true)
+ * - can see the related page (visiblePages — same rules as CF / sidebar)
+ * - have not disabled the category in notificationPrefs.inApp (default true)
+ *
+ * Fail closed: missing barrioOrg → nobody notified.
  */
 export async function createNotificationsForAll(
   notificationParams: Omit<CreateNotificationParams, 'userId'>,
@@ -423,9 +428,13 @@ export async function createNotificationsForAll(
   }
 
   const userIds = await getAllUserIds(barrioOrg);
+  const category = resolveNotificationCategory({
+    actionUrl: notificationParams.actionUrl,
+    contextType: notificationParams.contextType,
+  });
 
-  // Filter users to only include those with notifications enabled and matching barrioOrg
-  const usersWithNotificationsEnabled: string[] = [];
+  // Filter users: barrioOrg + visibility + prefs (aligned with Cloud Functions)
+  const eligibleUserIds: string[] = [];
 
   // Batch query in chunks of 30 (Firestore 'in' limit)
   const chunkSize = 30;
@@ -458,9 +467,28 @@ export async function createNotificationsForAll(
         if (!userBarrioOrg || userBarrioOrg !== barrioOrg) continue;
 
         // Por defecto las notificaciones in-app están activas (inAppNotificationsEnabled !== false)
-        if (userData.inAppNotificationsEnabled !== false) {
-          usersWithNotificationsEnabled.push(userId);
+        if (userData.inAppNotificationsEnabled === false) continue;
+
+        const visiblePages = Array.isArray(userData.visiblePages)
+          ? (userData.visiblePages as string[])
+          : null;
+        if (
+          !userCanReceiveNotification(visiblePages, {
+            actionUrl: notificationParams.actionUrl,
+            contextType: notificationParams.contextType,
+          })
+        ) {
+          continue;
         }
+
+        // Per-category opt-out (default enabled, same as CF getEligibleUsers)
+        if (category) {
+          const inAppPrefs =
+            (userData.notificationPrefs?.inApp as Record<string, boolean> | undefined) ?? {};
+          if (inAppPrefs[category] === false) continue;
+        }
+
+        eligibleUserIds.push(userId);
       }
     } catch (error) {
       console.error(`Error checking notification preference for user chunk starting at index ${i}:`, error);
@@ -470,7 +498,7 @@ export async function createNotificationsForAll(
 
   // Incluir barrioOrg en el documento de notificación para que la campanita pueda filtrar
   return createBulkNotifications(
-    usersWithNotificationsEnabled,
+    eligibleUserIds,
     { ...notificationParams, barrioOrg }
   );
 }
@@ -547,8 +575,14 @@ export async function createNewConvertCouncilNotificationsForAll(
   }
 
   const userIds = await getAllUserIds(barrioOrg);
+  // Matches createNewConvertCouncilNotification payload (actionUrl wins → /council)
+  const notifMeta = {
+    actionUrl: '/council' as const,
+    contextType: 'convert' as const,
+  };
+  const category = resolveNotificationCategory(notifMeta);
 
-  // Filter users to only include those with in-app notifications enabled and matching barrioOrg
+  // Filter: barrioOrg + visibility + prefs
   const usersWithInAppEnabled: string[] = [];
 
   // Batch query in chunks of 30
@@ -581,9 +615,20 @@ export async function createNewConvertCouncilNotificationsForAll(
               : '';
         if (!userBarrioOrg || userBarrioOrg !== barrioOrg) continue;
 
-        if (userData.inAppNotificationsEnabled !== false) {
-          usersWithInAppEnabled.push(userId);
+        if (userData.inAppNotificationsEnabled === false) continue;
+
+        const visiblePages = Array.isArray(userData.visiblePages)
+          ? (userData.visiblePages as string[])
+          : null;
+        if (!userCanReceiveNotification(visiblePages, notifMeta)) continue;
+
+        if (category) {
+          const inAppPrefs =
+            (userData.notificationPrefs?.inApp as Record<string, boolean> | undefined) ?? {};
+          if (inAppPrefs[category] === false) continue;
         }
+
+        usersWithInAppEnabled.push(userId);
       }
     } catch (error) {
       console.error(`Error checking notification preference for convert council notification chunk:`, error);

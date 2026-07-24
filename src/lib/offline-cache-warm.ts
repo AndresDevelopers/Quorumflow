@@ -13,15 +13,31 @@
  *
  * 3) IMAGES
  *    - Client Cache API + SW (see image-offline-cache)
+ *    - Warmup covers members + activities, services, missionary, converts, etc.
  */
+import { doc, query, where, type CollectionReference } from 'firebase/firestore';
 import { navigationItems } from '@/lib/navigation';
 import { isBrowserOnline } from '@/lib/network';
 import {
   cacheImages,
   collectMemberImageUrls,
+  extractImageUrlsFromDoc,
   isCacheableImageUrl,
+  DEFAULT_IMAGE_WARM_LIMIT,
 } from '@/lib/image-offline-cache';
 import { getAppStoragePrefix } from '@/lib/app-config';
+import { firestore } from '@/lib/firebase';
+import { getDoc, getDocs } from '@/lib/firestore-query';
+import {
+  activitiesCollection,
+  baptismsCollection,
+  birthdaysCollection,
+  convertsCollection,
+  futureMembersCollection,
+  healthConcernsCollection,
+  missionaryImagesCollection,
+  servicesCollection,
+} from '@/lib/collections';
 
 /** All routes we want openable offline (shell only until content is visited). */
 export const ALL_SHELL_ROUTES: string[] = Array.from(
@@ -379,7 +395,7 @@ export async function warmOfflineCaches(
       total: imageUrls.length,
       phase: 'images',
     });
-    await cacheImages(imageUrls, { concurrency: 4, limit: 300 });
+    await cacheImages(imageUrls, { concurrency: 4, limit: DEFAULT_IMAGE_WARM_LIMIT });
   }
 
   options?.onProgress?.({ done: 1, total: 1, phase: 'done' });
@@ -395,4 +411,81 @@ export function collectImageUrls(sources: Array<string | null | undefined>): str
   return out;
 }
 
-export { collectMemberImageUrls };
+/**
+ * Collect image URLs from domain collections (activities, services, missionary,
+ * converts, baptisms, birthdays, future members, health concerns, donate QR).
+ * Best-effort: each collection is independent so one failure does not abort the rest.
+ */
+export async function collectDomainImageUrls(barrioOrg: string): Promise<string[]> {
+  if (!barrioOrg || typeof window === 'undefined') return [];
+
+  const fromScoped = async (
+    coll: CollectionReference | undefined
+  ): Promise<string[]> => {
+    if (!coll) return [];
+    try {
+      const q = query(coll, where('barrioOrg', '==', barrioOrg));
+      const snap = await getDocs(q);
+      const urls: string[] = [];
+      for (const d of snap.docs) {
+        urls.push(...extractImageUrlsFromDoc(d.data() as Record<string, unknown>));
+      }
+      return urls;
+    } catch {
+      return [];
+    }
+  };
+
+  const fromDonate = async (): Promise<string[]> => {
+    try {
+      if (!firestore) return [];
+      const snap = await getDoc(doc(firestore, 'c_donate_config', 'global'));
+      if (!snap.exists()) return [];
+      return extractImageUrlsFromDoc(snap.data() as Record<string, unknown>);
+    } catch {
+      return [];
+    }
+  };
+
+  const batches = await Promise.all([
+    fromScoped(activitiesCollection),
+    fromScoped(servicesCollection),
+    fromScoped(missionaryImagesCollection),
+    fromScoped(convertsCollection),
+    fromScoped(baptismsCollection),
+    fromScoped(birthdaysCollection),
+    fromScoped(futureMembersCollection),
+    fromScoped(healthConcernsCollection),
+    fromDonate(),
+  ]);
+
+  return collectImageUrls(batches.flat());
+}
+
+/**
+ * Merge member/user photos with domain collection images for a full offline warm.
+ */
+export async function collectAllWarmImageUrls(options: {
+  barrioOrg: string;
+  memberLike?: Array<{
+    photoURL?: string | null;
+    gallery?: string[] | null;
+    images?: string[] | null;
+    baptismPhotos?: string[] | null;
+    imageUrls?: string[] | null;
+  } | null | undefined>;
+  extra?: Array<string | null | undefined>;
+}): Promise<string[]> {
+  const fromMembers = (options.memberLike ?? []).flatMap((m) =>
+    m ? collectMemberImageUrls(m) : []
+  );
+  let fromDomain: string[] = [];
+  try {
+    fromDomain = await collectDomainImageUrls(options.barrioOrg);
+  } catch {
+    fromDomain = [];
+  }
+  return collectImageUrls([...fromMembers, ...fromDomain, ...(options.extra ?? [])]);
+}
+
+export { collectMemberImageUrls, extractImageUrlsFromDoc };

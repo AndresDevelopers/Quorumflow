@@ -435,7 +435,8 @@ exports.onUrgentFamilyFlagged = functions
         return;
     }
     const allUsers = await getUsersForDocBarrioOrg(docBarrioOrg);
-    const eligible = getEligibleUsers(allUsers, "council", docBarrioOrg);
+    // Page is /ministering/urgent → require ministering visibility (not council)
+    const eligible = getEligibleUsers(allUsers, "ministering", docBarrioOrg);
     await Promise.all(newlyUrgent.map(async (family) => {
         const familyName = family.name || "Familia";
         const familySlug = slugify(familyName) || "familia";
@@ -1882,7 +1883,8 @@ exports.councilNotifications = functions
             bodyParts.push(`${s.inCouncil} en seguimiento de consejo`);
         if (bodyParts.length > 0) {
             await notificationDispatcher.broadcastToUsers(councilEligible.inAppUserIds, {
-                title: "Recordatorio – Consejo de Cuórum",
+                // Organization-neutral (Elders Quorum, Relief Society, etc.)
+                title: "Recordatorio – Consejo",
                 body: bodyParts.join(", ") + ".",
                 url: "/council",
                 tag: `council-reminder-${dateTag}-${barrioOrg}`,

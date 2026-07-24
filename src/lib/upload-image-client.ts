@@ -160,6 +160,13 @@ export async function uploadImageViaServer(
       );
     }
 
+    // Warm local image cache for PWA offline / no re-download
+    void import('@/lib/image-offline-cache')
+      .then(({ notifyStorageImageChange }) =>
+        notifyStorageImageChange({ next: [payload.url, payload.firebaseUrl] })
+      )
+      .catch(() => {});
+
     return {
       url: payload.url,
       firebaseUrl: payload.firebaseUrl,

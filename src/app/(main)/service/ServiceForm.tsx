@@ -195,6 +195,15 @@ export function ServiceForm({ service }: ServiceFormProps) {
 
       finalImageUrls = [...finalImageUrls, ...newUrls];
 
+      void import('@/lib/image-offline-cache')
+        .then(({ notifyStorageImageChange }) =>
+          notifyStorageImageChange({
+            previous: service?.imageUrls,
+            next: finalImageUrls,
+          })
+        )
+        .catch(() => {});
+
       const { requireBarrioOrg } = await import('@/lib/tenant-scope');
       const scopedBarrioOrg = requireBarrioOrg(barrioOrg);
 

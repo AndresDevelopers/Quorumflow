@@ -573,6 +573,15 @@ export default function SettingsPage() {
         finalPhotoURL = previewUrl;
       }
 
+      void import('@/lib/image-offline-cache')
+        .then(({ notifyStorageImageChange }) =>
+          notifyStorageImageChange({
+            previous: [firebaseUser.photoURL, previewUrl],
+            next: [finalPhotoURL],
+          })
+        )
+        .catch(() => {});
+
       const fullDisplayName = buildDisplayName(values.name, values.lastName);
 
       await updateProfile(firebaseUser, {

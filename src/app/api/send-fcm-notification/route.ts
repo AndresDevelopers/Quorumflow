@@ -9,6 +9,10 @@ import {
   requireUidAndBarrioOrg,
   sanitizeAppRelativeUrl,
 } from '@/lib/api-auth';
+import {
+  resolveNotificationCategory,
+  userCanReceiveNotification,
+} from '@/lib/notification-visibility';
 
 // Firestore 'in' operator supports max 30 items
 const FIRESTORE_IN_LIMIT = 30;
@@ -87,8 +91,15 @@ export async function POST(request: NextRequest) {
 
     let targetUserIds: string[] = [];
 
+    // Scope push by barrioOrg + page visibility + category prefs (same as CF).
+    const notifMeta = {
+      actionUrl: safeUrl,
+      contextType: undefined as string | undefined,
+    };
+    const category = resolveNotificationCategory(notifMeta);
+
     if (userId) {
-      // Target a single user — must share the caller's barrioOrg
+      // Target a single user — must share the caller's barrioOrg and pass visibility
       let targetBarrioOrg: string;
       try {
         targetBarrioOrg = await getUserBarrioOrg(userId);
@@ -108,15 +119,52 @@ export async function POST(request: NextRequest) {
           { status: 403 }
         );
       }
+
+      const targetDoc = await firestoreAdmin.collection('c_users').doc(userId).get();
+      const targetData = targetDoc.data() ?? {};
+      const visiblePages = Array.isArray(targetData.visiblePages)
+        ? (targetData.visiblePages as string[])
+        : null;
+      if (!userCanReceiveNotification(visiblePages, notifMeta)) {
+        return NextResponse.json({
+          success: true,
+          message: 'Usuario sin visibilidad de la página de la notificación',
+          sentCount: 0,
+          failedCount: 0,
+        });
+      }
+      if (category) {
+        const pushPrefs =
+          (targetData.notificationPrefs?.push as Record<string, boolean> | undefined) ?? {};
+        if (pushPrefs[category] === false) {
+          return NextResponse.json({
+            success: true,
+            message: 'Usuario con la categoría de notificaciones push desactivada',
+            sentCount: 0,
+            failedCount: 0,
+          });
+        }
+      }
       targetUserIds = [userId];
     } else {
-      // Broadcast to the caller's barrio. Only devices with an active
-      // c_push_subscriptions token receive FCM (per-device opt-in).
+      // Broadcast to the caller's barrioOrg only. Filter by visibility + category prefs.
+      // Only devices with an active c_push_subscriptions token receive FCM (per-device opt-in).
       const usersSnapshot = await firestoreAdmin
         .collection('c_users')
         .where('barrioOrg', '==', callerBarrioOrg)
+        .select('visiblePages', 'notificationPrefs', 'barrioOrg')
         .get();
       usersSnapshot.forEach((doc) => {
+        const data = doc.data();
+        const visiblePages = Array.isArray(data.visiblePages)
+          ? (data.visiblePages as string[])
+          : null;
+        if (!userCanReceiveNotification(visiblePages, notifMeta)) return;
+        if (category) {
+          const pushPrefs =
+            (data.notificationPrefs?.push as Record<string, boolean> | undefined) ?? {};
+          if (pushPrefs[category] === false) return;
+        }
         targetUserIds.push(doc.id);
       });
     }

@@ -550,6 +550,28 @@ export async function deleteMember(memberId: string): Promise<void> {
           logger.warn({ error: photoError, message: 'Could not delete member photo' });
           // Continue with member deletion even if photo deletion fails
         }
+        void import('@/lib/image-offline-cache')
+          .then(({ notifyStorageImageChange }) =>
+            notifyStorageImageChange({
+              previous: [
+                memberData.photoURL,
+                ...(Array.isArray(memberData.baptismPhotos)
+                  ? memberData.baptismPhotos
+                  : []),
+              ],
+              next: [],
+            })
+          )
+          .catch(() => {});
+      } else if (Array.isArray(memberData.baptismPhotos) && memberData.baptismPhotos.length) {
+        void import('@/lib/image-offline-cache')
+          .then(({ notifyStorageImageChange }) =>
+            notifyStorageImageChange({
+              previous: memberData.baptismPhotos,
+              next: [],
+            })
+          )
+          .catch(() => {});
       }
     }
 

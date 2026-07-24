@@ -160,6 +160,12 @@ export async function uploadBytesOfflineAware(
       const { storageImageUploadMetadata } = await import('@/lib/storage-paths');
       await uploadBytes(storageRef, data, storageImageUploadMetadata(contentType));
       const url = await getDownloadURL(storageRef);
+      // Warm local PWA cache so the new image is available offline without re-download
+      void import('@/lib/image-offline-cache')
+        .then(({ notifyStorageImageChange }) =>
+          notifyStorageImageChange({ next: [url] })
+        )
+        .catch(() => {});
       return { url, path: storagePath, queued: false };
     } catch (error) {
       if (!isNetworkError(error)) throw error;
@@ -205,6 +211,11 @@ export async function processStorageOfflineQueue(): Promise<{
       const { storageImageUploadMetadata } = await import('@/lib/storage-paths');
       await uploadBytes(storageRef, blob, storageImageUploadMetadata(item.contentType));
       const url = await getDownloadURL(storageRef);
+      void import('@/lib/image-offline-cache')
+        .then(({ notifyStorageImageChange }) =>
+          notifyStorageImageChange({ next: [url] })
+        )
+        .catch(() => {});
 
       if (item.firestorePatch && firestore) {
         const { collection, docId, urlField, pathField } = item.firestorePatch;

@@ -31,8 +31,53 @@ self.addEventListener('message', (event) => {
 
   if (data.type === 'WARM_CACHE_URLS' && Array.isArray(data.urls)) {
     event.waitUntil(warmCacheUrls(data.urls));
+    return;
+  }
+
+  // Drop deleted/replaced Storage objects from image caches
+  if (data.type === 'INVALIDATE_CACHE_URLS' && Array.isArray(data.urls)) {
+    event.waitUntil(invalidateCacheUrls(data.urls));
   }
 });
+
+async function invalidateCacheUrls(urls) {
+  const names = [
+    IMAGE_CACHE,
+    'firebase-storage-images',
+    'gcs-images',
+    'firebase-app-images',
+  ];
+  await Promise.all(
+    names.map(async (name) => {
+      try {
+        const cache = await caches.open(name);
+        await Promise.all(
+          urls.map(async (raw) => {
+            if (typeof raw !== 'string' || !raw) return;
+            try {
+              await cache.delete(raw, { ignoreSearch: false });
+              await cache.delete(raw, { ignoreSearch: true });
+              // Path without query (token) when absolute
+              try {
+                const u = new URL(raw, self.location.origin);
+                const bare = `${u.origin}${u.pathname}`;
+                if (bare !== raw) {
+                  await cache.delete(bare, { ignoreSearch: true });
+                }
+              } catch {
+                // ignore
+              }
+            } catch {
+              // ignore individual deletes
+            }
+          })
+        );
+      } catch {
+        // cache may not exist
+      }
+    })
+  );
+}
 
 async function warmCacheUrls(urls) {
   const pageCache = await caches.open(WARM_CACHE);

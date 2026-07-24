@@ -1,0 +1,386 @@
+{
+  "projectId": "quorumflow-dlqh0",
+  "bucket": "quorumflow-dlqh0.firebasestorage.app",
+  "scannedAt": "2026-07-24T01:06:25.655Z",
+  "storageObjectCount": 295,
+  "totalBytes": 145689221,
+  "referencedPathCount": 216,
+  "orphanCount": 79,
+  "orphanTotalBytes": 73907451,
+  "missingFromStorageCount": 0,
+  "missingCacheControlCount": 0,
+  "withCacheControlCount": 295,
+  "byPrefix": {
+    "activity_images": {
+      "count": 11,
+      "bytes": 1911999
+    },
+    "baptism_photos": {
+      "count": 30,
+      "bytes": 11595048
+    },
+    "donation": {
+      "count": 1,
+      "bytes": 779340
+    },
+    "logo": {
+      "count": 2,
+      "bytes": 3690226
+    },
+    "member-photos": {
+      "count": 12,
+      "bytes": 1604277
+    },
+    "members": {
+      "count": 159,
+      "bytes": 27116354
+    },
+    "missionary-images": {
+      "count": 40,
+      "bytes": 63195087
+    },
+    "profile_pictures": {
+      "count": 10,
+      "bytes": 3851891
+    },
+    "service_images": {
+      "count": 10,
+      "bytes": 30374484
+    },
+    "template": {
+      "count": 1,
+      "bytes": 15149
+    },
+    "users/*/missionary-images": {
+      "count": 1,
+      "bytes": 201101
+    },
+    "users/*/baptism_photos": {
+      "count": 4,
+      "bytes": 693470
+    },
+    "users/*/members": {
+      "count": 14,
+      "bytes": 660795
+    }
+  },
+  "orphanPaths": [
+    {
+      "path": "missionary-images/1767919849764-17165f84973298-17679198350912500129399141927341.jpg",
+      "size": 7018734
+    },
+    {
+      "path": "missionary-images/1768003590883-e0a4a4f58bffd8-17680035807175219856776660980525.jpg",
+      "size": 6243584
+    },
+    {
+      "path": "missionary-images/1769300102812-d56c57afa5a1e8-17693000799433492506588577901639.jpg",
+      "size": 5765593
+    },
+    {
+      "path": "missionary-images/1769300204480-caa818b5c46048-17693001954776574447513949972191.jpg",
+      "size": 5476113
+    },
+    {
+      "path": "missionary-images/1768271105893-fd3c312e0c0888-17682710897683432014537495840506.jpg",
+      "size": 5086843
+    },
+    {
+      "path": "missionary-images/1767829264607-7959608a374dd-17678292493965975697535395359692.jpg",
+      "size": 5019040
+    },
+    {
+      "path": "missionary-images/1767797347781-46fcbe63cefbc8-screencapture-app-codacy-gh-AndresDevelopers-Purvita-issues-current-2026-01-06-13_44_23.png",
+      "size": 4195293
+    },
+    {
+      "path": "missionary-images/1769211790044-360b5cb3cde16-17692117834241865489517029248849.jpg",
+      "size": 3682323
+    },
+    {
+      "path": "logo/icono-app.png",
+      "size": 3647572
+    },
+    {
+      "path": "missionary-images/1767741736522-17677417214797264729822920073362.jpg",
+      "size": 3560900
+    },
+    {
+      "path": "missionary-images/1769211533401-2ca282d6fdaa6-17692115253877418685136408587077.jpg",
+      "size": 3355296
+    },
+    {
+      "path": "missionary-images/1769211417852-37a9843e1e76-17692113973128397138262985169008.jpg",
+      "size": 3285471
+    },
+    {
+      "path": "missionary-images/1767741902864-1767741888190415721935020891558.jpg",
+      "size": 3255985
+    },
+    {
+      "path": "missionary-images/1759076968744-17590769458387882385941214887733.jpg",
+      "size": 1619170
+    },
+    {
+      "path": "members/TSAwBDx6XbWQu7q9JervpttK7ID2-1758052995301.jpg",
+      "size": 1285142
+    },
+    {
+      "path": "missionary-images/1758136555682-1004015089.heic",
+      "size": 803932
+    },
+    {
+      "path": "missionary-images/1758136572680-1004015089.heic",
+      "size": 803932
+    },
+    {
+      "path": "missionary-images/1758125378184-Post de Instagram Live Negocios Moderno Gris.png",
+      "size": 714216
+    },
+    {
+      "path": "members/TSAwBDx6XbWQu7q9JervpttK7ID2-1757800270225.heic",
+      "size": 689872
+    },
+    {
+      "path": "missionary-images/1767741630720-Screenshot_20251115-203315_Banco Guayaquil.jpg",
+      "size": 581132
+    },
+    {
+      "path": "missionary-images/1767741663522-Screenshot_20251115-203315_Banco Guayaquil.jpg",
+      "size": 581132
+    },
+    {
+      "path": "missionary-images/1758135929307-1004014910.jpg",
+      "size": 579741
+    },
+    {
+      "path": "missionary-images/1758136601392-1004014910.jpg",
+      "size": 579741
+    },
+    {
+      "path": "members/TSAwBDx6XbWQu7q9JervpttK7ID2-1757727756570.jpg",
+      "size": 526894
+    },
+    {
+      "path": "profile_pictures/converts/TSAwBDx6XbWQu7q9JervpttK7ID2/1757105910369_1003992987.jpg",
+      "size": 526894
+    },
+    {
+      "path": "profile_pictures/future_members/TSAwBDx6XbWQu7q9JervpttK7ID2/1757190465691_1004011192.jpg",
+      "size": 526894
+    },
+    {
+      "path": "member-photos/TSAwBDx6XbWQu7q9JervpttK7ID2/1757469030066.jpg",
+      "size": 410949
+    },
+    {
+      "path": "profile_pictures/birthdays/TSAwBDx6XbWQu7q9JervpttK7ID2/1757097594940_Rafael Guabloche.jpeg",
+      "size": 410949
+    },
+    {
+      "path": "profile_pictures/birthdays/TSAwBDx6XbWQu7q9JervpttK7ID2/1757539359930_1004012534.jpg",
+      "size": 410949
+    },
+    {
+      "path": "missionary-images/1758158286243-1004014898.jpg",
+      "size": 323534
+    },
+    {
+      "path": "baptism_photos/TSAwBDx6XbWQu7q9JervpttK7ID2-1759093537973-0.jpg",
+      "size": 202082
+    },
+    {
+      "path": "baptism_photos/TSAwBDx6XbWQu7q9JervpttK7ID2-1766828971403-0.jpg",
+      "size": 198564
+    },
+    {
+      "path": "baptism_photos/TSAwBDx6XbWQu7q9JervpttK7ID2-1766881817953-0.jpg",
+      "size": 198564
+    },
+    {
+      "path": "baptism_photos/TSAwBDx6XbWQu7q9JervpttK7ID2-1766881896705-0.jpg",
+      "size": 198564
+    },
+    {
+      "path": "members/zrzzyP72ELVjrlwXjzzJTetQVP83/1783388429853_Screenshot_20260706-202517_Facebook.jpg",
+      "size": 166024
+    },
+    {
+      "path": "members/TSAwBDx6XbWQu7q9JervpttK7ID2-1758044363388.jpg",
+      "size": 157362
+    },
+    {
+      "path": "missionary-images/1767798560502-816743ba983f1-16717.jpg",
+      "size": 97886
+    },
+    {
+      "path": "members/zrzzyP72ELVjrlwXjzzJTetQVP83/1783995287201_Screenshot_20260713-205601_Facebook.jpg",
+      "size": 97786
+    },
+    {
+      "path": "baptism_photos/TSAwBDx6XbWQu7q9JervpttK7ID2-1767819822748-0.jpeg",
+      "size": 96502
+    },
+    {
+      "path": "baptism_photos/TSAwBDx6XbWQu7q9JervpttK7ID2-1767820002000-0.jpeg",
+      "size": 96502
+    },
+    {
+      "path": "members/zrzzyP72ELVjrlwXjzzJTetQVP83/1783476119576_Screenshot_20260707-201915_Facebook.jpg",
+      "size": 92129
+    },
+    {
+      "path": "baptism_photos/TSAwBDx6XbWQu7q9JervpttK7ID2/1767821070821_0_WhatsApp_Image_2026-01-07_at_3.47.52_PM.jpeg",
+      "size": 77454
+    },
+    {
+      "path": "members/TSAwBDx6XbWQu7q9JervpttK7ID2-1758222966975.jpg",
+      "size": 76053
+    },
+    {
+      "path": "members/zrzzyP72ELVjrlwXjzzJTetQVP83/1783480080074_Screenshot_20260707-203511_Facebook.jpg",
+      "size": 67594
+    },
+    {
+      "path": "profile_pictures/converts/TSAwBDx6XbWQu7q9JervpttK7ID2/1757098028100_Antonio Rivera.jpeg",
+      "size": 59003
+    },
+    {
+      "path": "members/TSAwBDx6XbWQu7q9JervpttK7ID2-1757969162047.jpg",
+      "size": 58192
+    },
+    {
+      "path": "members/TSAwBDx6XbWQu7q9JervpttK7ID2-1757989019608.jpg",
+      "size": 58192
+    },
+    {
+      "path": "users/zrzzyP72ELVjrlwXjzzJTetQVP83/members/1784595755630_qsnirn_Screenshot_20260720-194500_Facebook.jpg",
+      "size": 57119
+    },
+    {
+      "path": "users/zrzzyP72ELVjrlwXjzzJTetQVP83/members/1784321828112_gkjkrr_Screenshot_20260717-155209_Chrome.jpg",
+      "size": 56129
+    },
+    {
+      "path": "missionary-images/1783711301153-5463eaed-82898.jpg",
+      "size": 48929
+    },
+    {
+      "path": "logo/logo.png",
+      "size": 42654
+    },
+    {
+      "path": "members/zrzzyP72ELVjrlwXjzzJTetQVP83/1783989005974_Screenshot_20260713-192114_Facebook.jpg",
+      "size": 39070
+    },
+    {
+      "path": "missionary-images/1758125024382-Imagen de WhatsApp 2025-07-16 a las 12.01.38_5dccf5c1.jpg",
+      "size": 38545
+    },
+    {
+      "path": "missionary-images/1758125171932-Imagen de WhatsApp 2025-07-16 a las 12.01.38_5dccf5c1.jpg",
+      "size": 38545
+    },
+    {
+      "path": "missionary-images/1758125932609-Imagen de WhatsApp 2025-07-16 a las 12.01.38_5dccf5c1.jpg",
+      "size": 38545
+    },
+    {
+      "path": "missionary-images/1758126277554-Imagen de WhatsApp 2025-07-16 a las 12.01.38_5dccf5c1.jpg",
+      "size": 38545
+    },
+    {
+      "path": "member-photos/TSAwBDx6XbWQu7q9JervpttK7ID2/1757470751662.jpg",
+      "size": 33636
+    },
+    {
+      "path": "profile_pictures/converts/TSAwBDx6XbWQu7q9JervpttK7ID2/1757097874426_Martin Evaristo.jpeg",
+      "size": 33636
+    },
+    {
+      "path": "missionary-images/1783704735513-8d6698e1-d54b2da123673c333eace0958ca47a59.jpg",
+      "size": 32660
+    },
+    {
+      "path": "missionary-images/1783705349101-50550de8-d54b2da123673c333eace0958ca47a59.jpg",
+      "size": 32660
+    },
+    {
+      "path": "missionary-images/1783700312593-27703d173a76a8-d54b2da123673c333eace0958ca47a59.jpg",
+      "size": 29909
+    },
+    {
+      "path": "missionary-images/1783700393984-dd949c3093204-d54b2da123673c333eace0958ca47a59.jpg",
+      "size": 29909
+    },
+    {
+      "path": "missionary-images/1783700571591-010060468e5888-d54b2da123673c333eace0958ca47a59.jpg",
+      "size": 29909
+    },
+    {
+      "path": "missionary-images/1783700659569-13e6e65cb4a13-d54b2da123673c333eace0958ca47a59.jpg",
+      "size": 29909
+    },
+    {
+      "path": "missionary-images/1783700838675-82d7098e956998-d54b2da123673c333eace0958ca47a59.jpg",
+      "size": 29909
+    },
+    {
+      "path": "missionary-images/1783704119897-a6ab620f666a9-d54b2da123673c333eace0958ca47a59.jpg",
+      "size": 29909
+    },
+    {
+      "path": "missionary-images/1783704376292-3fdd2c6ab8deb8-d54b2da123673c333eace0958ca47a59.jpg",
+      "size": 29909
+    },
+    {
+      "path": "members/zrzzyP72ELVjrlwXjzzJTetQVP83/1783475953036_Screenshot_20260707-202559_Facebook.jpg",
+      "size": 29733
+    },
+    {
+      "path": "missionary-images/1783640151569-063e6a1c86e46-82838.jpg",
+      "size": 22635
+    },
+    {
+      "path": "missionary-images/1783640168556-f755e266cf858-82838.jpg",
+      "size": 22635
+    },
+    {
+      "path": "missionary-images/1758125078445-Logo Andres Developer.png",
+      "size": 22355
+    },
+    {
+      "path": "members/TSAwBDx6XbWQu7q9JervpttK7ID2/1767821069475_Gerardo_Jum.jpeg",
+      "size": 21562
+    },
+    {
+      "path": "missionary-images/1758124829359-Captura de pantalla 2025-09-17 095746.png",
+      "size": 20079
+    },
+    {
+      "path": "members/zrzzyP72ELVjrlwXjzzJTetQVP83/1783630133773_Screenshot_20260709-153148_Facebook.jpg",
+      "size": 15365
+    },
+    {
+      "path": "template/reporte.docx",
+      "size": 15149
+    },
+    {
+      "path": "profile_pictures/birthdays/TSAwBDx6XbWQu7q9JervpttK7ID2/1757097448014_pedro muñoz.jpeg",
+      "size": 10246
+    },
+    {
+      "path": "members/zrzzyP72ELVjrlwXjzzJTetQVP83/1784001319975_Screenshot_20260713-224610_Facebook.jpg",
+      "size": 9216
+    },
+    {
+      "path": "members/TSAwBDx6XbWQu7q9JervpttK7ID2-1757642388819.jpg",
+      "size": 7776
+    },
+    {
+      "path": "profile_pictures/birthdays/TSAwBDx6XbWQu7q9JervpttK7ID2/1757095375269_andy loor.jpeg",
+      "size": 4391
+    }
+  ],
+  "missingFromStorage": []
+}

@@ -5,13 +5,17 @@ import {
   cacheImage,
   getCachedImageSrc,
   isCacheableImageUrl,
-  resolveImageSrc,
 } from '@/lib/image-offline-cache';
 import { isBrowserOnline } from '@/lib/network';
 
 /**
- * Returns a displayable image src that works offline when previously cached.
- * Online: original URL (and warms cache). Offline: blob: from Cache Storage.
+ * Returns a displayable image src that prefers the local Cache Storage copy
+ * whenever available (online and offline) to avoid re-downloading Storage bytes.
+ *
+ * Flow:
+ * 1) If cached → blob: immediately (after async cache read)
+ * 2) Else online → show network URL, then switch to blob: once stored
+ * 3) Else offline without cache → original URL (may fail)
  */
 export function useOfflineImageSrc(
   src: string | null | undefined
@@ -19,7 +23,7 @@ export function useOfflineImageSrc(
   const [resolved, setResolved] = useState<string | undefined>(() => {
     if (!src) return undefined;
     if (src.startsWith('blob:') || src.startsWith('data:')) return src;
-    // Online first paint uses original; offline starts empty until cache resolves
+    // First paint: network when online (cache lookup is async); offline waits
     return isBrowserOnline() || !isCacheableImageUrl(src) ? src : undefined;
   });
 
@@ -38,23 +42,27 @@ export function useOfflineImageSrc(
       return;
     }
 
-    // Optimistic: show network URL when online
-    if (isBrowserOnline()) {
-      setResolved(src);
-      void cacheImage(src);
-      return;
-    }
-
-    // Offline: prefer cached blob
     void (async () => {
+      // Always prefer local copy when present (saves cellular data)
       const cached = await getCachedImageSrc(src);
       if (cancelled) return;
       if (cached) {
         setResolved(cached);
         return;
       }
-      const fallback = await resolveImageSrc(src);
-      if (!cancelled) setResolved(fallback);
+
+      if (isBrowserOnline()) {
+        // Not cached yet: paint network URL, then promote to blob: after store
+        setResolved(src);
+        const stored = await cacheImage(src);
+        if (!cancelled && stored) {
+          setResolved(stored);
+        }
+        return;
+      }
+
+      // Offline + no cache
+      setResolved(src);
     })();
 
     return () => {
@@ -62,25 +70,32 @@ export function useOfflineImageSrc(
     };
   }, [src]);
 
-  // When going offline mid-session, swap to blob if we have it
+  // Connectivity flips: keep preferring blob: when available
   useEffect(() => {
     if (!src || !isCacheableImageUrl(src)) return;
 
-    const onOffline = () => {
-      void getCachedImageSrc(src).then((cached) => {
-        if (cached) setResolved(cached);
-      });
-    };
-    const onOnline = () => {
-      setResolved(src);
-      void cacheImage(src);
+    const preferLocalOrWarm = () => {
+      void (async () => {
+        const cached = await getCachedImageSrc(src);
+        if (cached) {
+          setResolved(cached);
+          return;
+        }
+        if (!isBrowserOnline()) {
+          setResolved(src);
+          return;
+        }
+        setResolved(src);
+        const stored = await cacheImage(src);
+        if (stored) setResolved(stored);
+      })();
     };
 
-    window.addEventListener('offline', onOffline);
-    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', preferLocalOrWarm);
+    window.addEventListener('online', preferLocalOrWarm);
     return () => {
-      window.removeEventListener('offline', onOffline);
-      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', preferLocalOrWarm);
+      window.removeEventListener('online', preferLocalOrWarm);
     };
   }, [src]);
 

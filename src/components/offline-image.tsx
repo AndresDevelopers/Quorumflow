@@ -17,8 +17,9 @@ type OfflineImageProps = Omit<
 };
 
 /**
- * Drop-in image that loads from local Cache Storage when offline.
- * Prefer this over next/image for Firebase Storage / remote member photos.
+ * Drop-in image that prefers local Cache Storage (blob:) online and offline
+ * to avoid re-downloading Firebase Storage bytes on the PWA.
+ * Prefer this over next/image for Storage / remote member photos.
  */
 export function OfflineImage({
   src,

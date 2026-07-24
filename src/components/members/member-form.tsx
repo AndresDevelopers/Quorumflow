@@ -900,6 +900,19 @@ export function MemberForm({ member, onClose }: MemberFormProps) {
         }
       }
 
+      // Keep local PWA image cache in sync (add / replace / delete)
+      void import('@/lib/image-offline-cache')
+        .then(({ notifyStorageImageChange }) =>
+          notifyStorageImageChange({
+            previous: [
+              member?.photoURL,
+              ...(member?.baptismPhotos ?? []),
+            ],
+            next: [photoURL, ...baptismPhotoURLs],
+          })
+        )
+        .catch(() => {});
+
       // Verificar si es un bautismo de los últimos 2 años
       const twoYearsAgo = new Date();
       twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);

@@ -121,7 +121,8 @@ export const createHealthConcern = async (
 
 export const deleteHealthConcern = async (
   id: string,
-  photoPath?: string | null
+  photoPath?: string | null,
+  photoURL?: string | null
 ): Promise<void> => {
   const docRef = doc(healthConcernsCollection, id);
   await deleteDoc(docRef);
@@ -133,6 +134,13 @@ export const deleteHealthConcern = async (
     } catch (error) {
       console.error('Error removing health concern photo:', error);
     }
+  }
+  if (photoURL) {
+    void import('@/lib/image-offline-cache')
+      .then(({ notifyStorageImageChange }) =>
+        notifyStorageImageChange({ previous: [photoURL], next: [] })
+      )
+      .catch(() => {});
   }
 };
 
@@ -155,6 +163,15 @@ export const updateHealthConcern = async (
         console.error('Error replacing health concern photo:', error);
       }
     }
+    // New upload is cached via uploadBytesOfflineAware; drop replaced URL from local cache
+    void import('@/lib/image-offline-cache')
+      .then(({ notifyStorageImageChange }) =>
+        notifyStorageImageChange({
+          previous: [input.concern.photoURL],
+          next: [uploadResult?.photoURL],
+        })
+      )
+      .catch(() => {});
   } else if (input.removePhoto && input.concern.photoPath) {
     try {
       const storageRef = ref(storage, input.concern.photoPath);
@@ -162,6 +179,14 @@ export const updateHealthConcern = async (
     } catch (error) {
       console.error('Error removing health concern photo:', error);
     }
+    void import('@/lib/image-offline-cache')
+      .then(({ notifyStorageImageChange }) =>
+        notifyStorageImageChange({
+          previous: [input.concern.photoURL],
+          next: [],
+        })
+      )
+      .catch(() => {});
   }
 
   const data: Record<string, unknown> = {

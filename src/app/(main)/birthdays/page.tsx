@@ -131,6 +131,11 @@ export default function BirthdaysPage() {
         } catch (storageError) {
              logger.warn({ error: storageError, message: 'Could not delete photo from storage, it might not exist.'});
         }
+        void import('@/lib/image-offline-cache')
+          .then(({ notifyStorageImageChange }) =>
+            notifyStorageImageChange({ previous: [birthday.photoURL], next: [] })
+          )
+          .catch(() => {});
       }
 
       await deleteDoc(doc(birthdaysCollection, birthday.id));

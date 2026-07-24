@@ -25,14 +25,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import logger from '@/lib/logger';
 import { useAuth } from '@/contexts/auth-context';
-import { createNotificationsForAll } from '@/lib/notification-helpers';
 import { useI18n } from '@/contexts/i18n-context';
 
 type FamilyWithCompanions = Family & { companionshipId: string; companions: string[] };
 type UrgentFamily = Family & { companions: string[] };
 
 export function UrgentNeedsClient() {
-  const { user, loading: authLoading, barrioOrg, firebaseUser } = useAuth();
+  const { user, loading: authLoading, barrioOrg } = useAuth();
   const { t } = useI18n();
   const [allFamilies, setAllFamilies] = useState<FamilyWithCompanions[]>([]);
   const [urgentFamilies, setUrgentFamilies] = useState<UrgentFamily[]>([]);
@@ -116,44 +115,8 @@ export function UrgentNeedsClient() {
 
       await updateDoc(companionshipRef, { families: updatedFamilies });
 
-      // Send in-app notification to all users in the same barrioOrg about the urgent family need
-      await createNotificationsForAll({
-        title: t('ministering.urgent.notificationTitle'),
-        body: t('ministering.urgent.notificationBody', { familyName, observation }),
-        contextType: 'urgent_family',
-        actionUrl: '/ministering/urgent'
-      }, barrioOrg);
-
-      // Send push notification to all subscribed users using FCM
-      try {
-        const idToken = await firebaseUser?.getIdToken().catch(() => null);
-        if (!idToken) {
-          throw new Error('No autenticado para enviar push');
-        }
-        const pushResponse = await fetch('/api/send-fcm-notification', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            title: t('ministering.urgent.notificationTitle'),
-            body: t('ministering.urgent.pushBody', { familyName, observation }),
-            url: '/ministering/urgent'
-          }),
-        });
-
-        if (!pushResponse.ok) {
-          const pushErrorResponse = await pushResponse.text();
-          logger.warn({
-            message: 'Push notification request failed',
-            status: pushResponse.status,
-            response: pushErrorResponse,
-          });
-        }
-      } catch (pushError) {
-        logger.warn({ error: pushError, message: 'Failed to send push notifications, but in-app notifications were sent' });
-      }
+      // In-app + push are handled by Cloud Function `onUrgentFamilyFlagged`
+      // (scoped by barrioOrg, visiblePages, and category prefs — no client fan-out).
 
       toast({
         title: t('ministering.urgent.successTitle'),

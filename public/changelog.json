@@ -7,12 +7,14 @@
       "changes": {
         "es": {
           "added": [
+            "Agregamos: add PWA offline image support and align notification scoping.",
             "Agregamos: add patriarchal blessing, lifecycle badges, and tooling.",
             "Agregamos: add full interview scheduling, tracking and reminder system."
           ]
         },
         "en": {
           "added": [
+            "We added: add PWA offline image support and align notification scoping.",
             "We added: add patriarchal blessing, lifecycle badges, and tooling.",
             "We added: add full interview scheduling, tracking and reminder system."
           ]

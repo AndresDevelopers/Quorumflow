@@ -28,6 +28,26 @@ function readPackage(pkg, context) {
     pinUuid(pkg, context);
   }
 
+  // fast-uri host confusion (GHSA-v2hh-gcrm-f6hx) — fixed in 3.1.4+
+  if (pkg.dependencies && pkg.dependencies['fast-uri']) {
+    const prev = pkg.dependencies['fast-uri'];
+    if (prev !== '^3.1.4' && prev !== '3.1.4') {
+      pkg.dependencies['fast-uri'] = '^3.1.4';
+      context.log(`[pnpmfile] ${pkg.name}: fast-uri ${prev} → ^3.1.4`);
+    }
+  }
+
+  // fast-xml-parser DOCTYPE entity expansion (GHSA-8r6m-32jq-jx6q) — fixed in 5.10.1+
+  if (pkg.dependencies && pkg.dependencies['fast-xml-parser']) {
+    const prev = pkg.dependencies['fast-xml-parser'];
+    if (prev !== '^5.10.1' && prev !== '5.10.1') {
+      pkg.dependencies['fast-xml-parser'] = '^5.10.1';
+      context.log(
+        `[pnpmfile] ${pkg.name}: fast-xml-parser ${prev} → ^5.10.1`
+      );
+    }
+  }
+
   return pkg;
 }
 

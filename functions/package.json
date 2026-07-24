@@ -20,12 +20,12 @@
     "@xmldom/xmldom": "^0.9.10",
     "date-fns": "^4.1.0",
     "firebase-admin": "^13.8.0",
-    "firebase-functions": "^7.2.5"
+    "firebase-functions": "^7.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@typescript-eslint/eslint-plugin": "^8.59.0",
-    "@typescript-eslint/parser": "^8.59.0",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
     "eslint": "^10.2.1",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.32.0",
@@ -34,7 +34,8 @@
   "private": true,
   "overrides": {
     "fast-xml-builder": "^1.2.0",
-    "fast-uri": "^3.1.2",
+    "fast-uri": "^3.1.4",
+    "fast-xml-parser": "^5.10.1",
     "protobufjs": "7.5.6",
     "@protobufjs/utf8": "^1.1.2",
     "@grpc/grpc-js": "^1.14.4",

@@ -75,14 +75,41 @@ function readPackage(pkg, context) {
   }
 
   // ── postcss (XSS via unescaped </style>) ────────────────────────
-  // Next.js 16.2.10 bundles postcss 8.4.31 internally. Force it to
-  // 8.5.19+ which fixes CVE-2026-41305 (unescaped </style> in CSS
+  // Next.js bundles an older postcss internally. Force it to
+  // 8.5.22+ which fixes CVE-2026-41305 (unescaped </style> in CSS
   // stringify output enabling XSS).
   if (pkg.name === 'next') {
     if (pkg.dependencies && pkg.dependencies['postcss']) {
-      pkg.dependencies['postcss'] = '^8.5.19';
+      pkg.dependencies['postcss'] = '^8.5.22';
       context.log(
-        '[pnpmfile] next: postcss → ^8.5.19'
+        '[pnpmfile] next: postcss → ^8.5.22'
+      );
+    }
+    // next optionalDependency sharp@0.34.x inherits libvips CVEs; force 0.35.3+
+    if (pkg.optionalDependencies && pkg.optionalDependencies['sharp']) {
+      pkg.optionalDependencies['sharp'] = '^0.35.3';
+      context.log('[pnpmfile] next: optional sharp → ^0.35.3');
+    }
+  }
+
+  // ── fast-uri (host confusion via backslash authority) ──────────
+  // ajv pulls fast-uri@3.1.3; GHSA-v2hh-gcrm-f6hx fixed in 3.1.4+
+  if (pkg.dependencies && pkg.dependencies['fast-uri']) {
+    const prev = pkg.dependencies['fast-uri'];
+    if (prev !== '^3.1.4' && prev !== '3.1.4') {
+      pkg.dependencies['fast-uri'] = '^3.1.4';
+      context.log(`[pnpmfile] ${pkg.name}: fast-uri ${prev} → ^3.1.4`);
+    }
+  }
+
+  // ── fast-xml-parser (DOCTYPE entity expansion limit reset) ─────
+  // @google-cloud/storage pins 5.10.0; GHSA-8r6m-32jq-jx6q fixed in 5.10.1+
+  if (pkg.dependencies && pkg.dependencies['fast-xml-parser']) {
+    const prev = pkg.dependencies['fast-xml-parser'];
+    if (prev !== '^5.10.1' && prev !== '5.10.1') {
+      pkg.dependencies['fast-xml-parser'] = '^5.10.1';
+      context.log(
+        `[pnpmfile] ${pkg.name}: fast-xml-parser ${prev} → ^5.10.1`
       );
     }
   }

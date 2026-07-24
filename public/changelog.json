@@ -1,6 +1,22 @@
 {
-  "current": "1.1.38",
+  "current": "1.1.39",
   "entries": [
+    {
+      "version": "1.1.39",
+      "date": "2026-07-24",
+      "changes": {
+        "es": {
+          "improved": [
+            "Mejoramos: bump dependencies and apply security patches."
+          ]
+        },
+        "en": {
+          "improved": [
+            "We improved: bump dependencies and apply security patches."
+          ]
+        }
+      }
+    },
     {
       "version": "1.1.38",
       "date": "2026-07-23",
